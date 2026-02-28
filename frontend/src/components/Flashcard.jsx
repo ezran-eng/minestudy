@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-const Flashcard = ({ isOpen, onClose, materiaName }) => {
-  const cards = [
+const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
+  const defaultCards = [
     { q: '¿Cuál es la dureza del cuarzo en la escala de Mohs?', a: 'Dureza 7 — es uno de los minerales más comunes y resistentes de la corteza terrestre.' },
     { q: '¿Qué significa RQD en geomecánica?', a: 'Rock Quality Designation — mide la calidad de la roca según el porcentaje de testigos intactos mayores a 10 cm.' },
     { q: '¿Qué es la Ley de Corte?', a: 'La ley mínima de mineral para que sea económicamente rentable su extracción, considerando costos operativos y precio del metal.' },
     { q: '¿Qué mineral tiene estructura cúbica y clivaje perfecto en 3 direcciones?', a: 'La galena (PbS) — mineral principal del plomo, con clivaje cúbico perfecto y brillo metálico característico.' },
   ];
+
+  const cards = customCards && customCards.length > 0 ? customCards : defaultCards;
 
   const [cardIdx, setCardIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -25,7 +27,6 @@ const Flashcard = ({ isOpen, onClose, materiaName }) => {
   };
 
   const nextCard = (knew) => {
-    // We could log if they knew it or not here
     setCardIdx((prev) => (prev + 1) % cards.length);
     setFlipped(false);
   };
