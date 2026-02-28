@@ -1,5 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
+
+
+/* Telegram UI Overrides */
+:root {
+  --tg-theme-bg-color: var(--bg);
+  --tg-theme-secondary-bg-color: var(--s2);
+  --tg-theme-text-color: var(--text);
+  --tg-theme-hint-color: var(--text2);
+  --tg-theme-section-bg-color: var(--s1);
+  --tg-theme-section-header-text-color: var(--text2);
+}
+.tgui-9d8a5719bc4a84d4 {
+  background: var(--s1) !important;
+}
+.tgui-6178e718b9587a8b {
+  background-color: transparent !important;
+}
+
+
 :root {
   --bg:      #0e0e0e;
   --s1:      #161616;

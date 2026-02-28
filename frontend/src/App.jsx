@@ -12,7 +12,7 @@ import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser } from './services/api';
 
 // A wrapper component to conditionally show the BottomNav
-const AppContent = () => {
+const AppContent = ({ user }) => {
   const location = useLocation();
   // Bottom nav is typically hidden in detailed screens (MateriaDetail, UnidadDetail) in mobile apps
   // But based on the HTML prototype, the bottom nav was a global fixed element at the bottom.
@@ -28,7 +28,7 @@ const AppContent = () => {
         <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
-      <BottomNav />
+      <BottomNav user={user} />
     </>
   );
 };
@@ -59,7 +59,7 @@ const App = () => {
 
   return (
     <Router>
-      <AppContent />
+      <AppContent user={user} />
     </Router>
   );
 };
