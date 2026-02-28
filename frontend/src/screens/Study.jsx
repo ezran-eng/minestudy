@@ -1,11 +1,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { materiasData } from '../data/materias';
+import ProgressRing from '../components/ProgressRing';
 
 const Study = () => {
   const navigate = useNavigate();
 
   const handleMateriaClick = (id) => {
     navigate(`/materia/${id}`);
+  };
+
+  const materiaStyles = {
+    'm1': { color: 'var(--gold)' },
+    'm2': { color: 'var(--rust)' },
+    'm3': { color: 'var(--blue)' },
+    'm4': { color: 'var(--green)' },
+    'm5': { color: '#c47dd4' },
+    'm6': { color: 'var(--stone)' },
   };
 
   return (
@@ -16,89 +27,29 @@ const Study = () => {
       </div>
       <div className="materias-list">
 
-        <div className="materia-row m1" onClick={() => handleMateriaClick('m1')}>
-          <div className="materia-emoji-big">⚙️</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Prácticas Profesionalizantes</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">38%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '38%', background: 'var(--gold)' }}></div>
+        {Object.entries(materiasData).map(([id, materia]) => (
+          <div key={id} className={`materia-row ${id}`} onClick={() => handleMateriaClick(id)}>
+            <div className="materia-emoji-big">{materia.emoji}</div>
+            <div className="materia-info">
+              <div className="materia-name-row">{materia.name}</div>
+              <div className="materia-bottom">
+                <span className="materia-pct">{materia.pct}%</span>
+                <div className="mini-bar-wrap">
+                  <div className="mini-bar" style={{ width: `${materia.pct}%`, background: materiaStyles[id].color }}></div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="materia-arrow">›</div>
-        </div>
 
-        <div className="materia-row m2" onClick={() => handleMateriaClick('m2')}>
-          <div className="materia-emoji-big">💥</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Perforación y Voladura</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">62%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '62%', background: 'var(--rust)' }}></div>
-              </div>
-            </div>
-          </div>
-          <div className="materia-arrow">›</div>
-        </div>
+            <ProgressRing
+              radius={24}
+              stroke={3}
+              progress={materia.pct}
+              color={materiaStyles[id].color}
+            />
 
-        <div className="materia-row m3" onClick={() => handleMateriaClick('m3')}>
-          <div className="materia-emoji-big">🗺️</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Topografía Minera</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">15%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '15%', background: 'var(--blue)' }}></div>
-              </div>
-            </div>
+            <div className="materia-arrow">›</div>
           </div>
-          <div className="materia-arrow">›</div>
-        </div>
-
-        <div className="materia-row m4" onClick={() => handleMateriaClick('m4')}>
-          <div className="materia-emoji-big">🧪</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Mineralogía y Petrografía</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">75%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '75%', background: 'var(--green)' }}></div>
-              </div>
-            </div>
-          </div>
-          <div className="materia-arrow">›</div>
-        </div>
-
-        <div className="materia-row m5" onClick={() => handleMateriaClick('m5')}>
-          <div className="materia-emoji-big">🏗️</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Geomecánica</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">44%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '44%', background: '#c47dd4' }}></div>
-              </div>
-            </div>
-          </div>
-          <div className="materia-arrow">›</div>
-        </div>
-
-        <div className="materia-row m6" onClick={() => handleMateriaClick('m6')}>
-          <div className="materia-emoji-big">🌊</div>
-          <div className="materia-info">
-            <div className="materia-name-row">Hidrogeología</div>
-            <div className="materia-bottom">
-              <span className="materia-pct">20%</span>
-              <div className="mini-bar-wrap">
-                <div className="mini-bar" style={{ width: '20%', background: 'var(--stone)' }}></div>
-              </div>
-            </div>
-          </div>
-          <div className="materia-arrow">›</div>
-        </div>
+        ))}
 
       </div>
     </div>
