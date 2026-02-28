@@ -1,35 +1,41 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
-function App() {
-  const [count, setCount] = useState(0)
+import Home from './screens/Home';
+import Study from './screens/Study';
+import MateriaDetail from './screens/MateriaDetail';
+import UnidadDetail from './screens/UnidadDetail';
+import Profile from './screens/Profile';
+import BottomNav from './components/BottomNav';
+
+// A wrapper component to conditionally show the BottomNav
+const AppContent = () => {
+  const location = useLocation();
+  // Bottom nav is typically hidden in detailed screens (MateriaDetail, UnidadDetail) in mobile apps
+  // But based on the HTML prototype, the bottom nav was a global fixed element at the bottom.
+  // We'll show it everywhere or customize based on the path if needed.
+  // The HTML shows screen bottom: 64px which accounts for the bottom nav.
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/study" element={<Study />} />
+        <Route path="/materia/:id" element={<MateriaDetail />} />
+        <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
+        <Route path="/profile" element={<Profile />} />
+      </Routes>
+      <BottomNav />
     </>
-  )
-}
+  );
+};
 
-export default App
+const App = () => {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+};
+
+export default App;
