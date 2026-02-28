@@ -28,74 +28,59 @@ const Profile = () => {
       });
   }, []);
 
-  // Use backend data if available, fallback to Telegram WebApp data, then default
   const displayUser = backendUser || user;
-  const profileName = displayUser ? `${displayUser.first_name} ${displayUser.last_name || ''}`.trim() : 'Estudiante de Minería';
+  const profileName = displayUser ? `${displayUser.first_name || ''} ${displayUser.last_name || ''}`.trim() : 'Estudiante de Minería';
   const username = displayUser?.username ? `@${displayUser.username}` : 'Sin nombre de usuario';
   const photoUrl = backendUser ? backendUser.foto_url : user?.photo_url;
+  const racha = backendUser?.racha || 0;
 
   return (
     <div className="screen active" id="screen-profile">
-      <div className="profile-header">
-        <div className="profile-title">Mi Perfil</div>
+      <div className="profile-topbar">
+        <div className="profile-topbar-title">Mi Perfil</div>
       </div>
       <div className="profile-body">
-        <div className="profile-avatar">
-          {photoUrl ? (
-            <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
-          ) : (
-            '⛏️'
-          )}
-        </div>
-        <div className="profile-name">{profileName}</div>
-        <div className="profile-tag">{username}</div>
-
-        <div className="stats-row">
-          <div className="stat-card"><div className="stat-value">{backendUser?.racha || 0}</div><div className="stat-label">Racha</div></div>
-          <div className="stat-card"><div className="stat-value">284</div><div className="stat-label">Sesiones</div></div>
-          <div className="stat-card"><div className="stat-value">89%</div><div className="stat-label">Precisión</div></div>
+        <div className="profile-hero">
+          <div className="profile-avatar-big">
+            {photoUrl ? <img src={photoUrl} alt="Avatar" /> : '⛏️'}
+          </div>
+          <div className="profile-name">{profileName || 'Estudiante'}</div>
+          <div className="profile-user">{username}</div>
         </div>
 
-        <div className="profile-section">
-          <div className="profile-section-title">Ranking Global (Progreso Promedio)</div>
+        <div className="stats-grid" style={{ marginBottom: '16px' }}>
+          <div className="stat-card"><div className="stat-val">{racha}</div><div className="stat-lbl">Racha</div></div>
+          <div className="stat-card"><div className="stat-val">284</div><div className="stat-lbl">Sesiones</div></div>
+          <div className="stat-card"><div className="stat-val">89%</div><div className="stat-lbl">Precisión</div></div>
+        </div>
+
+        <div className="ranking-card">
+          <div className="ranking-title">Ranking Global</div>
           {loadingRanking ? (
-            <div style={{ padding: '16px', textAlign: 'center' }}>Cargando ranking...</div>
+            <div className="ranking-empty">Cargando ranking...</div>
           ) : ranking.length === 0 ? (
-            <div style={{ padding: '16px', textAlign: 'center' }}>No hay datos de ranking.</div>
+            <div className="ranking-empty">No hay datos de ranking aún.</div>
           ) : (
-            ranking.map((rankUser, index) => (
-              <div className="profile-row" key={rankUser.id_telegram}>
-                <div className="profile-row-label">
-                  <strong>#{index + 1}</strong> {rankUser.first_name} {rankUser.last_name || ''}
-                </div>
-                <div className="profile-row-val">{Number(rankUser.total_progress).toFixed(1)}%</div>
+            ranking.slice(0, 5).map((rankUser, index) => (
+              <div className="ranking-item" key={rankUser.id_telegram || index}>
+                <div className="rank-pos">#{index + 1}</div>
+                <div className="rank-name">{rankUser.first_name} {rankUser.last_name || ''}</div>
+                <div className="rank-score">{Number(rankUser.total_progress).toFixed(1)}%</div>
               </div>
             ))
           )}
         </div>
 
-        <div className="profile-section">
-          <div className="profile-section-title">Configuración</div>
-          <div className="profile-row">
-            <div className="profile-row-label">🔔 Notificaciones</div>
-            <div className="profile-row-val">Activas</div>
-          </div>
-          <div className="profile-row">
-            <div className="profile-row-label">🌐 Idioma</div>
-            <div className="profile-row-val">Español</div>
-          </div>
-          <div className="profile-row">
-            <div className="profile-row-label">📤 Exportar progreso</div>
-            <div className="profile-row-val">›</div>
-          </div>
+        <div className="profile-settings">
+          <div className="settings-title">Configuración</div>
+          <div className="setting-row"><div className="setting-label">🔔 Notificaciones</div><div className="setting-val">Activas</div></div>
+          <div className="setting-row"><div className="setting-label">🌐 Idioma</div><div className="setting-val">Español</div></div>
+          <div className="setting-row"><div className="setting-label">📤 Exportar progreso</div><div className="setting-val">›</div></div>
         </div>
 
-        <div className="profile-section">
-          <div className="profile-section-title">Acerca de</div>
-          <div className="profile-row">
-            <div className="profile-row-label">⚡ MineStudy Hub</div>
-            <div className="profile-row-val">v1.0</div>
-          </div>
+        <div className="profile-settings">
+          <div className="settings-title">Acerca de</div>
+          <div className="setting-row"><div className="setting-label">✦ DaathApp</div><div className="setting-val">v1.0</div></div>
         </div>
       </div>
     </div>

@@ -29,40 +29,35 @@ const MateriaDetail = () => {
           </div>
         </div>
 
-        <div className="section-head">
+        <div className="section-head" style={{ marginBottom: '10px' }}>
           <div className="section-title">Programa</div>
         </div>
-        <div className="program-units">
+        <div className="unidades-list">
           {materia.unidades.map((u, i) => {
-            const isPending = u.status === 'pending';
-            const statusClass = u.status === 'done' ? 'done' : u.status === 'active' ? 'active-unit' : 'pending-unit';
-            const badgeClass = u.status === 'done' ? 'done' : u.status === 'active' ? 'active' : 'pending';
-            const badgeText = u.status === 'done' ? '✓ Completa' : u.status === 'active' ? 'En curso' : 'Pendiente';
+            const isPending = u.status === 'pending' || u.status === 'pend';
+            const statusClass = u.status === 'done' ? 'done' : (u.status === 'active' || u.status === 'cur') ? 'cur' : 'pend';
+            const badgeClass = u.status === 'done' ? 'done' : (u.status === 'active' || u.status === 'cur') ? 'cur' : 'pend';
+            const badgeText = u.status === 'done' ? '✓ Completa' : (u.status === 'active' || u.status === 'cur') ? 'En curso' : 'Pendiente';
 
             if (isPending) {
               return (
-                <div key={i} className={`pu-item ${statusClass}`}>
+                <div key={i} className={`unit-item ${statusClass}`}>
                   <div className="pu-left">
-                    <div className="pu-header">
-                      <span className="pu-name">{u.name}</span>
-                      <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
-                    </div>
+                    <div className="pu-name" style={{ marginBottom: '4px' }}>{u.name}</div>
                     <div className="pu-topics">{u.topics}</div>
                   </div>
+                  <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
                 </div>
               );
             }
 
             return (
-              <Link to={`/materia/${id}/unidad/${i}`} key={i} className={`pu-item ${statusClass}`}>
+              <Link to={`/materia/${id}/unidad/${i}`} key={i} className={`unit-item ${statusClass}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="pu-left">
-                  <div className="pu-header">
-                    <span className="pu-name">{u.name}</span>
-                    <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
-                  </div>
+                  <div className="pu-name" style={{ marginBottom: '4px' }}>{u.name}</div>
                   <div className="pu-topics">{u.topics}</div>
                 </div>
-                <div className="pu-arrow">›</div>
+                <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
               </Link>
             );
           })}
