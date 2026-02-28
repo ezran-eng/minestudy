@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTelegram } from '../hooks/useTelegram';
 import { getRanking, getUserProfile } from '../services/api';
+import { Section, Cell } from '@telegram-apps/telegram-ui';
 
 const Profile = () => {
   const { user } = useTelegram();
@@ -71,17 +72,16 @@ const Profile = () => {
           )}
         </div>
 
-        <div className="profile-settings">
-          <div className="settings-title">Configuración</div>
-          <div className="setting-row"><div className="setting-label">🔔 Notificaciones</div><div className="setting-val">Activas</div></div>
-          <div className="setting-row"><div className="setting-label">🌐 Idioma</div><div className="setting-val">Español</div></div>
-          <div className="setting-row"><div className="setting-label">📤 Exportar progreso</div><div className="setting-val">›</div></div>
-        </div>
+        <Section header="Configuración" style={{ marginBottom: '16px', borderRadius: 'var(--r2)', overflow: 'hidden' }}>
+          <Cell before="🔔" after="Activas">Notificaciones</Cell>
+          <Cell before="🌐" after="Español">Idioma</Cell>
+          <Cell before="📤" after="›">Exportar progreso</Cell>
+        </Section>
 
-        <div className="profile-settings">
-          <div className="settings-title">Acerca de</div>
-          <div className="setting-row"><div className="setting-label">✦ DaathApp</div><div className="setting-val">v1.0</div></div>
-        </div>
+        <Section header="Acerca de" style={{ borderRadius: 'var(--r2)', overflow: 'hidden' }}>
+          <Cell before="✦" after="v1.0">DaathApp</Cell>
+        </Section>
+
       </div>
     </div>
   );

@@ -3,11 +3,10 @@ export function useTelegram() {
 
   if (tg) {
     tg.ready();
+    tg.setHeaderColor('#0e0e0e');
+    tg.setBackgroundColor('#0e0e0e');
+    tg.expand();
   }
-
-  console.log('Telegram WebApp:', window.Telegram?.WebApp);
-  console.log('initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
-  console.log('user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
 
   const rawUser = tg?.initDataUnsafe?.user;
 

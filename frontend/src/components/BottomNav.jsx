@@ -1,24 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTelegram } from '../hooks/useTelegram';
-import { getUserProfile } from '../services/api';
 
-const BottomNav = () => {
+const BottomNav = ({ user }) => {
   const location = useLocation();
-  const { user } = useTelegram();
-  const [backendUser, setBackendUser] = useState(null);
 
-  useEffect(() => {
-    if (user && user.id) {
-      getUserProfile(user.id)
-        .then(data => setBackendUser(data))
-        .catch(err => console.error('Error fetching backend user for BottomNav:', err));
-    }
-  }, [user]);
-
-  const displayUser = backendUser || user;
-  const initial = displayUser?.first_name ? displayUser.first_name[0].toUpperCase() : 'E';
-  const photoUrl = displayUser?.foto_url || user?.photo_url;
+  const initial = user?.first_name ? user.first_name[0].toUpperCase() : 'E';
+  const photoUrl = user?.photo_url;
 
   return (
     <div className="bottom-nav">
@@ -34,7 +21,7 @@ const BottomNav = () => {
         <div className="nav-avatar">
           {photoUrl ? <img src={photoUrl} alt="Avatar" /> : initial}
         </div>
-        <div className="nav-label">Perfil</div>
+
       </Link>
     </div>
   );
