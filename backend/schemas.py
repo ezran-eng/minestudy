@@ -8,18 +8,17 @@ class ProgresoBase(BaseModel):
     porcentaje: int
 
 class ProgresoCreate(ProgresoBase):
-    id_usuario: str
+    id_usuario: int
 
 class Progreso(ProgresoBase):
     id: int
-    id_usuario: str
+    id_usuario: int
     fecha: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 class UserBase(BaseModel):
-    id_telegram: str
+    id_telegram: int
     first_name: str
     last_name: Optional[str] = None
     username: Optional[str] = None
@@ -34,16 +33,14 @@ class User(UserBase):
     fecha_registro: datetime
     progresos: List[Progreso] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 class RankingUser(BaseModel):
-    id_telegram: str
+    id_telegram: int
     first_name: str
     last_name: Optional[str] = None
     username: Optional[str] = None
     foto_url: Optional[str] = None
     total_progress: float
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
