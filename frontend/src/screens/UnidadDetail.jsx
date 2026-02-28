@@ -33,14 +33,11 @@ const UnidadDetail = () => {
       const lines = csv.split('\n');
 
       const parsedCards = [];
-      // Start from 1 assuming header is 'question,answer'
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line) {
-          // A very basic CSV parser that splits by comma.
-          // In a real app, you might want to handle quoted strings with commas inside.
           const [q, ...aRest] = line.split(',');
-          const a = aRest.join(','); // Rejoin in case answer has commas
+          const a = aRest.join(',');
           if (q && a) {
             parsedCards.push({ q: q.trim(), a: a.trim() });
           }
@@ -55,7 +52,6 @@ const UnidadDetail = () => {
       }
     };
     reader.readAsText(file);
-    // reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -69,15 +65,15 @@ const UnidadDetail = () => {
         <div className="detail-body">
           <div className="pu-topics-box">
             {topicsArray.map((t, i) => (
-              <span key={i} style={{ display: 'inline-block', background: 'var(--s3)', borderRadius: '6px', padding: '3px 10px', margin: '3px 3px', fontSize: '12px', color: 'var(--text2)' }}>
+              <span key={i} style={{ display: 'inline-block', background: 'var(--s3)', borderRadius: '8px', padding: '5px 12px', margin: '3px 3px', fontSize: '11px', color: 'var(--text2)', fontWeight: 500 }}>
                 {t}
               </span>
             ))}
           </div>
-          <div className="section-head" style={{ marginTop: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="section-head" style={{ marginTop: '18px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="section-title">Recursos</div>
             <button
-              className="btn-add"
+              className="btn-new"
               onClick={() => fileInputRef.current && fileInputRef.current.click()}
             >
               Importar Flashcards
@@ -95,7 +91,7 @@ const UnidadDetail = () => {
               <div className="resource-icon-wrap">🃏</div>
               <div className="resource-info">
                 <div className="resource-name">Flashcards</div>
-                <div className="resource-sub">Repaso con tarjetas · spaced repetition</div>
+                <div className="resource-sub">Repaso con spaced repetition</div>
               </div>
               <div className="resource-badge">
                 {customFlashcards ? `${customFlashcards.length} tarjetas` : '12 tarjetas'}
@@ -105,7 +101,7 @@ const UnidadDetail = () => {
               <div className="resource-icon-wrap">🎯</div>
               <div className="resource-info">
                 <div className="resource-name">Quiz IA</div>
-                <div className="resource-sub">Preguntas generadas desde tus PDFs</div>
+                <div className="resource-sub">Preguntas desde tus PDFs</div>
               </div>
               <div className="resource-badge">Nuevo</div>
             </div>
