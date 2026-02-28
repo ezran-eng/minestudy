@@ -17,7 +17,7 @@ app = FastAPI(title="MineStudy Hub API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -39,7 +39,7 @@ def create_or_update_user(user: schemas.UserCreate, db: Session = Depends(get_db
     return db_user
 
 @app.get("/users/{id_telegram}", response_model=schemas.User)
-def get_user_profile(id_telegram: str, db: Session = Depends(get_db)):
+def get_user_profile(id_telegram: int, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id_telegram == id_telegram).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

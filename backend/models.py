@@ -6,7 +6,7 @@ import datetime
 class User(Base):
     __tablename__ = "users"
 
-    id_telegram = Column(String, primary_key=True, index=True)
+    id_telegram = Column(Integer, primary_key=True, index=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=True)
     username = Column(String, nullable=True)
@@ -31,7 +31,7 @@ class Progreso(Base):
     __tablename__ = "progreso"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(String, ForeignKey("users.id_telegram"), nullable=False)
+    id_usuario = Column(Integer, ForeignKey("users.id_telegram"), nullable=False)
     id_materia = Column(Integer, ForeignKey("materias.id"), nullable=False)
     id_unidad = Column(Integer, nullable=False)
     porcentaje = Column(Integer, nullable=False, default=0)
