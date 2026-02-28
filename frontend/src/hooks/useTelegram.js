@@ -6,6 +6,9 @@ export function useTelegram() {
     tg.setHeaderColor('#0e0e0e');
     tg.setBackgroundColor('#0e0e0e');
     tg.expand();
+    if (tg.requestFullscreen) {
+      tg.requestFullscreen();
+    }
   }
 
   const rawUser = tg?.initDataUnsafe?.user;
