@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>MineStudy Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:     #0d0c0a;
+  --s1:     #151410;
+  --s2:     #1e1c17;
+  --s3:     #272420;
+  --gold:   #d4a847;
+  --gold2:  #f0c96a;
+  --rust:   #c4622d;
+  --stone:  #8a7d6b;
+  --text:   #ede8df;
+  --text2:  #9a8f7e;
+  --green:  #6abf7a;
+  --blue:   #5a9fd4;
+  --border: #2e2a22;
+  --r:      14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow:hidden;}
+
+/* ── SCREENS ── */
+.screen{
+  position:fixed;inset:0;bottom:64px;
+  overflow-y:auto;
+  display:none;
+  padding:0 0 16px;
+}
+.screen.active{display:block;}
+
+/* ── HEADER ── */
+.header{
+  padding:14px 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:var(--s1);
+  position:sticky;top:0;z-index:50;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{
+  width:34px;height:34px;
+  background:linear-gradient(135deg,var(--gold),var(--rust));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+}
+.brand-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;line-height:1;}
+.brand-name span{color:var(--gold);}
+.streak{
+  display:flex;align-items:center;gap:6px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:20px;padding:5px 12px;
+  font-size:12px;font-weight:600;color:var(--gold);
+}
+
+.pad{padding:14px 16px 0;}
+
+/* ── GREETING ── */
+.greeting{margin-bottom:18px;}
+.greeting-sub{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;}
+.greeting-name{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:0.5px;line-height:1.1;}
+.greeting-name span{color:var(--gold);}
+
+/* ── DAILY CARD ── */
+.daily-card{
+  background:linear-gradient(135deg,var(--s2) 0%,#1a1710 100%);
+  border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;
+  margin-bottom:20px;position:relative;overflow:hidden;
+}
+.daily-card::before{
+  content:'';position:absolute;top:-30px;right:-30px;
+  width:120px;height:120px;
+  background:radial-gradient(circle,rgba(212,168,71,0.12),transparent 70%);
+  pointer-events:none;
+}
+.daily-label{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:6px;
+}
+.daily-label::before{content:'';width:16px;height:2px;background:var(--gold);border-radius:1px;}
+.daily-title{font-size:15px;font-weight:600;margin-bottom:10px;line-height:1.4;}
+.daily-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.daily-chip{
+  background:var(--s3);border-radius:6px;padding:4px 10px;
+  font-size:11px;font-weight:500;color:var(--text2);
+}
+.progress-bar-wrap{background:var(--s3);border-radius:4px;height:5px;margin-bottom:6px;}
+.progress-bar{height:5px;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width 0.8s ease;}
+.progress-label{font-size:11px;color:var(--text2);margin-bottom:12px;}
+.btn-primary{
+  background:linear-gradient(135deg,var(--gold),var(--rust));
+  border:none;border-radius:10px;
+  color:#0d0c0a;font-family:'Outfit',sans-serif;
+  font-size:13px;font-weight:700;
+  padding:10px 20px;cursor:pointer;
+  transition:opacity 0.2s,transform 0.1s;
+}
+.btn-primary:active{transform:scale(0.97);opacity:0.9;}
+
+/* ── SECTION HEADER ── */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;
+}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:0.5px;}
+
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+.stat-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:12px;padding:12px 10px;text-align:center;
+}
+.stat-value{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--gold);margin-bottom:2px;}
+.stat-label{font-size:10px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;}
+
+/* ── ACTIVITY ── */
+.activity-list{display:flex;flex-direction:column;gap:8px;}
+.activity-item{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;
+  display:flex;align-items:center;gap:12px;
+}
+.activity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.activity-dot.gold{background:var(--gold);}
+.activity-dot.rust{background:var(--rust);}
+.activity-dot.green{background:var(--green);}
+.activity-info{flex:1;}
+.activity-text{font-size:13px;font-weight:500;}
+.activity-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.activity-score{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--gold);}
+
+/* ══════════════════════════
+   STUDY SCREEN
+══════════════════════════ */
+.study-header{
+  padding:14px 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:var(--s1);
+  position:sticky;top:0;z-index:50;
+}
+.study-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.5px;}
+.btn-add{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:8px;color:var(--gold);
+  font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;
+}
+
+/* materias list */
+.materias-list{display:flex;flex-direction:column;gap:10px;padding:14px 16px 0;}
+
+.materia-row{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;
+  cursor:pointer;transition:border-color 0.2s,transform 0.15s;
+  display:flex;align-items:center;gap:14px;
+  position:relative;overflow:hidden;
+}
+.materia-row::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:3px;border-radius:3px 0 0 3px;
+}
+.materia-row.m1::before{background:var(--gold);}
+.materia-row.m2::before{background:var(--rust);}
+.materia-row.m3::before{background:var(--blue);}
+.materia-row.m4::before{background:var(--green);}
+.materia-row.m5::before{background:#c47dd4;}
+.materia-row.m6::before{background:var(--stone);}
+.materia-row:active{transform:scale(0.98);}
+
+.materia-emoji-big{font-size:26px;flex-shrink:0;}
+.materia-info{flex:1;min-width:0;}
+.materia-name-row{font-size:14px;font-weight:600;margin-bottom:5px;}
+.materia-bottom{display:flex;align-items:center;gap:8px;}
+.materia-pct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);}
+.mini-bar-wrap{flex:1;height:3px;background:var(--s3);border-radius:2px;}
+.mini-bar{height:3px;border-radius:2px;}
+.materia-arrow{color:var(--text2);font-size:16px;flex-shrink:0;}
+
+/* ══════════════════════════
+   MATERIA DETAIL SCREEN
+══════════════════════════ */
+#screen-detail .detail-header{
+  padding:14px 16px 10px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);
+  background:var(--s1);
+  position:sticky;top:0;z-index:50;
+}
+.btn-back{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text2);
+  font-size:18px;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+}
+.detail-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.5px;flex:1;}
+
+.detail-body{padding:14px 16px 0;}
+
+/* progress overview */
+.detail-prog{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:18px;
+}
+.detail-prog-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.detail-prog-label{font-size:12px;color:var(--text2);font-weight:500;}
+.detail-prog-pct{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);}
+.detail-bar-wrap{background:var(--s3);border-radius:4px;height:6px;}
+.detail-bar{height:6px;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold2));}
+
+/* resource cards */
+.resources-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+
+.resource-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;
+  cursor:pointer;transition:border-color 0.2s,transform 0.15s;
+  display:flex;align-items:center;gap:16px;
+}
+.resource-card:active{transform:scale(0.98);}
+.resource-card.flash{border-left:3px solid var(--gold);}
+.resource-card.quiz{border-left:3px solid var(--rust);}
+.resource-card.program{border-left:3px solid var(--blue);}
+
+.resource-icon-wrap{
+  width:48px;height:48px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+}
+.flash .resource-icon-wrap{background:rgba(212,168,71,0.1);}
+.quiz .resource-icon-wrap{background:rgba(196,98,45,0.1);}
+.program .resource-icon-wrap{background:rgba(90,159,212,0.1);}
+
+.resource-info{flex:1;}
+.resource-name{font-size:15px;font-weight:600;margin-bottom:3px;}
+.resource-sub{font-size:12px;color:var(--text2);}
+.resource-badge{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;font-weight:600;padding:3px 8px;
+  border-radius:6px;flex-shrink:0;
+}
+.flash .resource-badge{background:rgba(212,168,71,0.1);color:var(--gold);}
+.quiz .resource-badge{background:rgba(196,98,45,0.1);color:var(--rust);}
+.program .resource-badge{background:rgba(90,159,212,0.1);color:var(--blue);}
+
+/* unidades */
+.unidades-list{display:flex;flex-direction:column;gap:8px;}
+.unidad-item{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.unidad-name{font-size:13px;font-weight:500;}
+.unidad-status{font-size:11px;font-weight:600;}
+.unidad-status.done{color:var(--green);}
+.unidad-status.active{color:var(--gold);}
+.unidad-status.pending{color:var(--text2);opacity:0.5;}
+
+/* ══════════════════════════
+   PROFILE SCREEN
+══════════════════════════ */
+.profile-header{
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--border);
+  background:var(--s1);
+  position:sticky;top:0;z-index:50;
+}
+.profile-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.5px;}
+
+.profile-body{padding:20px 16px 0;}
+.profile-avatar{
+  width:72px;height:72px;
+  background:linear-gradient(135deg,var(--gold),var(--rust));
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;margin:0 auto 12px;
+}
+.profile-name{text-align:center;font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:0.5px;margin-bottom:4px;}
+.profile-tag{text-align:center;font-size:12px;color:var(--text2);margin-bottom:20px;}
+
+.profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+
+.profile-section{margin-bottom:20px;}
+.profile-section-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:10px;}
+.profile-row{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:10px;padding:13px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.profile-row-label{font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;}
+.profile-row-val{font-size:12px;color:var(--text2);}
+
+/* ══════════════════════════
+   BOTTOM NAV
+══════════════════════════ */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--s1);border-top:1px solid var(--border);
+  display:grid;grid-template-columns:repeat(3,1fr);
+  padding:8px 0 14px;z-index:100;height:64px;
+}
+.nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  cursor:pointer;
+}
+.nav-icon{font-size:20px;line-height:1;}
+.nav-label{font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;}
+.nav-item.active .nav-label{color:var(--gold);}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--gold);margin:0 auto;opacity:0;}
+.nav-item.active .nav-dot{opacity:1;}
+
+/* ══════════════════════════
+   OVERLAYS (Flashcard / Quiz)
+══════════════════════════ */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:200;display:flex;align-items:flex-end;
+  opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+.overlay.show{opacity:1;pointer-events:all;}
+.sheet{
+  background:var(--s1);border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  padding:16px 16px 32px;width:100%;
+  transform:translateY(100%);transition:transform 0.3s ease;
+  max-height:85vh;overflow-y:auto;
+}
+.overlay.show .sheet{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.sheet-title{font-family:'Bebas Neue',sans-serif;font-size:22px;margin-bottom:4px;letter-spacing:0.5px;}
+.sheet-sub{font-size:12px;color:var(--text2);margin-bottom:16px;}
+
+/* flashcard */
+.flashcard{
+  background:var(--s2);border:1px solid var(--gold);
+  border-radius:var(--r);padding:28px 20px;
+  text-align:center;min-height:130px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform 0.15s,background 0.2s;
+  margin-bottom:10px;gap:8px;
+}
+.flashcard:active{transform:scale(0.98);}
+.fc-question{font-size:15px;font-weight:600;line-height:1.5;}
+.fc-answer{font-size:13px;color:var(--gold2);line-height:1.5;display:none;}
+.fc-hint{font-size:11px;color:var(--text2);margin-top:4px;}
+.fc-dots{display:flex;justify-content:center;gap:6px;margin-bottom:14px;}
+.fc-dot{width:7px;height:7px;border-radius:50%;background:var(--s3);}
+.fc-dot.active{background:var(--gold);}
+.fc-actions{display:flex;gap:8px;}
+.btn-wrong{flex:1;background:rgba(196,98,45,0.12);border:1px solid rgba(196,98,45,0.35);color:var(--rust);border-radius:10px;padding:12px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-correct{flex:1;background:rgba(106,191,122,0.12);border:1px solid rgba(106,191,122,0.35);color:var(--green);border-radius:10px;padding:12px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+
+/* quiz */
+.quiz-question{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;margin-bottom:14px;
+  font-size:14px;font-weight:500;line-height:1.5;
+}
+.quiz-options{display:flex;flex-direction:column;gap:8px;}
+.quiz-opt{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;
+  font-size:13px;cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;gap:10px;
+}
+.quiz-opt:active{border-color:var(--gold);}
+.quiz-opt.correct{border-color:var(--green);background:rgba(106,191,122,0.1);color:var(--green);}
+.quiz-opt.wrong{border-color:var(--rust);background:rgba(196,98,45,0.1);color:var(--rust);}
+.opt-letter{
+  width:26px;height:26px;border-radius:7px;
+  background:var(--s3);font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text2);flex-shrink:0;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* program units */
+.program-units{display:flex;flex-direction:column;gap:8px;}
+.pu-item{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:14px 16px;
+  cursor:pointer;transition:border-color 0.2s, transform 0.15s;
+  display:flex;align-items:center;gap:12px;
+}
+.pu-item:active{transform:scale(0.98);}
+.pu-item.done:hover{border-color:var(--green);}
+.pu-item.active-unit:hover{border-color:var(--gold);}
+.pu-item.pending-unit{opacity:0.5;}
+.pu-left{flex:1;min-width:0;}
+.pu-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.pu-name{font-size:13px;font-weight:600;}
+.pu-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.pu-badge.done{background:rgba(106,191,122,0.15);color:var(--green);}
+.pu-badge.active{background:rgba(212,168,71,0.15);color:var(--gold);}
+.pu-badge.pending{background:var(--s3);color:var(--text2);}
+.pu-topics{font-size:11px;color:var(--text2);line-height:1.5;}
+.pu-arrow{color:var(--text2);font-size:18px;flex-shrink:0;}
+.pu-item.pending-unit .pu-arrow{display:none;}
+
+/* unidad topics box */
+.pu-topics-box{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;
+  font-size:12px;color:var(--text2);line-height:1.8;
+}
+
+/* animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.materia-row{animation:fadeUp 0.35s ease both;}
+.materia-row:nth-child(1){animation-delay:0.04s;}
+.materia-row:nth-child(2){animation-delay:0.08s;}
+.materia-row:nth-child(3){animation-delay:0.12s;}
+.materia-row:nth-child(4){animation-delay:0.16s;}
+.materia-row:nth-child(5){animation-delay:0.20s;}
+.materia-row:nth-child(6){animation-delay:0.24s;}
+</style>
+</head>
+<body>
+
+<!-- ══════════ SCREEN: INICIO ══════════ -->
+<div class="screen active" id="screen-home">
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">⛏️</div>
+      <div class="brand-name">Mine<span>Study</span></div>
+    </div>
+    <div class="streak">🔥 7 días</div>
+  </div>
+  <div class="pad">
+    <div class="greeting">
+      <div class="greeting-sub">Bienvenido de vuelta</div>
+      <div class="greeting-name">Listo para <span>estudiar?</span></div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-label">Foco del día</div>
+      <div class="daily-title">Prácticas Profesionalizantes — Unidad 3: Seguridad Operacional</div>
+      <div class="daily-meta">
+        <div class="daily-chip">📚 12 temas</div>
+        <div class="daily-chip">⏱ ~45 min</div>
+        <div class="daily-chip">🎯 Final libre</div>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:38%"></div></div>
+      <div class="progress-label">38% completado — 7 de 18 temas</div>
+      <button class="btn-primary" onclick="goToStudy()">▶ Continuar estudio</button>
+    </div>
+
+    <div class="section-head"><div class="section-title">Tu progreso</div></div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Flashcards</div></div>
+      <div class="stat-card"><div class="stat-value">89%</div><div class="stat-label">Precisión</div></div>
+      <div class="stat-card"><div class="stat-value">6</div><div class="stat-label">Materias</div></div>
+    </div>
+
+    <div class="section-head" style="margin-top:4px"><div class="section-title">Actividad reciente</div></div>
+    <div class="activity-list">
+      <div class="activity-item">
+        <div class="activity-dot gold"></div>
+        <div class="activity-info">
+          <div class="activity-text">Quiz completado — Voladura</div>
+          <div class="activity-sub">hace 2 horas · 15 preguntas</div>
+        </div>
+        <div class="activity-score">13/15</div>
+      </div>
+      <div class="activity-item">
+        <div class="activity-dot green"></div>
+        <div class="activity-info">
+          <div class="activity-text">Flashcards repasadas</div>
+          <div class="activity-sub">ayer · Mineralogía</div>
+        </div>
+        <div class="activity-score">24 🃏</div>
+      </div>
+      <div class="activity-item">
+        <div class="activity-dot rust"></div>
+        <div class="activity-info">
+          <div class="activity-text">PDF cargado — Prác. Prof.</div>
+          <div class="activity-sub">hace 3 días · 48 páginas</div>
+        </div>
+        <div class="activity-score">+36 temas</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: STUDY ══════════ -->
+<div class="screen" id="screen-study">
+  <div class="study-header">
+    <div class="study-title">Mis Materias</div>
+    <button class="btn-add">+ Nueva</button>
+  </div>
+  <div class="materias-list">
+    <div class="materia-row m1" onclick="openMateria('Prácticas Profesionalizantes','⚙️',38,'m1')">
+      <div class="materia-emoji-big">⚙️</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Prácticas Profesionalizantes</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">38%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:38%;background:var(--gold)"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+    <div class="materia-row m2" onclick="openMateria('Perforación y Voladura','💥',62,'m2')">
+      <div class="materia-emoji-big">💥</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Perforación y Voladura</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">62%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:62%;background:var(--rust)"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+    <div class="materia-row m3" onclick="openMateria('Topografía Minera','🗺️',15,'m3')">
+      <div class="materia-emoji-big">🗺️</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Topografía Minera</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">15%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:15%;background:var(--blue)"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+    <div class="materia-row m4" onclick="openMateria('Mineralogía y Petrografía','🧪',75,'m4')">
+      <div class="materia-emoji-big">🧪</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Mineralogía y Petrografía</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">75%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:75%;background:var(--green)"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+    <div class="materia-row m5" onclick="openMateria('Geomecánica','🏗️',44,'m5')">
+      <div class="materia-emoji-big">🏗️</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Geomecánica</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">44%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:44%;background:#c47dd4"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+    <div class="materia-row m6" onclick="openMateria('Hidrogeología','🌊',20,'m6')">
+      <div class="materia-emoji-big">🌊</div>
+      <div class="materia-info">
+        <div class="materia-name-row">Hidrogeología</div>
+        <div class="materia-bottom">
+          <span class="materia-pct">20%</span>
+          <div class="mini-bar-wrap"><div class="mini-bar" style="width:20%;background:var(--stone)"></div></div>
+        </div>
+      </div>
+      <div class="materia-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: MATERIA (programa) ══════════ -->
+<div class="screen" id="screen-detail">
+  <div class="detail-header">
+    <div class="btn-back" onclick="backToStudy()">‹</div>
+    <div class="detail-title" id="detail-title">Materia</div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-prog">
+      <div class="detail-prog-top">
+        <span class="detail-prog-label">Progreso general</span>
+        <span class="detail-prog-pct" id="detail-pct">38%</span>
+      </div>
+      <div class="detail-bar-wrap">
+        <div class="detail-bar" id="detail-bar" style="width:38%"></div>
+      </div>
+    </div>
+
+    <div class="section-head"><div class="section-title">Programa</div></div>
+    <div class="program-units" id="program-units"></div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: UNIDAD ══════════ -->
+<div class="screen" id="screen-unidad">
+  <div class="detail-header">
+    <div class="btn-back" onclick="backToMateria()">‹</div>
+    <div class="detail-title" id="unidad-title">Unidad</div>
+  </div>
+  <div class="detail-body">
+    <div class="pu-topics-box" id="unidad-topics"></div>
+    <div class="section-head" style="margin-top:18px"><div class="section-title">Recursos</div></div>
+    <div class="resources-grid">
+      <div class="resource-card flash" onclick="openFlashcards()">
+        <div class="resource-icon-wrap">🃏</div>
+        <div class="resource-info">
+          <div class="resource-name">Flashcards</div>
+          <div class="resource-sub">Repaso con tarjetas · spaced repetition</div>
+        </div>
+        <div class="resource-badge">12 tarjetas</div>
+      </div>
+      <div class="resource-card quiz" onclick="openQuiz()">
+        <div class="resource-icon-wrap">🎯</div>
+        <div class="resource-info">
+          <div class="resource-name">Quiz IA</div>
+          <div class="resource-sub">Preguntas generadas desde tus PDFs</div>
+        </div>
+        <div class="resource-badge">Nuevo</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: PERFIL ══════════ -->
+<div class="screen" id="screen-profile">
+  <div class="profile-header">
+    <div class="profile-title">Mi Perfil</div>
+  </div>
+  <div class="profile-body">
+    <div class="profile-avatar">⛏️</div>
+    <div class="profile-name">Estudiante de Minería</div>
+    <div class="profile-tag">UNSJ · Ingeniería de Minas · 3er año</div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value">7</div><div class="stat-label">Racha</div></div>
+      <div class="stat-card"><div class="stat-value">284</div><div class="stat-label">Sesiones</div></div>
+      <div class="stat-card"><div class="stat-value">89%</div><div class="stat-label">Precisión</div></div>
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Configuración</div>
+      <div class="profile-row">
+        <div class="profile-row-label">🔔 Notificaciones</div>
+        <div class="profile-row-val">Activas</div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-label">🌐 Idioma</div>
+        <div class="profile-row-val">Español</div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-label">📤 Exportar progreso</div>
+        <div class="profile-row-val">›</div>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Acerca de</div>
+      <div class="profile-row">
+        <div class="profile-row-label">⚡ MineStudy Hub</div>
+        <div class="profile-row-val">v1.0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ BOTTOM NAV ══════════ -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-home" onclick="switchScreen('home')">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-label">Inicio</div>
+    <div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-study" onclick="switchScreen('study')">
+    <div class="nav-icon">📖</div>
+    <div class="nav-label">Study</div>
+    <div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-profile" onclick="switchScreen('profile')">
+    <div class="nav-icon">👤</div>
+    <div class="nav-label">Perfil</div>
+    <div class="nav-dot"></div>
+  </div>
+</div>
+
+<!-- ══ FLASHCARD OVERLAY ══ -->
+<div class="overlay" id="flash-overlay" onclick="closeBg(event,'flash-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Flashcards</div>
+    <div class="sheet-sub" id="flash-sub">Mineralogía y Petrografía · 4 tarjetas</div>
+    <div class="flashcard" id="flashcard" onclick="flipCard()">
+      <div class="fc-question" id="fc-q"></div>
+      <div class="fc-answer" id="fc-a"></div>
+      <div class="fc-hint" id="fc-hint">Toca para ver la respuesta</div>
+    </div>
+    <div class="fc-dots" id="fc-dots"></div>
+    <div class="fc-actions">
+      <button class="btn-wrong" onclick="nextCard(false)">✗ No sabía</button>
+      <button class="btn-correct" onclick="nextCard(true)">✓ Lo sabía</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUIZ OVERLAY ══ -->
+<div class="overlay" id="quiz-overlay" onclick="closeBg(event,'quiz-overlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Quiz IA</div>
+    <div class="sheet-sub">Generado desde tus materiales</div>
+    <div class="quiz-question">
+      ¿Cuál es el EPP obligatorio en toda operación subterránea según normativa vigente?
+    </div>
+    <div class="quiz-options" id="quiz-opts">
+      <div class="quiz-opt" onclick="answerQuiz(this,false)"><div class="opt-letter">A</div>Chaleco reflectante solamente</div>
+      <div class="quiz-opt" onclick="answerQuiz(this,false)"><div class="opt-letter">B</div>Guantes y lentes de seguridad</div>
+      <div class="quiz-opt" onclick="answerQuiz(this,true)"><div class="opt-letter">C</div>Casco, lámpara, botas con puntera de acero y autorescatador</div>
+      <div class="quiz-opt" onclick="answerQuiz(this,false)"><div class="opt-letter">D</div>Solo casco y botas</div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+// ══════════ NAV ══════════
+const screens = ['home','study','profile'];
+function switchScreen(name){
+  screens.forEach(s => {
+    document.getElementById('screen-'+s).classList.toggle('active', s===name);
+    document.getElementById('nav-'+s).classList.toggle('active', s===name);
+  });
+  document.getElementById('screen-detail').classList.remove('active');
+  document.getElementById('screen-unidad').classList.remove('active');
+}
+
+function goToStudy(){ switchScreen('study'); }
+
+// ══════════ MATERIAS DATA ══════════
+const materiasData = {
+  'm1': {
+    name:'Prácticas Profesionalizantes', emoji:'⚙️', pct:38,
+    unidades:[
+      { name:'Unidad 1 — Legislación Minera', status:'done', topics:'Código de Minería · Ley 24.196 · Concesiones · Regalías' },
+      { name:'Unidad 2 — Identificación de Riesgos', status:'done', topics:'Matriz de riesgos · IPER · Factores de exposición · Incidentes' },
+      { name:'Unidad 3 — Seguridad Operacional', status:'active', topics:'EPP · Procedimientos · Bloqueo y etiquetado · Trabajo en altura · Espacios confinados' },
+      { name:'Unidad 4 — Medio Ambiente', status:'pending', topics:'Impacto ambiental · Cierre de minas · Pasivos ambientales' },
+      { name:'Unidad 5 — Gestión de Proyectos', status:'pending', topics:'Planificación · Costos · Cronograma · Informes técnicos' },
+    ]
+  },
+  'm2': {
+    name:'Perforación y Voladura', emoji:'💥', pct:62,
+    unidades:[
+      { name:'Unidad 1 — Tipos de Perforación', status:'done', topics:'Rotopercusión · Rotativa · DTH · Parámetros de perforación' },
+      { name:'Unidad 2 — Explosivos', status:'done', topics:'ANFO · Emulsiones · Iniciadores · Clasificación · Almacenamiento' },
+      { name:'Unidad 3 — Diseño de Malla', status:'active', topics:'Burden · Espaciamiento · Taco · Factor de potencia · Fragmentación' },
+      { name:'Unidad 4 — Voladuras Especiales', status:'pending', topics:'Voladura controlada · Precorte · Smooth blasting · Vibración' },
+    ]
+  },
+  'm3': { name:'Topografía Minera', emoji:'🗺️', pct:15, unidades:[
+    { name:'Unidad 1 — Fundamentos', status:'active', topics:'Sistemas de coordenadas · Escala · Instrumentos topográficos' },
+    { name:'Unidad 2 — Levantamientos', status:'pending', topics:'Poligonal · Taquimetría · GPS diferencial · Nivelación' },
+    { name:'Unidad 3 — Cartografía Minera', status:'pending', topics:'Planos de labor · Perfiles · Secciones transversales · CAD' },
+  ]},
+  'm4': { name:'Mineralogía y Petrografía', emoji:'🧪', pct:75, unidades:[
+    { name:'Unidad 1 — Mineralogía', status:'done', topics:'Propiedades físicas · Escala de Mohs · Sistemas cristalinos · Determinación' },
+    { name:'Unidad 2 — Rocas Ígneas', status:'done', topics:'Clasificación · Textura · Minerales esenciales · Génesis' },
+    { name:'Unidad 3 — Rocas Sedimentarias', status:'done', topics:'Diagénesis · Clasificación · Ambientes de depósito' },
+    { name:'Unidad 4 — Rocas Metamórficas', status:'active', topics:'Metamorfismo · Foliación · Minerales índice · Facies' },
+  ]},
+  'm5': { name:'Geomecánica', emoji:'🏗️', pct:44, unidades:[
+    { name:'Unidad 1 — Mecánica de Rocas', status:'done', topics:'Propiedades · Ensayos · Resistencia · Criterio de Hoek-Brown' },
+    { name:'Unidad 2 — Clasificaciones Geomecánicas', status:'active', topics:'RQD · RMR · Q de Barton · GSI · Aplicaciones' },
+    { name:'Unidad 3 — Estabilidad de Taludes', status:'pending', topics:'Análisis cinemático · Superficies de falla · Factor de seguridad' },
+  ]},
+  'm6': { name:'Hidrogeología', emoji:'🌊', pct:20, unidades:[
+    { name:'Unidad 1 — Aguas Subterráneas', status:'active', topics:'Acuíferos · Permeabilidad · Porosidad · Nivel freático' },
+    { name:'Unidad 2 — Hidráulica Minera', status:'pending', topics:'Drenaje · Bombeo · Estimación de caudales · Impacto en minas' },
+  ]},
+};
+
+let currentMateria = null;
+
+// ══════════ MATERIA DETAIL ══════════
+function openMateria(name, emoji, pct, cls){
+  currentMateria = cls;
+  screens.forEach(s => document.getElementById('screen-'+s).classList.remove('active'));
+  document.getElementById('nav-study').classList.add('active');
+  document.getElementById('nav-home').classList.remove('active');
+  document.getElementById('nav-profile').classList.remove('active');
+  document.getElementById('screen-unidad').classList.remove('active');
+
+  document.getElementById('detail-title').textContent = emoji + ' ' + name;
+  document.getElementById('detail-pct').textContent = pct + '%';
+  document.getElementById('detail-bar').style.width = pct + '%';
+
+  // render unidades
+  const data = materiasData[cls];
+  const wrap = document.getElementById('program-units');
+  wrap.innerHTML = data.unidades.map((u,i) => `
+    <div class="pu-item ${u.status==='done'?'done':u.status==='active'?'active-unit':'pending-unit'}"
+         onclick="${u.status!=='pending'?`openUnidad(${i},'${cls}')`:''}">
+      <div class="pu-left">
+        <div class="pu-header">
+          <span class="pu-name">${u.name}</span>
+          <span class="pu-badge ${u.status==='done'?'done':u.status==='active'?'active':'pending'}">
+            ${u.status==='done'?'✓ Completa':u.status==='active'?'En curso':'Pendiente'}
+          </span>
+        </div>
+        <div class="pu-topics">${u.topics}</div>
+      </div>
+      ${u.status!=='pending'?'<div class="pu-arrow">›</div>':''}
+    </div>
+  `).join('');
+
+  document.getElementById('screen-detail').classList.add('active');
+}
+
+function backToStudy(){
+  document.getElementById('screen-detail').classList.remove('active');
+  document.getElementById('screen-study').classList.add('active');
+}
+
+// ══════════ UNIDAD DETAIL ══════════
+function openUnidad(idx, cls){
+  const u = materiasData[cls].unidades[idx];
+  document.getElementById('unidad-title').textContent = u.name;
+  document.getElementById('unidad-topics').innerHTML =
+    u.topics.split(' · ').map(t => `<span style="display:inline-block;background:var(--s3);border-radius:6px;padding:3px 10px;margin:3px 3px;font-size:12px;color:var(--text2);">${t}</span>`).join('');
+  document.getElementById('screen-detail').classList.remove('active');
+  document.getElementById('screen-unidad').classList.add('active');
+}
+
+function backToMateria(){
+  document.getElementById('screen-unidad').classList.remove('active');
+  document.getElementById('screen-detail').classList.add('active');
+}
+
+// ══════════ FLASHCARDS ══════════
+const cards = [
+  {q:'¿Cuál es la dureza del cuarzo en la escala de Mohs?', a:'Dureza 7 — es uno de los minerales más comunes y resistentes de la corteza terrestre.'},
+  {q:'¿Qué significa RQD en geomecánica?', a:'Rock Quality Designation — mide la calidad de la roca según el porcentaje de testigos intactos mayores a 10 cm.'},
+  {q:'¿Qué es la Ley de Corte?', a:'La ley mínima de mineral para que sea económicamente rentable su extracción, considerando costos operativos y precio del metal.'},
+  {q:'¿Qué mineral tiene estructura cúbica y clivaje perfecto en 3 direcciones?', a:'La galena (PbS) — mineral principal del plomo, con clivaje cúbico perfecto y brillo metálico característico.'},
+];
+let cardIdx = 0, flipped = false;
+
+function openFlashcards(){
+  cardIdx = 0; flipped = false;
+  loadCard();
+  showOverlay('flash-overlay');
+}
+function loadCard(){
+  document.getElementById('fc-q').textContent = cards[cardIdx].q;
+  document.getElementById('fc-a').textContent = cards[cardIdx].a;
+  document.getElementById('fc-a').style.display = 'none';
+  document.getElementById('fc-q').style.display = '';
+  document.getElementById('fc-hint').style.display = '';
+  document.getElementById('flashcard').style.background = 'var(--s2)';
+  flipped = false;
+  renderDots();
+}
+function flipCard(){
+  if(flipped) return;
+  flipped = true;
+  document.getElementById('fc-hint').style.display = 'none';
+  document.getElementById('fc-q').style.display = 'none';
+  document.getElementById('fc-a').style.display = '';
+  document.getElementById('flashcard').style.background = 'rgba(212,168,71,0.07)';
+}
+function nextCard(knew){
+  cardIdx = (cardIdx+1) % cards.length;
+  loadCard();
+}
+function renderDots(){
+  const wrap = document.getElementById('fc-dots');
+  wrap.innerHTML = cards.map((c,i) =>
+    `<div class="fc-dot ${i===cardIdx?'active':''}"></div>`
+  ).join('');
+}
+
+// ══════════ QUIZ ══════════
+function openQuiz(){ showOverlay('quiz-overlay'); }
+function answerQuiz(el, correct){
+  document.querySelectorAll('.quiz-opt').forEach(o => o.style.pointerEvents='none');
+  el.classList.add(correct ? 'correct' : 'wrong');
+  if(!correct) document.querySelectorAll('.quiz-opt')[2].classList.add('correct');
+  setTimeout(()=>{
+    closeOverlay('quiz-overlay');
+    document.querySelectorAll('.quiz-opt').forEach(o=>{
+      o.classList.remove('correct','wrong');
+      o.style.pointerEvents='';
+    });
+  }, 1600);
+}
+
+// ══════════ OVERLAY UTILS ══════════
+function showOverlay(id){ document.getElementById(id).classList.add('show'); }
+function closeOverlay(id){ document.getElementById(id).classList.remove('show'); }
+function closeBg(e,id){ if(e.target.id===id) closeOverlay(id); }
+</script>
+</body>
+</html>
