@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { materiasData } from '../data/materias';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
+import Timer from '../components/Timer';
 
 const UnidadDetail = () => {
   const { id, idx } = useParams();
@@ -122,6 +123,7 @@ const UnidadDetail = () => {
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
       />
+      <Timer />
     </>
   );
 };
