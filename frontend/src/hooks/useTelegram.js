@@ -3,12 +3,14 @@ export function useTelegram() {
 
   if (tg) {
     tg.ready();
-    tg.setHeaderColor('#0e0e0e');
-    tg.setBackgroundColor('#0e0e0e');
+    try { tg.setHeaderColor('#0e0e0e'); } catch(e) {}
+    try { tg.setBackgroundColor('#0e0e0e'); } catch(e) {}
     tg.expand();
-    if (tg.requestFullscreen) {
-      tg.requestFullscreen();
-    }
+    try {
+      if (tg.requestFullscreen) {
+        tg.requestFullscreen();
+      }
+    } catch(e) {}
   }
 
   const rawUser = tg?.initDataUnsafe?.user;

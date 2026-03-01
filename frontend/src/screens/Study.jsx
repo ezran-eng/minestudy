@@ -20,11 +20,8 @@ const Study = () => {
 
   return (
     <div className="screen active screen-container" id="screen-study">
-      <div className="study-header">
-        <div className="study-title">Mis Materias</div>
-        <button className="btn-new">+ Nueva</button>
-      </div>
-      <div className="materias-list">
+      <button className="fab-new-btn">+ Nueva</button>
+      <div className="materias-list study-body-pad">
         {Object.entries(materiasData).map(([id, materia]) => {
           const styleInfo = materiaStyles[id] || { color: 'var(--gold)', cClass: 'c1' };
           return (

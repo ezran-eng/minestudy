@@ -58,11 +58,10 @@ const UnidadDetail = () => {
   return (
     <>
       <div className="screen active screen-container" id="screen-unidad">
-        <div className="detail-header">
+        <div className="fab-back-btn">
           <div className="btn-back" onClick={() => navigate(`/materia/${id}`)}>‹</div>
-          <div className="detail-title">{unidad.name}</div>
         </div>
-        <div className="detail-body">
+        <div className="detail-body detail-body-pad">
           <div className="pu-topics-box">
             {topicsArray.map((t, i) => (
               <span key={i} style={{ display: 'inline-block', background: 'var(--s3)', borderRadius: '8px', padding: '5px 12px', margin: '3px 3px', fontSize: '11px', color: 'var(--text2)', fontWeight: 500 }}>

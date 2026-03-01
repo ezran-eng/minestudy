@@ -14,11 +14,10 @@ const MateriaDetail = () => {
 
   return (
     <div className="screen active screen-container" id="screen-materia">
-      <div className="detail-header">
+      <div className="fab-back-btn">
         <div className="btn-back" onClick={() => navigate('/study')}>‹</div>
-        <div className="detail-title">{materia.emoji} {materia.name}</div>
       </div>
-      <div className="detail-body">
+      <div className="detail-body detail-body-pad">
         <div className="detail-prog">
           <div className="detail-prog-top">
             <span className="detail-prog-label">Progreso general</span>
