@@ -888,3 +888,26 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
   white-space:nowrap;
 }
 .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+
+/* ── GLASSMORPHISM CARDS ── */
+.stat-card,
+.focus-card,
+.materia-row,
+.unit-item,
+.resource-card,
+.act-item,
+.ranking-card,
+.setting-row,
+.detail-prog {
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.unit-item.cur { border-left: 3px solid var(--gold) !important; }
+.unit-item.done { border-left: 3px solid var(--green) !important; }
+.ranking-card { border: 1px solid rgba(212,168,71,0.2) !important; }
+.resource-card.flash { border-left: 3px solid var(--gold) !important; }
+.resource-card.quiz { border-left: 3px solid var(--rust) !important; }
+.resource-card.program { border-left: 3px solid var(--blue) !important; }
