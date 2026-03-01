@@ -29,6 +29,17 @@ class MateriaBase(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class MateriaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    emoji: Optional[str] = None
+    color: Optional[str] = None
+    orden: Optional[int] = None
+
+class UnidadUpdate(BaseModel):
+    nombre: Optional[str] = None
+    orden: Optional[int] = None
+    estado_default: Optional[str] = None
+
 class FlashcardBase(BaseModel):
     id: int
     id_unidad: int
