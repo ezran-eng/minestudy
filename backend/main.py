@@ -83,6 +83,69 @@ def get_materias(db: Session = Depends(get_db)):
             unidad.temas.sort(key=lambda t: t.id) # Sort by id for temas as they don't have orden
     return db_materias
 
+@app.put("/materias/{id}", response_model=schemas.MateriaBase)
+def update_materia(id: int, materia: schemas.MateriaUpdate, db: Session = Depends(get_db)):
+    db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
+    if not db_materia:
+        raise HTTPException(status_code=404, detail="Materia not found")
+
+    update_data = materia.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_materia, key, value)
+
+    db.commit()
+    db.refresh(db_materia)
+    return db_materia
+
+@app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_materia(id: int, db: Session = Depends(get_db)):
+    db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
+    if not db_materia:
+        raise HTTPException(status_code=404, detail="Materia not found")
+    # Due to cascade="all, delete-orphan", this will also delete unidades, temas, etc.
+    db.delete(db_materia)
+    db.commit()
+    return
+
+@app.get("/materias/{id}/unidades", response_model=List[schemas.UnidadBase])
+def get_unidades(id: int, db: Session = Depends(get_db)):
+    db_unidades = db.query(models.Unidad).filter(models.Unidad.id_materia == id).all()
+    if not db_unidades:
+        return []
+    return db_unidades
+
+@app.put("/unidades/{id}", response_model=schemas.UnidadBase)
+def update_unidad(id: int, unidad: schemas.UnidadUpdate, db: Session = Depends(get_db)):
+    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
+    if not db_unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+
+    update_data = unidad.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_unidad, key, value)
+
+    db.commit()
+    db.refresh(db_unidad)
+    return db_unidad
+
+@app.delete("/unidades/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_unidad(id: int, db: Session = Depends(get_db)):
+    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
+    if not db_unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+    db.delete(db_unidad)
+    db.commit()
+    return
+
+@app.delete("/temas/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tema(id: int, db: Session = Depends(get_db)):
+    db_tema = db.query(models.Tema).filter(models.Tema.id == id).first()
+    if not db_tema:
+        raise HTTPException(status_code=404, detail="Tema not found")
+    db.delete(db_tema)
+    db.commit()
+    return
+
 @app.get("/unidades/{id_unidad}/flashcards", response_model=List[schemas.FlashcardBase])
 def get_flashcards(id_unidad: int, db: Session = Depends(get_db)):
     db_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()
