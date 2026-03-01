@@ -877,7 +877,7 @@ body {
 
 .fab-back-btn {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 52px);
+  top: calc(env(safe-area-inset-top, 0px) + 80px);
   left: 16px;
   z-index: 100;
 }
