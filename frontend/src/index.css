@@ -4,15 +4,15 @@
 
 /* Telegram UI Overrides */
 :root {
-  --tg-theme-bg-color: var(--bg);
-  --tg-theme-secondary-bg-color: var(--s2);
+  --tg-theme-bg-color: transparent;
+  --tg-theme-secondary-bg-color: transparent;
   --tg-theme-text-color: var(--text);
   --tg-theme-hint-color: var(--text2);
-  --tg-theme-section-bg-color: var(--s1);
+  --tg-theme-section-bg-color: transparent;
   --tg-theme-section-header-text-color: var(--text2);
 }
 .tgui-9d8a5719bc4a84d4 {
-  background: var(--s1) !important;
+  background: transparent !important;
 }
 .tgui-6178e718b9587a8b {
   background-color: transparent !important;
@@ -44,13 +44,23 @@
 }
 
 html,body{height:100%;overflow:hidden;}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
+body {
+  background: #0e0e0e;
+  background-image:
+    radial-gradient(ellipse at 20% 20%, rgba(212,168,71,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(196,98,45,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(78,148,204,0.04) 0%, transparent 60%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+}
 
 /* ── SCREENS ── */
 .screen{
   position:fixed;inset:0;bottom:72px;
   overflow-y:auto;overflow-x:hidden;
   display:block;
+  background: transparent;
   -webkit-overflow-scrolling:touch;
 }
 .screen.active{display:block;}
@@ -140,6 +150,7 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
   border-radius:var(--r);
   overflow:hidden;
   position:relative;
+  z-index: 1;
 }
 .focus-card::before{
   content:'';position:absolute;
@@ -613,9 +624,10 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
 ══════════════════════════ */
 .bottom-nav{
   position:fixed;bottom:0;left:0;right:0;height:72px;
-  background:rgba(16,16,16,0.95);
-  backdrop-filter:blur(20px);
-  border-top:1px solid var(--border);
+  background: rgba(14, 14, 14, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.08);
   display:flex;align-items:center;
   padding:0 8px 8px;
   z-index:100;
@@ -899,10 +911,10 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
 .ranking-card,
 .setting-row,
 .detail-prog {
-  background: rgba(255, 255, 255, 0.04) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .unit-item.cur { border-left: 3px solid var(--gold) !important; }
