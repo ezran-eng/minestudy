@@ -719,62 +719,63 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE, direct: bool
     finally:
         db.close()
 
-def main() -> None:
-    # Use placeholder if not set
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-    if TOKEN == "YOUR_BOT_TOKEN_HERE":
-         print("Warning: TELEGRAM_BOT_TOKEN is not set.")
+# Build application globally so it can be accessed by FastAPI
+if TOKEN == "YOUR_BOT_TOKEN_HERE":
+    print("Warning: TELEGRAM_BOT_TOKEN is not set.")
 
-    application = Application.builder().token(TOKEN).build()
+application = Application.builder().token(TOKEN).build()
 
-    # Add ConversationHandler for the interactive admin flow
-    admin_conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler('admin', admin_menu),
-            CallbackQueryHandler(conversation_entry_handler)
-        ],
-        states={
-            # Materia
-            WAITING_MATERIA_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_emoji_received)],
-            WAITING_MATERIA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_received)],
-            WAITING_MATERIA_COLOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_color_received)],
-            WAITING_MATERIA_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_id_edit_received)],
-            WAITING_MATERIA_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_edit_received)],
-            WAITING_MATERIA_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_del_received)],
-            # Unidad
-            WAITING_UNIDAD_MATERIA_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_mat_id_received)],
-            WAITING_UNIDAD_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_received)],
-            WAITING_UNIDAD_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_id_edit_received)],
-            WAITING_UNIDAD_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_edit_received)],
-            WAITING_UNIDAD_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_del_received)],
-            # Flashcards
-            WAITING_FLASHCARD_CSV: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, fc_doc_received)],
-            WAITING_FLASHCARD_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, fc_del_received)],
-            # Quiz
-            WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)],
-            WAITING_QUIZ_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, qz_del_received)]
-        },
-        fallbacks=[CommandHandler('cancel', cancel_conversation)],
-        allow_reentry=True
+# Add ConversationHandler for the interactive admin flow
+admin_conv_handler = ConversationHandler(
+    entry_points=[
+        CommandHandler('admin', admin_menu),
+        CallbackQueryHandler(conversation_entry_handler)
+    ],
+    states={
+        # Materia
+        WAITING_MATERIA_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_emoji_received)],
+        WAITING_MATERIA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_received)],
+        WAITING_MATERIA_COLOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_color_received)],
+        WAITING_MATERIA_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_id_edit_received)],
+        WAITING_MATERIA_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_edit_received)],
+        WAITING_MATERIA_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_del_received)],
+        # Unidad
+        WAITING_UNIDAD_MATERIA_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_mat_id_received)],
+        WAITING_UNIDAD_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_received)],
+        WAITING_UNIDAD_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_id_edit_received)],
+        WAITING_UNIDAD_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_edit_received)],
+        WAITING_UNIDAD_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_del_received)],
+        # Flashcards
+        WAITING_FLASHCARD_CSV: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, fc_doc_received)],
+        WAITING_FLASHCARD_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, fc_del_received)],
+        # Quiz
+        WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)],
+        WAITING_QUIZ_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, qz_del_received)]
+    },
+    fallbacks=[CommandHandler('cancel', cancel_conversation)],
+    allow_reentry=True
+)
+
+application.add_handler(admin_conv_handler)
+
+# General commands handling (legacy / quick usage)
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("nueva_materia", nueva_materia))
+application.add_handler(CommandHandler("nueva_unidad", nueva_unidad))
+application.add_handler(CommandHandler("nuevo_tema", nuevo_tema))
+application.add_handler(CommandHandler("flashcards", flashcards))
+application.add_handler(CommandHandler("quiz", quiz))
+application.add_handler(CommandHandler("stats", stats))
+
+# Standalone callback query handler for menus
+# Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
+application.add_handler(CallbackQueryHandler(button_handler))
+
+async def setup_webhook():
+    railway_url = os.getenv("RAILWAY_URL", "https://minestudy-backend.up.railway.app")
+    webhook_url = f"{railway_url.rstrip('/')}/webhook"
+    await application.bot.set_webhook(
+        url=webhook_url,
+        drop_pending_updates=True
     )
-
-    application.add_handler(admin_conv_handler)
-
-    # General commands handling (legacy / quick usage)
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("nueva_materia", nueva_materia))
-    application.add_handler(CommandHandler("nueva_unidad", nueva_unidad))
-    application.add_handler(CommandHandler("nuevo_tema", nuevo_tema))
-    application.add_handler(CommandHandler("flashcards", flashcards))
-    application.add_handler(CommandHandler("quiz", quiz))
-    application.add_handler(CommandHandler("stats", stats))
-
-    # Standalone callback query handler for menus
-    # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
-    application.add_handler(CallbackQueryHandler(button_handler))
-
-    print("Bot is running...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == "__main__":
-    main()
+    print(f"Webhook set to {webhook_url}")

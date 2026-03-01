@@ -1,17 +1,35 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
+from telegram import Update
 
 import models
 import schemas
 from database import engine, get_db
+from bot import application, setup_webhook
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="MineStudy Hub API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize and start the Telegram bot application
+    await application.initialize()
+    await application.start()
+
+    # Set the webhook to the Railway URL
+    await setup_webhook()
+
+    yield
+
+    # Shutdown the Telegram bot
+    await application.stop()
+    await application.shutdown()
+
+app = FastAPI(title="MineStudy Hub API", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -21,6 +39,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    """
+    Receive incoming Telegram updates and feed them to the Application.
+    """
+    json_data = await request.json()
+    update = Update.de_json(data=json_data, bot=application.bot)
+    await application.process_update(update)
+    return {"status": "ok"}
 
 @app.post("/users", response_model=schemas.User)
 def create_or_update_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
