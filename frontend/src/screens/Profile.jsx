@@ -37,9 +37,6 @@ const Profile = () => {
 
   return (
     <div className="screen active screen-container" id="screen-profile">
-      <div className="profile-topbar">
-        <div className="profile-topbar-title">Mi Perfil</div>
-      </div>
       <div className="profile-body">
         <div className="profile-hero">
           <div className="profile-avatar-big">
