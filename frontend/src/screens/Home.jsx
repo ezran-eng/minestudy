@@ -9,7 +9,7 @@ const Home = () => {
   const firstName = user?.first_name || 'Estudiante';
 
   return (
-    <div className="screen active" id="screen-home" style={{ paddingBottom: '8px' }}>
+    <div className="screen active screen-container" id="screen-home" style={{ paddingBottom: '8px' }}>
       <div className="hero">
         <div className="hero-top">
           <div>

@@ -36,7 +36,7 @@ const Profile = () => {
   const racha = backendUser?.racha || 0;
 
   return (
-    <div className="screen active" id="screen-profile">
+    <div className="screen active screen-container" id="screen-profile">
       <div className="profile-topbar">
         <div className="profile-topbar-title">Mi Perfil</div>
       </div>

@@ -13,7 +13,7 @@ const MateriaDetail = () => {
   }
 
   return (
-    <div className="screen active" id="screen-detail">
+    <div className="screen active screen-container" id="screen-materia">
       <div className="detail-header">
         <div className="btn-back" onClick={() => navigate('/study')}>‹</div>
         <div className="detail-title">{materia.emoji} {materia.name}</div>

@@ -57,7 +57,7 @@ const UnidadDetail = () => {
 
   return (
     <>
-      <div className="screen active" id="screen-unidad">
+      <div className="screen active screen-container" id="screen-unidad">
         <div className="detail-header">
           <div className="btn-back" onClick={() => navigate(`/materia/${id}`)}>‹</div>
           <div className="detail-title">{unidad.name}</div>
