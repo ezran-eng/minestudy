@@ -963,7 +963,7 @@ body {
 /* Toast Styles */
 .toast-container {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 20px);
+  top: calc(env(safe-area-inset-top, 0px) + 90px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -992,7 +992,7 @@ body {
     opacity: 0;
   }
   to {
-    top: calc(env(safe-area-inset-top, 0px) + 20px);
+    top: calc(env(safe-area-inset-top, 0px) + 90px);
     opacity: 1;
   }
 }
