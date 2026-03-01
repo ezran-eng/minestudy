@@ -19,7 +19,7 @@ const Study = () => {
   };
 
   return (
-    <div className="screen active" id="screen-study">
+    <div className="screen active screen-container" id="screen-study">
       <div className="study-header">
         <div className="study-title">Mis Materias</div>
         <button className="btn-new">+ Nueva</button>
