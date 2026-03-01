@@ -93,3 +93,57 @@ def get_ranking(db: Session = Depends(get_db)):
             "total_progress": total_progress
         })
     return result
+
+from datetime import datetime, date
+
+@app.post("/actividad", response_model=schemas.ActividadResponse)
+def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.id_telegram == actividad.id_telegram).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        fecha_actividad = datetime.strptime(actividad.fecha_local, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format, should be YYYY-MM-DD")
+
+    nueva_racha = False
+    primer_dia = False
+
+    if db_user.ultima_actividad:
+        ultima_fecha = db_user.ultima_actividad.date()
+        delta = (fecha_actividad - ultima_fecha).days
+
+        if delta == 0:
+            # Already completed an activity today
+            pass
+        elif delta == 1:
+            # Completed yesterday, increment streak
+            db_user.racha += 1
+            nueva_racha = True
+        elif delta > 1:
+            # Streak broken
+            db_user.racha = 1
+            nueva_racha = True
+            primer_dia = True
+        else:
+            # In case the activity date is older than last activity (should not happen)
+            pass
+    else:
+        # First activity ever
+        db_user.racha = 1
+        nueva_racha = True
+        primer_dia = True
+
+    # Only update the timestamp if it's the current date being processed (delta >= 0)
+    # Actually, we should always update it to the latest activity date
+    if not db_user.ultima_actividad or (fecha_actividad - db_user.ultima_actividad.date()).days >= 0:
+        db_user.ultima_actividad = datetime.combine(fecha_actividad, datetime.min.time())
+
+    db.commit()
+
+    return schemas.ActividadResponse(
+        racha=db_user.racha,
+        nueva_racha=nueva_racha,
+        primer_dia=primer_dia
+    )

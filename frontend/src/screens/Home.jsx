@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
+import { getUserProfile } from '../services/api';
 
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useTelegram();
+  const [racha, setRacha] = useState(0);
+
+  useEffect(() => {
+    if (user && user.id) {
+      getUserProfile(user.id)
+        .then(profile => {
+          if (profile && typeof profile.racha === 'number') {
+            setRacha(profile.racha);
+          }
+        })
+        .catch(err => console.error('Error fetching profile:', err));
+    }
+  }, [user]);
 
   const firstName = user?.first_name || 'Estudiante';
 
@@ -16,7 +30,7 @@ const Home = () => {
             <div className="hero-greeting">Bienvenido de vuelta, <span style={{ color: 'var(--gold)' }}>{firstName}</span> 👋</div>
             <div className="hero-name">Listo para <span style={{ color: 'var(--gold)' }}>estudiar?</span></div>
           </div>
-          <div className="streak-pill">🔥 7 días</div>
+          <div className="streak-pill">🔥 {racha} {racha === 1 ? 'día' : 'días'}</div>
         </div>
       </div>
 

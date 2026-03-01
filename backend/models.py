@@ -13,6 +13,7 @@ class User(Base):
     foto_url = Column(String, nullable=True)
     descripcion = Column(String, nullable=True)
     racha = Column(Integer, default=0)
+    ultima_actividad = Column(DateTime(timezone=True), nullable=True)
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
 
     progresos = relationship("Progreso", back_populates="usuario")

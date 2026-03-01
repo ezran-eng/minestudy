@@ -4,9 +4,14 @@ import { materiasData } from '../data/materias';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import Timer from '../components/Timer';
+import { useTelegram } from '../hooks/useTelegram';
+import { registrarActividad } from '../services/api';
+import { useToast } from '../components/Toast';
 
 const UnidadDetail = () => {
   const { id, idx } = useParams();
+  const { user } = useTelegram();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [isFlashOpen, setIsFlashOpen] = useState(false);
@@ -53,6 +58,28 @@ const UnidadDetail = () => {
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleMarkComplete = async () => {
+    if (user && user.id) {
+      try {
+        const fechaLocal = new Date().toISOString().split('T')[0];
+        const res = await registrarActividad(user.id, 'unidad', fechaLocal);
+
+        if (res.primer_dia) {
+          showToast('⚡ ¡Comenzaste tu racha! Estudia cada día para mantenerla viva.');
+        } else if (res.nueva_racha) {
+          showToast(`🔥 ¡Racha de ${res.racha} días! ¡Sigue así!`);
+        } else {
+          showToast('¡Unidad marcada como completa!');
+        }
+      } catch (err) {
+        console.error('Error registering activity:', err);
+        showToast('Error al marcar unidad');
+      }
+    } else {
+      showToast('¡Unidad marcada como completa!');
+    }
   };
 
   return (
@@ -104,6 +131,16 @@ const UnidadDetail = () => {
               </div>
               <div className="resource-badge">Nuevo</div>
             </div>
+          </div>
+
+          <div style={{ marginTop: '30px', textAlign: 'center' }}>
+            <button
+              className="btn-primary"
+              style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold' }}
+              onClick={handleMarkComplete}
+            >
+              Marcar como completa
+            </button>
           </div>
         </div>
       </div>
