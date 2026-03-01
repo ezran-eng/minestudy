@@ -859,7 +859,8 @@ body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;}
 
 /* ── HERO ── */
 .hero{
-  padding:20px 16px 0;
+  padding: 16px 16px 0;
+  padding-top: max(60px, env(safe-area-inset-top));
   position:relative;
 }
 .hero-top{
