@@ -2,6 +2,7 @@ import os
 import json
 import csv
 import asyncio
+import httpx
 from datetime import date
 from io import StringIO
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -9,6 +10,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
 # Constants for conversation states
 (
@@ -45,58 +48,77 @@ def get_db():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("👋 Hola Admin. Estoy listo para gestionar el contenido. Usa /admin para el menú.")
 
+async def send_raw_menu(chat_id, text, reply_markup, message_id=None):
+    url = f'https://api.telegram.org/bot{TOKEN}/editMessageText' if message_id else f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+    payload = {
+        'chat_id': chat_id,
+        'text': text,
+        'parse_mode': 'Markdown',
+        'reply_markup': reply_markup
+    }
+    if message_id:
+        payload['message_id'] = message_id
+
+    async with httpx.AsyncClient() as client:
+        await client.post(url, json=payload)
+
 def get_main_menu():
-    keyboard = [
-        [InlineKeyboardButton("📚 Materias", callback_data='menu_materias'),
-         InlineKeyboardButton("💥 Unidades", callback_data='menu_unidades')],
-        [InlineKeyboardButton("🃏 Flashcards", callback_data='menu_flashcards'),
-         InlineKeyboardButton("🎯 Quiz", callback_data='menu_quiz')],
-        [InlineKeyboardButton("📊 Stats", callback_data='menu_stats'),
-         InlineKeyboardButton("🔄 Recargar DB", callback_data='menu_reload')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    return {
+        'inline_keyboard': [
+            [{'text': "📚 Materias", 'callback_data': 'menu_materias'},
+             {'text': "💥 Unidades", 'callback_data': 'menu_unidades'}],
+            [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards'},
+             {'text': "🎯 Quiz", 'callback_data': 'menu_quiz'}],
+            [{'text': "📊 Stats", 'callback_data': 'menu_stats'},
+             {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload'}]
+        ]
+    }
 
 def get_materias_menu():
-    keyboard = [
-        [InlineKeyboardButton("🟢 Nueva Materia", callback_data='mat_new')],
-        [InlineKeyboardButton("🔵 Listar Materias", callback_data='mat_list')],
-        [InlineKeyboardButton("🟡 Editar Materia", callback_data='mat_edit')],
-        [InlineKeyboardButton("🔴 Borrar Materia", callback_data='mat_del')],
-        [InlineKeyboardButton("⚫ Volver", callback_data='menu_main')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Nueva Materia", 'callback_data': 'mat_new', 'style': 'success'}],
+            [{'text': "🔵 Listar Materias", 'callback_data': 'mat_list', 'style': 'primary'}],
+            [{'text': "🟡 Editar Materia", 'callback_data': 'mat_edit'}],
+            [{'text': "🔴 Borrar Materia", 'callback_data': 'mat_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
+        ]
+    }
 
 def get_unidades_menu():
-    keyboard = [
-        [InlineKeyboardButton("🟢 Nueva Unidad", callback_data='uni_new')],
-        [InlineKeyboardButton("🔵 Listar Unidades", callback_data='uni_list')],
-        [InlineKeyboardButton("🟡 Editar Unidad", callback_data='uni_edit')],
-        [InlineKeyboardButton("🔴 Borrar Unidad", callback_data='uni_del')],
-        [InlineKeyboardButton("⚫ Volver", callback_data='menu_main')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Nueva Unidad", 'callback_data': 'uni_new', 'style': 'success'}],
+            [{'text': "🔵 Listar Unidades", 'callback_data': 'uni_list', 'style': 'primary'}],
+            [{'text': "🟡 Editar Unidad", 'callback_data': 'uni_edit'}],
+            [{'text': "🔴 Borrar Unidad", 'callback_data': 'uni_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
+        ]
+    }
 
 def get_flashcards_menu():
-    keyboard = [
-        [InlineKeyboardButton("🟢 Subir CSV", callback_data='fc_new')],
-        [InlineKeyboardButton("🔵 Ver Flashcards de unidad", callback_data='fc_list')],
-        [InlineKeyboardButton("🔴 Borrar Flashcards de unidad", callback_data='fc_del')],
-        [InlineKeyboardButton("⚫ Volver", callback_data='menu_main')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Subir CSV", 'callback_data': 'fc_new', 'style': 'success'}],
+            [{'text': "🔵 Ver Flashcards de unidad", 'callback_data': 'fc_list', 'style': 'primary'}],
+            [{'text': "🔴 Borrar Flashcards de unidad", 'callback_data': 'fc_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
+        ]
+    }
 
 def get_quiz_menu():
-    keyboard = [
-        [InlineKeyboardButton("🟢 Subir JSON", callback_data='qz_new')],
-        [InlineKeyboardButton("🔵 Ver preguntas de unidad", callback_data='qz_list')],
-        [InlineKeyboardButton("🔴 Borrar Quiz de unidad", callback_data='qz_del')],
-        [InlineKeyboardButton("⚫ Volver", callback_data='menu_main')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Subir JSON", 'callback_data': 'qz_new', 'style': 'success'}],
+            [{'text': "🔵 Ver preguntas de unidad", 'callback_data': 'qz_list', 'style': 'primary'}],
+            [{'text': "🔴 Borrar Quiz de unidad", 'callback_data': 'qz_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
+        ]
+    }
 
 @admin_only
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("⚙️ **Panel de Administración**", reply_markup=get_main_menu(), parse_mode='Markdown')
+    await send_raw_menu(update.effective_chat.id, "⚙️ **Panel de Administración**", get_main_menu())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -106,22 +128,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     await query.answer()
 
+    chat_id = query.message.chat.id
+    msg_id = query.message.message_id
+
     data = query.data
     if data == 'menu_main':
-        await query.edit_message_text("⚙️ **Panel de Administración**", reply_markup=get_main_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, "⚙️ **Panel de Administración**", get_main_menu(), msg_id)
     elif data == 'menu_materias':
-        await query.edit_message_text("📚 **Menú de Materias**", reply_markup=get_materias_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, "📚 **Menú de Materias**", get_materias_menu(), msg_id)
     elif data == 'menu_unidades':
-        await query.edit_message_text("💥 **Menú de Unidades**", reply_markup=get_unidades_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, "💥 **Menú de Unidades**", get_unidades_menu(), msg_id)
     elif data == 'menu_flashcards':
-        await query.edit_message_text("🃏 **Menú de Flashcards**", reply_markup=get_flashcards_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, "🃏 **Menú de Flashcards**", get_flashcards_menu(), msg_id)
     elif data == 'menu_quiz':
-        await query.edit_message_text("🎯 **Menú de Quiz**", reply_markup=get_quiz_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, "🎯 **Menú de Quiz**", get_quiz_menu(), msg_id)
     elif data == 'menu_stats':
         # Delegate to stats function, sending as a new message to keep menu
         await stats(update, context, direct=False)
     elif data == 'menu_reload':
-        await query.edit_message_text("🔄 Caché y BD recargadas (simulado).", reply_markup=get_main_menu())
+        await send_raw_menu(chat_id, "🔄 Caché y BD recargadas (simulado).", get_main_menu(), msg_id)
 
     # Actions that don't need conversation
     elif data == 'mat_list':
@@ -131,7 +156,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         for m in materias:
             msg += f"ID: {m.id} | {m.emoji} {m.nombre}\n"
         db.close()
-        await query.edit_message_text(msg if materias else "No hay materias.", reply_markup=get_materias_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, msg if materias else "No hay materias.", get_materias_menu(), msg_id)
 
     elif data == 'uni_list':
         db = SessionLocal()
@@ -140,7 +165,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         for u in unidades:
             msg += f"ID: {u.id} | Mat. ID: {u.id_materia} | {u.nombre}\n"
         db.close()
-        await query.edit_message_text(msg if unidades else "No hay unidades.", reply_markup=get_unidades_menu(), parse_mode='Markdown')
+        await send_raw_menu(chat_id, msg if unidades else "No hay unidades.", get_unidades_menu(), msg_id)
 
 async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
