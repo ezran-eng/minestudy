@@ -72,9 +72,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: rgba(14,14,14,0.9);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(14, 14, 14, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -383,9 +384,10 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(14,14,14,0.9);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(14, 14, 14, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -557,9 +559,10 @@ body {
 ══════════════════════════ */
 .profile-topbar{
   padding:16px 16px 10px;
-  border-bottom:1px solid var(--border);
-  background:rgba(14,14,14,0.9);
-  backdrop-filter:blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(14, 14, 14, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   position:sticky;top:0;z-index:50;
   overflow: visible;
 }
@@ -624,10 +627,10 @@ body {
 ══════════════════════════ */
 .bottom-nav{
   position:fixed;bottom:0;left:0;right:0;height:72px;
-  background: rgba(14, 14, 14, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  background: rgba(14, 14, 14, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
   display:flex;align-items:center;
   padding:0 8px 8px;
   z-index:100;
