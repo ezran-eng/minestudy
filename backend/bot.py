@@ -65,12 +65,12 @@ async def send_raw_menu(chat_id, text, reply_markup, message_id=None):
 def get_main_menu():
     return {
         'inline_keyboard': [
-            [{'text': "📚 Materias", 'callback_data': 'menu_materias'},
-             {'text': "💥 Unidades", 'callback_data': 'menu_unidades'}],
-            [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards'},
-             {'text': "🎯 Quiz", 'callback_data': 'menu_quiz'}],
-            [{'text': "📊 Stats", 'callback_data': 'menu_stats'},
-             {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload'}]
+            [{'text': "📚 Materias", 'callback_data': 'menu_materias', 'style': 'primary'},
+             {'text': "💥 Unidades", 'callback_data': 'menu_unidades', 'style': 'primary'}],
+            [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards', 'style': 'success'},
+             {'text': "🎯 Quiz", 'callback_data': 'menu_quiz', 'style': 'success'}],
+            [{'text': "📊 Stats", 'callback_data': 'menu_stats', 'style': 'primary'},
+             {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload', 'style': 'primary'}]
         ]
     }
 
