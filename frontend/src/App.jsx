@@ -7,6 +7,7 @@ import MateriaDetail from './screens/MateriaDetail';
 import UnidadDetail from './screens/UnidadDetail';
 import Profile from './screens/Profile';
 import BottomNav from './components/BottomNav';
+import { ToastProvider } from './components/Toast';
 
 import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser } from './services/api';
@@ -59,7 +60,9 @@ const App = () => {
 
   return (
     <Router>
-      <AppContent user={user} />
+      <ToastProvider>
+        <AppContent user={user} />
+      </ToastProvider>
     </Router>
   );
 };

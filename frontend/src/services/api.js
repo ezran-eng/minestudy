@@ -43,3 +43,17 @@ export const getRanking = async () => {
   }
   return response.json();
 };
+
+export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
+  const response = await fetch(`${API_URL}/actividad`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id_telegram, tipo, fecha_local }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to register activity');
+  }
+  return response.json();
+};

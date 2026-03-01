@@ -44,3 +44,13 @@ class RankingUser(BaseModel):
     total_progress: float
 
     model_config = {"from_attributes": True}
+
+class ActividadCreate(BaseModel):
+    id_telegram: int
+    tipo: str
+    fecha_local: str
+
+class ActividadResponse(BaseModel):
+    racha: int
+    nueva_racha: bool
+    primer_dia: bool

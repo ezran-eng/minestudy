@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTelegram } from '../hooks/useTelegram';
+import { registrarActividad } from '../services/api';
+import { useToast } from './Toast';
 
 const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
+  const { user } = useTelegram();
+  const { showToast } = useToast();
   const defaultCards = [
     { q: '¿Cuál es la dureza del cuarzo en la escala de Mohs?', a: 'Dureza 7 — es uno de los minerales más comunes y resistentes de la corteza terrestre.' },
     { q: '¿Qué significa RQD en geomecánica?', a: 'Rock Quality Designation — mide la calidad de la roca según el porcentaje de testigos intactos mayores a 10 cm.' },
@@ -26,7 +31,24 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
     }
   };
 
-  const nextCard = (knew) => {
+  const nextCard = async (knew) => {
+    const isLastCard = cardIdx === cards.length - 1;
+
+    if (isLastCard && user && user.id) {
+      try {
+        const fechaLocal = new Date().toISOString().split('T')[0];
+        const res = await registrarActividad(user.id, 'flashcard', fechaLocal);
+
+        if (res.primer_dia) {
+          showToast('⚡ ¡Comenzaste tu racha! Estudia cada día para mantenerla viva.');
+        } else if (res.nueva_racha) {
+          showToast(`🔥 ¡Racha de ${res.racha} días! ¡Sigue así!`);
+        }
+      } catch (err) {
+        console.error('Error registering activity:', err);
+      }
+    }
+
     setCardIdx((prev) => (prev + 1) % cards.length);
     setFlipped(false);
   };
