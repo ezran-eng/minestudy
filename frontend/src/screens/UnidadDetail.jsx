@@ -1,32 +1,65 @@
-import React, { useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { materiasData } from '../data/materias';
+import React, { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import Timer from '../components/Timer';
 import { useTelegram } from '../hooks/useTelegram';
-import { registrarActividad } from '../services/api';
+import api, { registrarActividad } from '../services/api';
 import { useToast } from '../components/Toast';
 
 const UnidadDetail = () => {
-  const { id, idx } = useParams();
+  const { id, idx } = useParams(); // idx here is actually the unidad id
   const { user } = useTelegram();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isFlashOpen, setIsFlashOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
-  const [customFlashcards, setCustomFlashcards] = useState(null);
+
+  // From navigation state if possible
+  const [materia, setMateria] = useState(location.state?.materia || null);
+  const [unidad, setUnidad] = useState(location.state?.unidad || null);
+
+  const [flashcards, setFlashcards] = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [loading, setLoading] = useState(!materia || !unidad);
+
+  useEffect(() => {
+    const fetchUnidadData = async () => {
+      try {
+        if (!materia || !unidad) {
+             const mRes = await api.get('/materias');
+             const foundM = mRes.data.find(m => m.id === parseInt(id));
+             if (foundM) {
+                setMateria(foundM);
+                const foundU = foundM.unidades.find(u => u.id === parseInt(idx));
+                if (foundU) setUnidad(foundU);
+             }
+        }
+
+        // Fetch specific flashcards and quiz questions
+        const fcRes = await api.get(`/unidades/${idx}/flashcards`);
+        setFlashcards(fcRes.data);
+
+        const qRes = await api.get(`/unidades/${idx}/quiz`);
+        setQuizQuestions(qRes.data);
+      } catch (e) {
+         console.error(e);
+      } finally {
+         setLoading(false);
+      }
+    };
+    fetchUnidadData();
+  }, [id, idx, materia, unidad]);
 
   const fileInputRef = useRef(null);
 
-  const materia = materiasData[id];
+  if (loading) return <div className="screen active" style={{ padding: '20px' }}>Cargando unidad...</div>;
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
-
-  const unidad = materia.unidades[parseInt(idx, 10)];
   if (!unidad) return <div className="screen active" style={{ padding: '20px' }}>Unidad no encontrada</div>;
 
-  const topicsArray = unidad.topics.split(' · ');
+  const topicsArray = unidad.temas.map(t => t.nombre);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -50,8 +83,8 @@ const UnidadDetail = () => {
       }
 
       if (parsedCards.length > 0) {
-        setCustomFlashcards(parsedCards);
-        alert(`Importadas ${parsedCards.length} flashcards exitosamente.`);
+        setFlashcards(parsedCards);
+        alert(`Importadas ${parsedCards.length} flashcards exitosamente para esta sesión.`);
       } else {
         alert('No se encontraron flashcards válidas en el CSV.');
       }
@@ -63,6 +96,14 @@ const UnidadDetail = () => {
   const handleMarkComplete = async () => {
     if (user && user.id) {
       try {
+        // Create progreso entry if complete
+        await api.put('/progreso', {
+            id_usuario: user.id,
+            id_materia: materia.id,
+            id_unidad: unidad.id,
+            porcentaje: 100
+        });
+
         const fechaLocal = new Date().toISOString().split('T')[0];
         const res = await registrarActividad(user.id, 'unidad', fechaLocal);
 
@@ -120,7 +161,7 @@ const UnidadDetail = () => {
                 <div className="resource-sub">Repaso con spaced repetition</div>
               </div>
               <div className="resource-badge">
-                {customFlashcards ? `${customFlashcards.length} tarjetas` : '12 tarjetas'}
+                {flashcards.length > 0 ? `${flashcards.length} tarjetas` : 'Sin tarjetas'}
               </div>
             </div>
             <div className="resource-card quiz" onClick={() => setIsQuizOpen(true)}>
@@ -129,7 +170,9 @@ const UnidadDetail = () => {
                 <div className="resource-name">Quiz IA</div>
                 <div className="resource-sub">Preguntas desde tus PDFs</div>
               </div>
-              <div className="resource-badge">Nuevo</div>
+              <div className="resource-badge">
+                {quizQuestions.length > 0 ? `${quizQuestions.length} preguntas` : 'Nuevo'}
+              </div>
             </div>
           </div>
 
@@ -148,12 +191,13 @@ const UnidadDetail = () => {
       <Flashcard
         isOpen={isFlashOpen}
         onClose={() => setIsFlashOpen(false)}
-        materiaName={materia.name}
-        customCards={customFlashcards}
+        materiaName={materia.nombre}
+        customCards={flashcards.length > 0 ? flashcards.map(f => ({ q: f.pregunta, a: f.respuesta })) : null}
       />
       <Quiz
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
+        customQuestions={quizQuestions.length > 0 ? quizQuestions : null}
       />
       <Timer />
     </>

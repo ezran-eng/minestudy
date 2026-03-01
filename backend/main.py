@@ -72,6 +72,31 @@ def update_progress(progreso: schemas.ProgresoCreate, db: Session = Depends(get_
     db.refresh(db_progreso)
     return db_progreso
 
+@app.get("/materias", response_model=List[schemas.MateriaBase])
+def get_materias(db: Session = Depends(get_db)):
+    db_materias = db.query(models.Materia).order_by(models.Materia.orden).all()
+    # Unidades and temas will be fetched automatically due to relationship setup
+    # Make sure to sort them correctly before returning
+    for materia in db_materias:
+        materia.unidades.sort(key=lambda u: (u.orden is None, u.orden))
+        for unidad in materia.unidades:
+            unidad.temas.sort(key=lambda t: t.id) # Sort by id for temas as they don't have orden
+    return db_materias
+
+@app.get("/unidades/{id_unidad}/flashcards", response_model=List[schemas.FlashcardBase])
+def get_flashcards(id_unidad: int, db: Session = Depends(get_db)):
+    db_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()
+    if not db_flashcards:
+        return []
+    return db_flashcards
+
+@app.get("/unidades/{id_unidad}/quiz", response_model=List[schemas.QuizPreguntaBase])
+def get_quiz(id_unidad: int, db: Session = Depends(get_db)):
+    db_quiz = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id_unidad).all()
+    if not db_quiz:
+        return []
+    return db_quiz
+
 @app.get("/ranking", response_model=List[schemas.RankingUser])
 def get_ranking(db: Session = Depends(get_db)):
     # Query to calculate average percentage for each user across all their progress records

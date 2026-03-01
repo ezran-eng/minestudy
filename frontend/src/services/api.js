@@ -14,6 +14,37 @@ export const createOrUpdateUser = async (userData) => {
   return response.json();
 };
 
+const api = {
+  get: async (endpoint) => {
+    const response = await fetch(`${API_URL}${endpoint}`);
+    if (!response.ok) throw new Error(`GET ${endpoint} failed`);
+    const data = await response.json();
+    return { data };
+  },
+  put: async (endpoint, payload) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`PUT ${endpoint} failed`);
+    const data = await response.json();
+    return { data };
+  },
+  post: async (endpoint, payload) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`POST ${endpoint} failed`);
+    const data = await response.json();
+    return { data };
+  }
+};
+
+export default api;
+
 export const getUserProfile = async (idTelegram) => {
   const response = await fetch(`${API_URL}/users/${idTelegram}`);
   if (!response.ok) {

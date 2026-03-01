@@ -316,21 +316,9 @@ body {
   position: relative;
   overflow: hidden;
 }
-.materia-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 3px 0 0 3px;
+.materia-row {
+  border-left: 3px solid transparent;
 }
-.materia-row.c1::before { background: var(--gold); }
-.materia-row.c2::before { background: var(--rust); }
-.materia-row.c3::before { background: var(--blue); }
-.materia-row.c4::before { background: var(--green); }
-.materia-row.c5::before { background: #b06fd4; }
-.materia-row.c6::before { background: #7a9e8a; }
 .materia-row:active {
   transform: scale(0.98);
 }

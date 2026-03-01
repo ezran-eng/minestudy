@@ -3,19 +3,20 @@ import { useTelegram } from '../hooks/useTelegram';
 import { registrarActividad } from '../services/api';
 import { useToast } from './Toast';
 
-const Quiz = ({ isOpen, onClose }) => {
+const Quiz = ({ isOpen, onClose, customQuestions }) => {
   const { user } = useTelegram();
   const { showToast } = useToast();
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
-  const [correctOpt] = useState(2); // C is correct index
   const [isAnswered, setIsAnswered] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setCurrentIndex(0);
       setSelectedOpt(null);
       setIsAnswered(false);
     }
-  }, [isOpen]);
+  }, [isOpen, customQuestions]);
 
   const closeBg = (e) => {
     if (e.target.id === 'quiz-overlay') {
@@ -23,13 +24,36 @@ const Quiz = ({ isOpen, onClose }) => {
     }
   };
 
+  const currentQ = customQuestions && customQuestions.length > 0
+    ? customQuestions[currentIndex]
+    : {
+        pregunta: '¿Cuál es el EPP obligatorio en toda operación subterránea según normativa vigente?',
+        opcion_a: 'Chaleco reflectante solamente',
+        opcion_b: 'Guantes y lentes de seguridad',
+        opcion_c: 'Casco, lámpara, botas con puntera de acero y autorescatador',
+        opcion_d: 'Solo casco y botas',
+        respuesta_correcta: 'c'
+      };
+
+  const getCorrectIndex = () => {
+      const correct = currentQ.respuesta_correcta.toLowerCase();
+      if (correct === 'a') return 0;
+      if (correct === 'b') return 1;
+      if (correct === 'c') return 2;
+      if (correct === 'd') return 3;
+      return 2;
+  };
+  const correctOpt = getCorrectIndex();
+
   const answerQuiz = async (index, isCorrect) => {
     if (isAnswered) return;
 
     setSelectedOpt(index);
     setIsAnswered(true);
 
-    if (user && user.id) {
+    const isLast = !customQuestions || currentIndex === customQuestions.length - 1;
+
+    if (isLast && user && user.id) {
       try {
         const fechaLocal = new Date().toISOString().split('T')[0];
         const res = await registrarActividad(user.id, 'quiz', fechaLocal);
@@ -45,7 +69,13 @@ const Quiz = ({ isOpen, onClose }) => {
     }
 
     setTimeout(() => {
-      onClose();
+      if (isLast) {
+          onClose();
+      } else {
+          setCurrentIndex(prev => prev + 1);
+          setIsAnswered(false);
+          setSelectedOpt(null);
+      }
     }, 1600);
   };
 
@@ -56,9 +86,11 @@ const Quiz = ({ isOpen, onClose }) => {
       <div className="sheet">
         <div className="sheet-handle"></div>
         <div className="sheet-title">Quiz IA</div>
-        <div className="sheet-sub">Generado desde tus materiales</div>
+        <div className="sheet-sub">
+            {customQuestions ? `Pregunta ${currentIndex + 1} de ${customQuestions.length}` : 'Generado desde tus materiales'}
+        </div>
         <div className="quiz-question">
-          ¿Cuál es el EPP obligatorio en toda operación subterránea según normativa vigente?
+          {currentQ.pregunta}
         </div>
         <div className="quiz-options">
           <div
@@ -66,7 +98,7 @@ const Quiz = ({ isOpen, onClose }) => {
             onClick={() => answerQuiz(0, false)}
             style={{ pointerEvents: isAnswered ? 'none' : 'auto' }}
           >
-            <div className="opt-letter">A</div>Chaleco reflectante solamente
+            <div className="opt-letter">A</div>{currentQ.opcion_a}
           </div>
 
           <div
@@ -74,15 +106,15 @@ const Quiz = ({ isOpen, onClose }) => {
             onClick={() => answerQuiz(1, false)}
             style={{ pointerEvents: isAnswered ? 'none' : 'auto' }}
           >
-            <div className="opt-letter">B</div>Guantes y lentes de seguridad
+            <div className="opt-letter">B</div>{currentQ.opcion_b}
           </div>
 
           <div
             className={`quiz-opt ${isAnswered && 2 === correctOpt ? 'correct' : isAnswered && selectedOpt === 2 ? 'wrong' : ''}`}
-            onClick={() => answerQuiz(2, true)}
+            onClick={() => answerQuiz(2, false)}
             style={{ pointerEvents: isAnswered ? 'none' : 'auto' }}
           >
-            <div className="opt-letter">C</div>Casco, lámpara, botas con puntera de acero y autorescatador
+            <div className="opt-letter">C</div>{currentQ.opcion_c}
           </div>
 
           <div
@@ -90,7 +122,7 @@ const Quiz = ({ isOpen, onClose }) => {
             onClick={() => answerQuiz(3, false)}
             style={{ pointerEvents: isAnswered ? 'none' : 'auto' }}
           >
-            <div className="opt-letter">D</div>Solo casco y botas
+            <div className="opt-letter">D</div>{currentQ.opcion_d}
           </div>
         </div>
       </div>

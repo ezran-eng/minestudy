@@ -2,6 +2,53 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
+class TemaBase(BaseModel):
+    id: int
+    id_unidad: int
+    nombre: str
+
+    model_config = {"from_attributes": True}
+
+class UnidadBase(BaseModel):
+    id: int
+    id_materia: int
+    nombre: str
+    orden: Optional[int] = None
+    estado_default: str
+    temas: List[TemaBase] = []
+
+    model_config = {"from_attributes": True}
+
+class MateriaBase(BaseModel):
+    id: int
+    nombre: str
+    emoji: Optional[str] = None
+    color: Optional[str] = None
+    orden: Optional[int] = None
+    unidades: List[UnidadBase] = []
+
+    model_config = {"from_attributes": True}
+
+class FlashcardBase(BaseModel):
+    id: int
+    id_unidad: int
+    pregunta: str
+    respuesta: str
+
+    model_config = {"from_attributes": True}
+
+class QuizPreguntaBase(BaseModel):
+    id: int
+    id_unidad: int
+    pregunta: str
+    opcion_a: str
+    opcion_b: str
+    opcion_c: str
+    opcion_d: str
+    respuesta_correcta: str
+
+    model_config = {"from_attributes": True}
+
 class ProgresoBase(BaseModel):
     id_materia: int
     id_unidad: int
