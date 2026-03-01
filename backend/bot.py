@@ -771,11 +771,9 @@ application.add_handler(CommandHandler("stats", stats))
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
 application.add_handler(CallbackQueryHandler(button_handler))
 
-async def setup_webhook():
-    railway_url = os.getenv("RAILWAY_URL", "https://minestudy-backend.up.railway.app")
-    webhook_url = f"{railway_url.rstrip('/')}/webhook"
-    await application.bot.set_webhook(
-        url=webhook_url,
-        drop_pending_updates=True
+if __name__ == "__main__":
+    print("Bot is starting polling...")
+    application.run_polling(
+        drop_pending_updates=True,
+        close_loop=False
     )
-    print(f"Webhook set to {webhook_url}")
