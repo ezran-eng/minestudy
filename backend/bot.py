@@ -21,13 +21,13 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 # Constants for conversation states
 (
     WAITING_MATERIA_EMOJI, WAITING_MATERIA_NOMBRE, WAITING_MATERIA_COLOR,
-    WAITING_MATERIA_ID_EDIT, WAITING_MATERIA_NOMBRE_EDIT, WAITING_MATERIA_ID_DEL,
-    WAITING_UNIDAD_MATERIA_ID, WAITING_UNIDAD_NOMBRE,
-    WAITING_UNIDAD_ID_EDIT, WAITING_UNIDAD_NOMBRE_EDIT, WAITING_UNIDAD_ID_DEL,
-    WAITING_TEMA_UNIDAD_ID, WAITING_TEMA_NOMBRE, WAITING_TEMA_LIST_UNIDAD_ID, WAITING_TEMA_DEL_ID,
-    WAITING_FLASHCARD_CSV, WAITING_FLASHCARD_DEL,
-    WAITING_QUIZ_JSON, WAITING_QUIZ_DEL
-) = range(19)
+    WAITING_MATERIA_NOMBRE_EDIT,
+    WAITING_UNIDAD_NOMBRE, WAITING_UNIDAD_NOMBRE_EDIT,
+    WAITING_TEMA_NOMBRE,
+    WAITING_FLASHCARD_CSV,
+    WAITING_QUIZ_JSON,
+    SELECT_MATERIA, SELECT_UNIDAD, SELECT_TEMA, CONFIRM_ACTION
+) = range(13)
 
 
 # Allowed Admin Telegram ID
@@ -193,6 +193,71 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_raw_menu(chat_id, "🔵 **Ver Preguntas**\nFuncionalidad no implementada aún en la base de datos de listado.", get_quiz_menu(), msg_id)
 
 
+# --- DYNAMIC SELECTION HELPERS ---
+async def show_materia_selection(update: Update, prompt: str):
+    db = SessionLocal()
+    try:
+        materias = db.query(models.Materia).all()
+        keyboard = []
+        for mat in materias:
+            keyboard.append([InlineKeyboardButton(f"{mat.emoji or ''} {mat.nombre}", callback_data=f"sel_mat_{mat.id}")])
+        keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="cancel_to_main")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(prompt, reply_markup=reply_markup)
+    finally:
+        db.close()
+
+async def show_unidad_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, prompt: str):
+    mat_id = context.user_data.get('selected_materia_id')
+    db = SessionLocal()
+    try:
+        unidades = db.query(models.Unidad).filter(models.Unidad.id_materia == mat_id).all()
+        keyboard = []
+        for uni in unidades:
+            keyboard.append([InlineKeyboardButton(uni.nombre, callback_data=f"sel_uni_{uni.id}")])
+        keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="cancel_to_main")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
+    finally:
+        db.close()
+
+async def show_tema_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, prompt: str):
+    uni_id = context.user_data.get('selected_unidad_id')
+    db = SessionLocal()
+    try:
+        temas = db.query(models.Tema).filter(models.Tema.id_unidad == uni_id).all()
+        keyboard = []
+        for t in temas:
+            keyboard.append([InlineKeyboardButton(t.nombre, callback_data=f"sel_tema_{t.id}")])
+        keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="cancel_to_main")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
+    finally:
+        db.close()
+
+async def show_confirm_action(update: Update, prompt: str):
+    keyboard = [
+        [InlineKeyboardButton("✅ Sí, borrar", callback_data="confirm_yes"),
+         InlineKeyboardButton("❌ Cancelar", callback_data="cancel_to_main")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
+
+async def send_success_menu(update: Update, text: str, create_action: str):
+    keyboard = [
+        [InlineKeyboardButton("➕ Hacer otro", callback_data=create_action)],
+        [InlineKeyboardButton("🏠 Menú principal", callback_data="cancel_to_main")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup)
+
+# --- CONVERSATION ENTRY HANDLER ---
 async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     if query.from_user.id != ADMIN_ID:
@@ -201,60 +266,150 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
 
     await query.answer()
     data = query.data
+    context.user_data['action'] = data
 
-    # MATERIAS
     if data == 'mat_new':
-        await query.message.reply_text("🟢 **Nueva Materia**\nEnviá el emoji para la materia:")
+        await query.edit_message_text("🟢 **Nueva Materia**\nEnviá el emoji para la materia:")
         return WAITING_MATERIA_EMOJI
-    elif data == 'mat_edit':
-        await query.message.reply_text("🟡 **Editar Materia**\nEnviá el ID de la materia que querés editar:")
-        return WAITING_MATERIA_ID_EDIT
-    elif data == 'mat_del':
-        await query.message.reply_text("🔴 **Borrar Materia**\nEnviá el ID de la materia que querés borrar:")
-        return WAITING_MATERIA_ID_DEL
+    elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del']:
+        await show_materia_selection(update, "¿A qué materia pertenece?")
+        return SELECT_MATERIA
 
-    # UNIDADES
-    elif data == 'uni_new':
-        await query.message.reply_text("🟢 **Nueva Unidad**\nEnviá el ID de la materia a la que pertenece:")
-        return WAITING_UNIDAD_MATERIA_ID
-    # TEMAS
-    elif data == 'tm_new':
-        await query.message.reply_text("🟢 **Nuevo Tema**\nEnviá el ID de la unidad a la que pertenece:")
-        return WAITING_TEMA_UNIDAD_ID
-    elif data == 'tm_list':
-        await query.message.reply_text("🔵 **Listar Temas**\nEnviá el ID de la unidad para listar sus temas:")
-        return WAITING_TEMA_LIST_UNIDAD_ID
-    elif data == 'tm_del':
-        await query.message.reply_text("🔴 **Borrar Tema**\nEnviá el ID del tema que querés borrar:")
-        return WAITING_TEMA_DEL_ID
-    elif data == 'uni_edit':
-        await query.message.reply_text("🟡 **Editar Unidad**\nEnviá el ID de la unidad que querés editar:")
-        return WAITING_UNIDAD_ID_EDIT
-    elif data == 'uni_del':
-        await query.message.reply_text("🔴 **Borrar Unidad**\nEnviá el ID de la unidad que querés borrar:")
-        return WAITING_UNIDAD_ID_DEL
+    return ConversationHandler.END
 
-    # FLASHCARDS
-    elif data == 'fc_new':
-        await query.message.reply_text("🟢 **Subir Flashcards**\nEnviá el ID de la unidad:")
-        return WAITING_FLASHCARD_CSV
-    elif data == 'fc_del':
-        await query.message.reply_text("🔴 **Borrar Flashcards**\nEnviá el ID de la unidad para borrar sus flashcards:")
-        return WAITING_FLASHCARD_DEL
-
-    # QUIZ
-    elif data == 'qz_new':
-        await query.message.reply_text("🟢 **Subir Quiz**\nEnviá el ID de la unidad:")
-        return WAITING_QUIZ_JSON
-    elif data == 'qz_del':
-        await query.message.reply_text("🔴 **Borrar Quiz**\nEnviá el ID de la unidad para borrar su quiz:")
-        return WAITING_QUIZ_DEL
-
-    # If it's a menu navigation, we shouldn't block conversation but we don't start a state
+async def cancel_to_main_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    context.user_data.clear()
+    await send_raw_menu(query.message.chat.id, "⚙️ **Panel de Administración**", get_main_menu(), query.message.message_id)
     return ConversationHandler.END
 
 async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     await update.message.reply_text("Operación cancelada. Usa /admin para el menú.")
+    return ConversationHandler.END
+
+# --- DYNAMIC SELECTION HANDLERS ---
+async def materia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    mat_id = int(query.data.split('_')[2])
+    context.user_data['selected_materia_id'] = mat_id
+    action = context.user_data.get('action')
+
+    if action == 'mat_edit':
+        await query.edit_message_text("Enviá el nuevo nombre para esta materia (el emoji y color quedarán igual por ahora):")
+        return WAITING_MATERIA_NOMBRE_EDIT
+    elif action == 'mat_del':
+        await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta materia y todas sus dependencias?")
+        return CONFIRM_ACTION
+    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del']:
+        await show_unidad_selection(update, context, "¿A qué unidad pertenece?")
+        return SELECT_UNIDAD
+
+    return ConversationHandler.END
+
+async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    uni_id = int(query.data.split('_')[2])
+    context.user_data['selected_unidad_id'] = uni_id
+    action = context.user_data.get('action')
+
+    if action == 'uni_new':
+        await query.edit_message_text("Ahora enviá el nombre de la unidad:")
+        return WAITING_UNIDAD_NOMBRE
+    elif action == 'uni_edit':
+        await query.edit_message_text("Enviá el nuevo nombre para esta unidad:")
+        return WAITING_UNIDAD_NOMBRE_EDIT
+    elif action == 'uni_del':
+        await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta unidad y todas sus dependencias?")
+        return CONFIRM_ACTION
+    elif action == 'tm_new':
+        await query.edit_message_text("Ahora enviá el nombre del tema:")
+        return WAITING_TEMA_NOMBRE
+    elif action == 'tm_del':
+        await show_tema_selection(update, context, "¿Qué tema querés borrar?")
+        return SELECT_TEMA
+    elif action == 'fc_new':
+        await query.edit_message_text("Adjuntá el archivo CSV con las flashcards (pregunta,respuesta):")
+        return WAITING_FLASHCARD_CSV
+    elif action == 'fc_del':
+        await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar todas las flashcards de esta unidad?")
+        return CONFIRM_ACTION
+    elif action == 'qz_new':
+        await query.edit_message_text("Adjuntá el archivo JSON con las preguntas del quiz:")
+        return WAITING_QUIZ_JSON
+    elif action == 'qz_del':
+        await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar todo el quiz de esta unidad?")
+        return CONFIRM_ACTION
+    elif action == 'tm_list':
+        db = SessionLocal()
+        try:
+            temas = db.query(models.Tema).filter(models.Tema.id_unidad == uni_id).all()
+            msg = f"📝 **Temas de la Unidad:**\n"
+            for t in temas:
+                msg += f"• {t.nombre}\n"
+            await send_success_menu(update, msg if temas else "No hay temas para esta unidad.", "tm_list")
+        finally:
+            db.close()
+        return ConversationHandler.END
+
+    return ConversationHandler.END
+
+async def tema_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    tema_id = int(query.data.split('_')[2])
+    context.user_data['selected_tema_id'] = tema_id
+    action = context.user_data.get('action')
+
+    if action == 'tm_del':
+        await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar este tema?")
+        return CONFIRM_ACTION
+
+    return ConversationHandler.END
+
+async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    action = context.user_data.get('action')
+    db = SessionLocal()
+    try:
+        if action == 'mat_del':
+            mat_id = context.user_data.get('selected_materia_id')
+            mat = db.query(models.Materia).filter(models.Materia.id == mat_id).first()
+            if mat:
+                db.delete(mat)
+                db.commit()
+                await send_success_menu(update, f"✅ Materia borrada.", action)
+        elif action == 'uni_del':
+            uni_id = context.user_data.get('selected_unidad_id')
+            uni = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
+            if uni:
+                db.delete(uni)
+                db.commit()
+                await send_success_menu(update, f"✅ Unidad borrada.", action)
+        elif action == 'tm_del':
+            tema_id = context.user_data.get('selected_tema_id')
+            tema = db.query(models.Tema).filter(models.Tema.id == tema_id).first()
+            if tema:
+                db.delete(tema)
+                db.commit()
+                await send_success_menu(update, f"✅ Tema borrado.", action)
+        elif action == 'fc_del':
+            uni_id = context.user_data.get('selected_unidad_id')
+            deleted = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == uni_id).delete()
+            db.commit()
+            await send_success_menu(update, f"✅ Borradas {deleted} flashcards.", action)
+        elif action == 'qz_del':
+            uni_id = context.user_data.get('selected_unidad_id')
+            deleted = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == uni_id).delete()
+            db.commit()
+            await send_success_menu(update, f"✅ Borradas {deleted} preguntas de quiz.", action)
+    finally:
+        db.close()
+
     return ConversationHandler.END
 
 # --- MATERIA CONVERSATION ---
@@ -282,23 +437,17 @@ async def mat_color_received(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         db.add(materia)
         db.commit()
-        await update.message.reply_text(f"✅ Materia '{materia.nombre}' creada exitosamente con ID {materia.id}.")
+        await send_success_menu(update, f"✅ Materia '{materia.nombre}' creada exitosamente.", "mat_new")
     except Exception as e:
         await update.message.reply_text(f"❌ Error guardando materia: {e}")
     finally:
         db.close()
 
-    context.user_data.clear()
     return ConversationHandler.END
-
-async def mat_id_edit_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_id'] = update.message.text
-    await update.message.reply_text("Enviá el nuevo nombre para esta materia (el emoji y color quedarán igual por ahora):")
-    return WAITING_MATERIA_NOMBRE_EDIT
 
 async def mat_nombre_edit_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     nuevo_nombre = update.message.text
-    mat_id = context.user_data.get('temp_id')
+    mat_id = context.user_data.get('selected_materia_id')
 
     db = SessionLocal()
     try:
@@ -306,80 +455,26 @@ async def mat_nombre_edit_received(update: Update, context: ContextTypes.DEFAULT
         if mat:
             mat.nombre = nuevo_nombre
             db.commit()
-            await update.message.reply_text(f"✅ Materia {mat_id} actualizada a '{nuevo_nombre}'.")
+            await send_success_menu(update, f"✅ Materia actualizada a '{nuevo_nombre}'.", "mat_edit")
         else:
-            await update.message.reply_text(f"❌ Materia con ID {mat_id} no encontrada.")
+            await update.message.reply_text(f"❌ Materia no encontrada.")
     except Exception as e:
          await update.message.reply_text(f"❌ Error: {e}")
     finally:
         db.close()
 
-    return ConversationHandler.END
-
-async def mat_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    mat_id = update.message.text
-    db = SessionLocal()
-    try:
-        mat = db.query(models.Materia).filter(models.Materia.id == mat_id).first()
-        if mat:
-            db.delete(mat)
-            db.commit()
-            await update.message.reply_text(f"✅ Materia {mat_id} y sus dependencias han sido borradas.")
-        else:
-            await update.message.reply_text(f"❌ Materia con ID {mat_id} no encontrada.")
-    except Exception as e:
-         await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
     return ConversationHandler.END
 
 # --- TEMA CONVERSATION ---
-async def tm_unidad_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_tm_unidad_id'] = update.message.text
-    await update.message.reply_text("Ahora enviá el nombre del tema:")
-    return WAITING_TEMA_NOMBRE
-
 async def tm_nombre_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     nombre = update.message.text
-    unidad_id = context.user_data.get('temp_tm_unidad_id')
+    unidad_id = context.user_data.get('selected_unidad_id')
     db = SessionLocal()
     try:
         tema = models.Tema(id_unidad=unidad_id, nombre=nombre)
         db.add(tema)
         db.commit()
-        await update.message.reply_text(f"✅ Tema '{nombre}' creado con ID {tema.id}.")
-    except Exception as e:
-         await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
-    return ConversationHandler.END
-
-async def tm_list_unidad_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    unidad_id = update.message.text
-    db = SessionLocal()
-    try:
-        temas = db.query(models.Tema).filter(models.Tema.id_unidad == unidad_id).all()
-        msg = f"📝 **Temas de la Unidad {unidad_id}:**\n"
-        for t in temas:
-            msg += f"ID: {t.id} | {t.nombre}\n"
-        await update.message.reply_text(msg if temas else "No hay temas para esta unidad.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
-    return ConversationHandler.END
-
-async def tm_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    tema_id = update.message.text
-    db = SessionLocal()
-    try:
-        tema = db.query(models.Tema).filter(models.Tema.id == tema_id).first()
-        if tema:
-            db.delete(tema)
-            db.commit()
-            await update.message.reply_text(f"✅ Tema {tema_id} borrado.")
-        else:
-            await update.message.reply_text(f"❌ Tema con ID {tema_id} no encontrado.")
+        await send_success_menu(update, f"✅ Tema '{nombre}' creado exitosamente.", "tm_new")
     except Exception as e:
          await update.message.reply_text(f"❌ Error: {e}")
     finally:
@@ -387,60 +482,33 @@ async def tm_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 # --- UNIDAD CONVERSATION ---
-async def uni_mat_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_mat_id'] = update.message.text
-    await update.message.reply_text("Ahora enviá el nombre de la unidad:")
-    return WAITING_UNIDAD_NOMBRE
-
 async def uni_nombre_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     nombre = update.message.text
-    mat_id = context.user_data.get('temp_mat_id')
+    mat_id = context.user_data.get('selected_materia_id')
     db = SessionLocal()
     try:
         uni = models.Unidad(id_materia=mat_id, nombre=nombre)
         db.add(uni)
         db.commit()
-        await update.message.reply_text(f"✅ Unidad '{nombre}' creada con ID {uni.id}.")
+        await send_success_menu(update, f"✅ Unidad '{nombre}' creada exitosamente.", "uni_new")
     except Exception as e:
          await update.message.reply_text(f"❌ Error: {e}")
     finally:
         db.close()
     return ConversationHandler.END
 
-async def uni_id_edit_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_uni_id'] = update.message.text
-    await update.message.reply_text("Enviá el nuevo nombre para esta unidad:")
-    return WAITING_UNIDAD_NOMBRE_EDIT
-
 async def uni_nombre_edit_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     nombre = update.message.text
-    uni_id = context.user_data.get('temp_uni_id')
+    uni_id = context.user_data.get('selected_unidad_id')
     db = SessionLocal()
     try:
         uni = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
         if uni:
             uni.nombre = nombre
             db.commit()
-            await update.message.reply_text(f"✅ Unidad {uni_id} actualizada a '{nombre}'.")
+            await send_success_menu(update, f"✅ Unidad actualizada a '{nombre}'.", "uni_edit")
         else:
-            await update.message.reply_text(f"❌ Unidad con ID {uni_id} no encontrada.")
-    except Exception as e:
-         await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
-    return ConversationHandler.END
-
-async def uni_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    uni_id = update.message.text
-    db = SessionLocal()
-    try:
-        uni = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
-        if uni:
-            db.delete(uni)
-            db.commit()
-            await update.message.reply_text(f"✅ Unidad {uni_id} borrada.")
-        else:
-            await update.message.reply_text(f"❌ Unidad con ID {uni_id} no encontrada.")
+            await update.message.reply_text(f"❌ Unidad no encontrada.")
     except Exception as e:
          await update.message.reply_text(f"❌ Error: {e}")
     finally:
@@ -448,18 +516,12 @@ async def uni_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 # --- FLASHCARD CONVERSATION ---
-async def fc_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_uni_id_fc'] = update.message.text
-    await update.message.reply_text("Ahora adjuntá el archivo CSV con las flashcards (pregunta,respuesta):")
-    # State remains WAITING_FLASHCARD_CSV but expecting document
-    return WAITING_FLASHCARD_CSV
-
 async def fc_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message.document:
         await update.message.reply_text("Por favor enviá un documento CSV, o /cancel.")
         return WAITING_FLASHCARD_CSV
 
-    uni_id = context.user_data.get('temp_uni_id_fc')
+    uni_id = context.user_data.get('selected_unidad_id')
     file = await context.bot.get_file(update.message.document.file_id)
     content = await file.download_as_bytearray()
 
@@ -483,7 +545,7 @@ async def fc_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             count += 1
 
         db.commit()
-        await update.message.reply_text(f"✅ Importadas {count} flashcards a la unidad {uni_id}.")
+        await send_success_menu(update, f"✅ Importadas {count} flashcards.", "fc_new")
     except Exception as e:
         await update.message.reply_text(f"❌ Error procesando CSV: {e}")
     finally:
@@ -492,31 +554,13 @@ async def fc_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     return ConversationHandler.END
 
-async def fc_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    uni_id = update.message.text
-    db = SessionLocal()
-    try:
-        deleted = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == uni_id).delete()
-        db.commit()
-        await update.message.reply_text(f"✅ Borradas {deleted} flashcards de la unidad {uni_id}.")
-    except Exception as e:
-         await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
-    return ConversationHandler.END
-
 # --- QUIZ CONVERSATION ---
-async def qz_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['temp_uni_id_qz'] = update.message.text
-    await update.message.reply_text("Ahora adjuntá el archivo JSON con las preguntas del quiz:")
-    return WAITING_QUIZ_JSON
-
 async def qz_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message.document:
         await update.message.reply_text("Por favor enviá un documento JSON, o /cancel.")
         return WAITING_QUIZ_JSON
 
-    uni_id = context.user_data.get('temp_uni_id_qz')
+    uni_id = context.user_data.get('selected_unidad_id')
     file = await context.bot.get_file(update.message.document.file_id)
     content = await file.download_as_bytearray()
 
@@ -548,26 +592,13 @@ async def qz_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
              count += 1
 
         db.commit()
-        await update.message.reply_text(f"✅ Importadas {count} preguntas de quiz a la unidad {uni_id}.")
+        await send_success_menu(update, f"✅ Importadas {count} preguntas de quiz.", "qz_new")
     except Exception as e:
         await update.message.reply_text(f"❌ Error procesando JSON: {e}")
     finally:
         if 'db' in locals():
             db.close()
 
-    return ConversationHandler.END
-
-async def qz_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    uni_id = update.message.text
-    db = SessionLocal()
-    try:
-        deleted = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == uni_id).delete()
-        db.commit()
-        await update.message.reply_text(f"✅ Borradas {deleted} preguntas de quiz de la unidad {uni_id}.")
-    except Exception as e:
-         await update.message.reply_text(f"❌ Error: {e}")
-    finally:
-        db.close()
     return ConversationHandler.END
 
 
@@ -815,32 +846,36 @@ admin_conv_handler = ConversationHandler(
         CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del)$')
     ],
     states={
-        # Materia
+        SELECT_MATERIA: [
+            CallbackQueryHandler(materia_selected, pattern='^sel_mat_'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$')
+        ],
+        SELECT_UNIDAD: [
+            CallbackQueryHandler(unidad_selected, pattern='^sel_uni_'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$')
+        ],
+        SELECT_TEMA: [
+            CallbackQueryHandler(tema_selected, pattern='^sel_tema_'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$')
+        ],
+        CONFIRM_ACTION: [
+            CallbackQueryHandler(confirm_action_handler, pattern='^confirm_yes$'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$')
+        ],
         WAITING_MATERIA_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_emoji_received)],
         WAITING_MATERIA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_received)],
         WAITING_MATERIA_COLOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_color_received)],
-        WAITING_MATERIA_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_id_edit_received)],
         WAITING_MATERIA_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_nombre_edit_received)],
-        WAITING_MATERIA_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, mat_del_received)],
-        # Unidad
-        WAITING_UNIDAD_MATERIA_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_mat_id_received)],
         WAITING_UNIDAD_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_received)],
-        WAITING_UNIDAD_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_id_edit_received)],
         WAITING_UNIDAD_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_edit_received)],
-        WAITING_UNIDAD_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_del_received)],
-        # Tema
-        WAITING_TEMA_UNIDAD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_unidad_id_received)],
         WAITING_TEMA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_nombre_received)],
-        WAITING_TEMA_LIST_UNIDAD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_list_unidad_id_received)],
-        WAITING_TEMA_DEL_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_del_received)],
-        # Flashcards
         WAITING_FLASHCARD_CSV: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, fc_doc_received)],
-        WAITING_FLASHCARD_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, fc_del_received)],
-        # Quiz
-        WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)],
-        WAITING_QUIZ_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, qz_del_received)]
+        WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)]
     },
-    fallbacks=[CommandHandler('cancel', cancel_conversation)],
+    fallbacks=[
+        CommandHandler('cancel', cancel_conversation),
+        CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$')
+    ],
     allow_reentry=True
 )
 
