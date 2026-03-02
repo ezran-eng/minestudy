@@ -3,6 +3,7 @@ import json
 import csv
 import asyncio
 import httpx
+import logging
 from datetime import date
 from io import StringIO
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,6 +11,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
@@ -771,6 +775,13 @@ application.add_handler(CommandHandler("stats", stats))
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
 application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_flashcards|menu_quiz|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
+
+async def error_handler(update, context):
+    if 'Conflict' in str(context.error):
+        return  # ignore conflict errors during redeploy
+    logger.error('Update %s caused error %s', update, context.error)
+
+application.add_error_handler(error_handler)
 
 if __name__ == "__main__":
     print("Bot is starting polling...")
