@@ -167,6 +167,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         db.close()
         await send_raw_menu(chat_id, msg if unidades else "No hay unidades.", get_unidades_menu(), msg_id)
 
+    elif data == 'fc_list':
+        await send_raw_menu(chat_id, "🔵 **Ver Flashcards**\nFuncionalidad no implementada aún en la base de datos de listado.", get_flashcards_menu(), msg_id)
+
+    elif data == 'qz_list':
+        await send_raw_menu(chat_id, "🔵 **Ver Preguntas**\nFuncionalidad no implementada aún en la base de datos de listado.", get_quiz_menu(), msg_id)
+
+
 async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     if query.from_user.id != ADMIN_ID:
@@ -202,9 +209,6 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     elif data == 'fc_new':
         await query.message.reply_text("🟢 **Subir Flashcards**\nEnviá el ID de la unidad:")
         return WAITING_FLASHCARD_CSV
-    elif data == 'fc_list':
-        await query.message.reply_text("🔵 **Ver Flashcards**\nFuncionalidad no implementada aún en la base de datos de listado.")
-        return ConversationHandler.END
     elif data == 'fc_del':
         await query.message.reply_text("🔴 **Borrar Flashcards**\nEnviá el ID de la unidad para borrar sus flashcards:")
         return WAITING_FLASHCARD_DEL
@@ -213,9 +217,6 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     elif data == 'qz_new':
         await query.message.reply_text("🟢 **Subir Quiz**\nEnviá el ID de la unidad:")
         return WAITING_QUIZ_JSON
-    elif data == 'qz_list':
-        await query.message.reply_text("🔵 **Ver Preguntas**\nFuncionalidad no implementada aún en la base de datos de listado.")
-        return ConversationHandler.END
     elif data == 'qz_del':
         await query.message.reply_text("🔴 **Borrar Quiz**\nEnviá el ID de la unidad para borrar su quiz:")
         return WAITING_QUIZ_DEL
@@ -729,7 +730,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler)
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|fc_new|fc_del|qz_new|qz_del)$')
     ],
     states={
         # Materia
@@ -769,11 +770,12 @@ application.add_handler(CommandHandler("stats", stats))
 
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
-application.add_handler(CallbackQueryHandler(button_handler))
+application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_flashcards|menu_quiz|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
 
 if __name__ == "__main__":
     print("Bot is starting polling...")
     application.run_polling(
         drop_pending_updates=True,
+        allowed_updates=['message', 'callback_query'],
         close_loop=False
     )
