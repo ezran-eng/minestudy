@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -6,7 +6,8 @@ import datetime
 class User(Base):
     __tablename__ = "users"
 
-    id_telegram = Column(Integer, primary_key=True, index=True)
+    # Note: Telegram IDs can be large, BigInteger is safer for Postgres
+    id_telegram = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=True)
     username = Column(String, nullable=True)
@@ -82,7 +83,7 @@ class Progreso(Base):
     __tablename__ = "progreso"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(Integer, ForeignKey("users.id_telegram"), nullable=False)
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
     id_materia = Column(Integer, ForeignKey("materias.id"), nullable=False)
     id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
     porcentaje = Column(Integer, nullable=False, default=0)
