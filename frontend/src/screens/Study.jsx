@@ -61,7 +61,6 @@ const Study = () => {
 
   return (
     <div className="screen active screen-container" id="screen-study">
-      <button className="fab-new-btn">+ Nueva</button>
       <div className="materias-list study-body-pad">
         {materias.map((materia) => {
           const color = materia.color || 'var(--gold)';
