@@ -24,9 +24,10 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     WAITING_MATERIA_ID_EDIT, WAITING_MATERIA_NOMBRE_EDIT, WAITING_MATERIA_ID_DEL,
     WAITING_UNIDAD_MATERIA_ID, WAITING_UNIDAD_NOMBRE,
     WAITING_UNIDAD_ID_EDIT, WAITING_UNIDAD_NOMBRE_EDIT, WAITING_UNIDAD_ID_DEL,
+    WAITING_TEMA_UNIDAD_ID, WAITING_TEMA_NOMBRE, WAITING_TEMA_LIST_UNIDAD_ID, WAITING_TEMA_DEL_ID,
     WAITING_FLASHCARD_CSV, WAITING_FLASHCARD_DEL,
     WAITING_QUIZ_JSON, WAITING_QUIZ_DEL
-) = range(15)
+) = range(19)
 
 
 # Allowed Admin Telegram ID
@@ -74,8 +75,19 @@ def get_main_menu():
              {'text': "💥 Unidades", 'callback_data': 'menu_unidades', 'style': 'primary'}],
             [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards', 'style': 'success'},
              {'text': "🎯 Quiz", 'callback_data': 'menu_quiz', 'style': 'success'}],
+            [{'text': "📝 Temas", 'callback_data': 'menu_temas', 'style': 'primary'}],
             [{'text': "📊 Stats", 'callback_data': 'menu_stats', 'style': 'primary'},
              {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload', 'style': 'primary'}]
+        ]
+    }
+
+def get_temas_menu():
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Nuevo Tema", 'callback_data': 'tm_new', 'style': 'success'}],
+            [{'text': "🔵 Listar Temas de unidad", 'callback_data': 'tm_list', 'style': 'primary'}],
+            [{'text': "🔴 Borrar Tema", 'callback_data': 'tm_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
         ]
     }
 
@@ -147,6 +159,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_raw_menu(chat_id, "🃏 **Menú de Flashcards**", get_flashcards_menu(), msg_id)
     elif data == 'menu_quiz':
         await send_raw_menu(chat_id, "🎯 **Menú de Quiz**", get_quiz_menu(), msg_id)
+    elif data == 'menu_temas':
+        await send_raw_menu(chat_id, "📝 **Menú de Temas**", get_temas_menu(), msg_id)
     elif data == 'menu_stats':
         # Delegate to stats function, sending as a new message to keep menu
         await stats(update, context, direct=False)
@@ -203,6 +217,16 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     elif data == 'uni_new':
         await query.message.reply_text("🟢 **Nueva Unidad**\nEnviá el ID de la materia a la que pertenece:")
         return WAITING_UNIDAD_MATERIA_ID
+    # TEMAS
+    elif data == 'tm_new':
+        await query.message.reply_text("🟢 **Nuevo Tema**\nEnviá el ID de la unidad a la que pertenece:")
+        return WAITING_TEMA_UNIDAD_ID
+    elif data == 'tm_list':
+        await query.message.reply_text("🔵 **Listar Temas**\nEnviá el ID de la unidad para listar sus temas:")
+        return WAITING_TEMA_LIST_UNIDAD_ID
+    elif data == 'tm_del':
+        await query.message.reply_text("🔴 **Borrar Tema**\nEnviá el ID del tema que querés borrar:")
+        return WAITING_TEMA_DEL_ID
     elif data == 'uni_edit':
         await query.message.reply_text("🟡 **Editar Unidad**\nEnviá el ID de la unidad que querés editar:")
         return WAITING_UNIDAD_ID_EDIT
@@ -303,6 +327,59 @@ async def mat_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await update.message.reply_text(f"✅ Materia {mat_id} y sus dependencias han sido borradas.")
         else:
             await update.message.reply_text(f"❌ Materia con ID {mat_id} no encontrada.")
+    except Exception as e:
+         await update.message.reply_text(f"❌ Error: {e}")
+    finally:
+        db.close()
+    return ConversationHandler.END
+
+# --- TEMA CONVERSATION ---
+async def tm_unidad_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['temp_tm_unidad_id'] = update.message.text
+    await update.message.reply_text("Ahora enviá el nombre del tema:")
+    return WAITING_TEMA_NOMBRE
+
+async def tm_nombre_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    nombre = update.message.text
+    unidad_id = context.user_data.get('temp_tm_unidad_id')
+    db = SessionLocal()
+    try:
+        tema = models.Tema(id_unidad=unidad_id, nombre=nombre)
+        db.add(tema)
+        db.commit()
+        await update.message.reply_text(f"✅ Tema '{nombre}' creado con ID {tema.id}.")
+    except Exception as e:
+         await update.message.reply_text(f"❌ Error: {e}")
+    finally:
+        db.close()
+    return ConversationHandler.END
+
+async def tm_list_unidad_id_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    unidad_id = update.message.text
+    db = SessionLocal()
+    try:
+        temas = db.query(models.Tema).filter(models.Tema.id_unidad == unidad_id).all()
+        msg = f"📝 **Temas de la Unidad {unidad_id}:**\n"
+        for t in temas:
+            msg += f"ID: {t.id} | {t.nombre}\n"
+        await update.message.reply_text(msg if temas else "No hay temas para esta unidad.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+    finally:
+        db.close()
+    return ConversationHandler.END
+
+async def tm_del_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    tema_id = update.message.text
+    db = SessionLocal()
+    try:
+        tema = db.query(models.Tema).filter(models.Tema.id == tema_id).first()
+        if tema:
+            db.delete(tema)
+            db.commit()
+            await update.message.reply_text(f"✅ Tema {tema_id} borrado.")
+        else:
+            await update.message.reply_text(f"❌ Tema con ID {tema_id} no encontrado.")
     except Exception as e:
          await update.message.reply_text(f"❌ Error: {e}")
     finally:
@@ -735,7 +812,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|fc_new|fc_del|qz_new|qz_del)$')
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del)$')
     ],
     states={
         # Materia
@@ -751,6 +828,11 @@ admin_conv_handler = ConversationHandler(
         WAITING_UNIDAD_ID_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_id_edit_received)],
         WAITING_UNIDAD_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_edit_received)],
         WAITING_UNIDAD_ID_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_del_received)],
+        # Tema
+        WAITING_TEMA_UNIDAD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_unidad_id_received)],
+        WAITING_TEMA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_nombre_received)],
+        WAITING_TEMA_LIST_UNIDAD_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_list_unidad_id_received)],
+        WAITING_TEMA_DEL_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_del_received)],
         # Flashcards
         WAITING_FLASHCARD_CSV: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, fc_doc_received)],
         WAITING_FLASHCARD_DEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, fc_del_received)],
@@ -775,7 +857,7 @@ application.add_handler(CommandHandler("stats", stats))
 
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
-application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_flashcards|menu_quiz|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
+application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
 
 async def error_handler(update, context):
     if 'Conflict' in str(context.error):

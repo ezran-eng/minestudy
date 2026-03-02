@@ -98,14 +98,25 @@ const MateriaDetail = () => {
             const badgeClass = currentStatus === 'done' ? 'done' : currentStatus === 'cur' ? 'cur' : 'pend';
             const badgeText = currentStatus === 'done' ? '✓ Completa' : currentStatus === 'cur' ? 'En curso' : 'Pendiente';
 
-            const topicsText = u.temas.map(t => t.nombre).join(' • ');
+            // Show max 3 topics, and "..." if there are more
+            const displayTemas = u.temas.slice(0, 3);
+            const hasMore = u.temas.length > 3;
+
+            const topicsChips = (
+              <div className="pu-topics-chips">
+                {displayTemas.map((t) => (
+                  <span key={t.id} className="topic-chip">{t.nombre}</span>
+                ))}
+                {hasMore && <span className="topic-chip">...</span>}
+              </div>
+            );
 
             if (isPending) {
               return (
                 <div key={u.id} className={`unit-item ${statusClass}`}>
                   <div className="pu-left">
-                    <div className="pu-name" style={{ marginBottom: '4px' }}>{u.nombre}</div>
-                    <div className="pu-topics">{topicsText}</div>
+                    <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
+                    {topicsChips}
                   </div>
                   <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
                 </div>
@@ -115,8 +126,8 @@ const MateriaDetail = () => {
             return (
               <Link to={`/materia/${id}/unidad/${u.id}`} state={{ unidad: u, materia, unitProgress: userPct }} key={u.id} className={`unit-item ${statusClass}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="pu-left">
-                  <div className="pu-name" style={{ marginBottom: '4px' }}>{u.nombre}</div>
-                  <div className="pu-topics">{topicsText}</div>
+                  <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
+                  {topicsChips}
                 </div>
                 <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
               </Link>
