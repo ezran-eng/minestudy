@@ -249,7 +249,7 @@ async def show_confirm_action(update: Update, prompt: str):
 async def send_success_menu(update: Update, text: str, create_action: str):
     keyboard = [
         [InlineKeyboardButton("➕ Hacer otro", callback_data=create_action)],
-        [InlineKeyboardButton("🏠 Menú principal", callback_data="cancel_to_main")]
+        [InlineKeyboardButton("🏠 Menú principal", callback_data="menu_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     if update.callback_query:
