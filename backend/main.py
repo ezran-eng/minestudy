@@ -27,6 +27,14 @@ def get_r2_client():
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
 
+# Manual migrations for columns added after initial table creation
+# (create_all does not ALTER existing tables)
+with engine.connect() as conn:
+    conn.execute(__import__('sqlalchemy').text(
+        "ALTER TABLE quiz_preguntas ADD COLUMN IF NOT EXISTS justificacion VARCHAR"
+    ))
+    conn.commit()
+
 app = FastAPI(title="MineStudy Hub API")
 
 # Add CORS middleware
