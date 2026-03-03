@@ -758,40 +758,52 @@ async def qz_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return WAITING_QUIZ_JSON
 
     uni_id = context.user_data.get('selected_unidad_id')
-    file = await context.bot.get_file(update.message.document.file_id)
-    content = await file.download_as_bytearray()
+    logger.info(f"qz_doc_received: uni_id={uni_id}")
+
+    if not uni_id:
+        logger.error("qz_doc_received: uni_id is None — user_data lost")
+        await update.message.reply_text("❌ Error interno: se perdió la unidad seleccionada. Empezá de nuevo con /admin.")
+        return ConversationHandler.END
 
     try:
+        logger.info(f"qz_doc_received: downloading file_id={update.message.document.file_id}")
+        file = await context.bot.get_file(update.message.document.file_id)
+        content = await file.download_as_bytearray()
+        logger.info(f"qz_doc_received: downloaded {len(content)} bytes")
+
         text_content = content.decode('utf-8')
         data = json.loads(text_content)
 
         if not isinstance(data, list):
-             await update.message.reply_text("Error: El JSON debe ser un array de objetos.")
-             return ConversationHandler.END
+            await update.message.reply_text("❌ Error: El JSON debe ser un array de objetos.")
+            return ConversationHandler.END
 
         db = SessionLocal()
         count = 0
         for item in data:
-             required_keys = ['pregunta', 'a', 'b', 'c', 'd', 'correcta']
-             if not all(k in item for k in required_keys):
-                  continue
+            required_keys = ['pregunta', 'a', 'b', 'c', 'd', 'correcta']
+            if not all(k in item for k in required_keys):
+                continue
 
-             q = models.QuizPregunta(
-                 id_unidad=uni_id,
-                 pregunta=item['pregunta'],
-                 opcion_a=item['a'],
-                 opcion_b=item['b'],
-                 opcion_c=item['c'],
-                 opcion_d=item['d'],
-                 respuesta_correcta=item['correcta'].lower()
-             )
-             db.add(q)
-             count += 1
+            q = models.QuizPregunta(
+                id_unidad=uni_id,
+                pregunta=item['pregunta'],
+                opcion_a=item['a'],
+                opcion_b=item['b'],
+                opcion_c=item['c'],
+                opcion_d=item['d'],
+                respuesta_correcta=item['correcta'].lower(),
+                justificacion=item.get('justificacion'),
+            )
+            db.add(q)
+            count += 1
 
         db.commit()
+        logger.info(f"qz_doc_received: inserted {count} questions for uni_id={uni_id}")
         await send_success_menu(update, f"✅ Importadas {count} preguntas de quiz.", "qz_new")
     except Exception as e:
-        await update.message.reply_text(f"❌ Error procesando JSON: {e}")
+        logger.error(f"qz_doc_received: exception — {type(e).__name__}: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Error procesando JSON: {type(e).__name__}: {e}")
     finally:
         if 'db' in locals():
             db.close()
