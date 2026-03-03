@@ -25,11 +25,7 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
     }
   }, [isOpen]);
 
-  const flipCard = () => {
-    if (!flipped) {
-      setFlipped(true);
-    }
-  };
+  const flipCard = () => setFlipped(f => !f);
 
   const nextCard = async (knew) => {
     const isLastCard = cardIdx === cards.length - 1;
