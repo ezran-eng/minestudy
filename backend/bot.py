@@ -778,21 +778,24 @@ async def qz_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.message.reply_text("❌ Error: El JSON debe ser un array de objetos.")
             return ConversationHandler.END
 
+        logger.info(f"qz_doc_received: {len(data)} items en el JSON, primer item: {data[0] if data else 'lista vacía'}")
+
         db = SessionLocal()
         count = 0
         for item in data:
-            required_keys = ['pregunta', 'a', 'b', 'c', 'd', 'correcta']
+            required_keys = ['pregunta', 'opcion_a', 'opcion_b', 'opcion_c', 'opcion_d', 'respuesta_correcta']
             if not all(k in item for k in required_keys):
+                logger.info(f"qz_doc_received: item saltado por claves faltantes — claves presentes: {list(item.keys())}")
                 continue
 
             q = models.QuizPregunta(
                 id_unidad=uni_id,
                 pregunta=item['pregunta'],
-                opcion_a=item['a'],
-                opcion_b=item['b'],
-                opcion_c=item['c'],
-                opcion_d=item['d'],
-                respuesta_correcta=item['correcta'].lower(),
+                opcion_a=item['opcion_a'],
+                opcion_b=item['opcion_b'],
+                opcion_c=item['opcion_c'],
+                opcion_d=item['opcion_d'],
+                respuesta_correcta=item['respuesta_correcta'].lower(),
                 justificacion=item.get('justificacion'),
             )
             db.add(q)
