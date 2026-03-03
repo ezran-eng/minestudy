@@ -488,13 +488,17 @@ async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_T
             await send_success_menu(update, f"✅ Borradas {deleted} preguntas de quiz.", action)
         elif action == 'inf_del':
             inf_id = context.user_data.get('selected_infografia_id')
-            inf = db.query(models.Infografia).filter(models.Infografia.id == inf_id).first()
-            if inf:
-                db.delete(inf)
-                db.commit()
+            db.close()  # release DB before async HTTP call
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{API_URL}/admin/infografias/{inf_id}")
+            logger.info(f"inf_del: API DELETE status={resp.status_code}")
+            if resp.status_code == 204:
                 await send_success_menu(update, "✅ Infografía eliminada.", action)
-            else:
+            elif resp.status_code == 404:
                 await send_success_menu(update, "⚠️ La infografía ya no existe.", action)
+            else:
+                await query.edit_message_text(f"❌ Error al eliminar: {resp.status_code}")
+            return ConversationHandler.END
     finally:
         db.close()
 
