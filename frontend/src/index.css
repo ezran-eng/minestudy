@@ -512,7 +512,7 @@ body {
 .unit-item:active{transform:scale(0.98);}
 .unit-item.done{border-left:3px solid var(--green);}
 .unit-item.cur{border-left:3px solid var(--gold);}
-.unit-item.pend{opacity:0.45;pointer-events:none;}
+.unit-item.pend{}
 .pu-left {
   flex: 1;
   min-width: 0;
