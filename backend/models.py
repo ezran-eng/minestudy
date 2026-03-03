@@ -88,6 +88,7 @@ class QuizPregunta(Base):
     opcion_c = Column(String, nullable=False)
     opcion_d = Column(String, nullable=False)
     respuesta_correcta = Column(String, nullable=False)
+    justificacion = Column(String, nullable=True)
 
     unidad = relationship("Unidad", back_populates="quiz_preguntas")
 

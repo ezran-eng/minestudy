@@ -59,6 +59,7 @@ class QuizPreguntaBase(BaseModel):
     opcion_c: str
     opcion_d: str
     respuesta_correcta: str
+    justificacion: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
