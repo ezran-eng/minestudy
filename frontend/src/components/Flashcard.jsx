@@ -77,7 +77,7 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
           <div className="fc-question" style={{ display: flipped ? 'none' : '' }}>
             {cards[cardIdx].q}
           </div>
-          <div className="fc-answer" style={{ display: flipped ? '' : 'none' }}>
+          <div className="fc-answer" style={{ display: flipped ? 'block' : 'none' }}>
             {cards[cardIdx].a}
           </div>
           <div className="fc-hint" style={{ display: flipped ? 'none' : '' }}>
