@@ -526,6 +526,38 @@ async def uni_nombre_edit_received(update: Update, context: ContextTypes.DEFAULT
     return ConversationHandler.END
 
 # --- FLASHCARD CONVERSATION ---
+def parse_flashcard_csv(text_content: str) -> list:
+    """Parse a CSV with pregunta/respuesta columns.
+
+    Accepts CSVs with or without a header row. If the first row contains
+    'pregunta' and 'respuesta' (case-insensitive), it is treated as a header.
+    Otherwise the first column is pregunta and the second is respuesta.
+    Handles quoted fields with commas via the standard csv module.
+    """
+    reader = csv.reader(StringIO(text_content))
+    rows = [row for row in reader if any(cell.strip() for cell in row)]
+    if not rows:
+        return []
+
+    first = [col.strip().lower() for col in rows[0]]
+    if 'pregunta' in first and 'respuesta' in first:
+        p_idx = first.index('pregunta')
+        r_idx = first.index('respuesta')
+        data_rows = rows[1:]
+    else:
+        p_idx, r_idx = 0, 1
+        data_rows = rows
+
+    result = []
+    for row in data_rows:
+        if len(row) > max(p_idx, r_idx):
+            pregunta = row[p_idx].strip()
+            respuesta = row[r_idx].strip()
+            if pregunta and respuesta:
+                result.append((pregunta, respuesta))
+    return result
+
+
 async def fc_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message.document:
         await update.message.reply_text("Por favor enviá un documento CSV, o /cancel.")
@@ -537,25 +569,18 @@ async def fc_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     try:
         text_content = content.decode('utf-8')
-        csv_reader = csv.DictReader(StringIO(text_content))
+        pairs = parse_flashcard_csv(text_content)
 
-        if not all(col in csv_reader.fieldnames for col in ['pregunta', 'respuesta']):
-            await update.message.reply_text("Error: El CSV debe tener las columnas pregunta y respuesta")
+        if not pairs:
+            await update.message.reply_text("❌ El CSV no contiene filas válidas con pregunta y respuesta.")
             return ConversationHandler.END
 
         db = SessionLocal()
-        count = 0
-        for row in csv_reader:
-            fc = models.Flashcard(
-                id_unidad=uni_id,
-                pregunta=row['pregunta'],
-                respuesta=row['respuesta']
-            )
-            db.add(fc)
-            count += 1
+        for pregunta, respuesta in pairs:
+            db.add(models.Flashcard(id_unidad=uni_id, pregunta=pregunta, respuesta=respuesta))
 
         db.commit()
-        await send_success_menu(update, f"✅ Importadas {count} flashcards.", "fc_new")
+        await send_success_menu(update, f"✅ Importadas {len(pairs)} flashcards.", "fc_new")
     except Exception as e:
         await update.message.reply_text(f"❌ Error procesando CSV: {e}")
     finally:
@@ -715,26 +740,18 @@ async def flashcards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     try:
         text_content = content.decode('utf-8')
-        csv_reader = csv.DictReader(StringIO(text_content))
+        pairs = parse_flashcard_csv(text_content)
 
-        # Verify columns
-        if not all(col in csv_reader.fieldnames for col in ['pregunta', 'respuesta']):
-            await update.message.reply_text("Error: El CSV debe tener las columnas pregunta y respuesta")
+        if not pairs:
+            await update.message.reply_text("❌ El CSV no contiene filas válidas con pregunta y respuesta.")
             return
 
         db = SessionLocal()
-        count = 0
-        for row in csv_reader:
-            fc = models.Flashcard(
-                id_unidad=id_unidad,
-                pregunta=row['pregunta'],
-                respuesta=row['respuesta']
-            )
-            db.add(fc)
-            count += 1
+        for pregunta, respuesta in pairs:
+            db.add(models.Flashcard(id_unidad=id_unidad, pregunta=pregunta, respuesta=respuesta))
 
         db.commit()
-        await update.message.reply_text(f"✅ Importadas {count} flashcards a la unidad {id_unidad}.")
+        await update.message.reply_text(f"✅ Importadas {len(pairs)} flashcards a la unidad {id_unidad}.")
 
     except Exception as e:
         await update.message.reply_text(f"❌ Error procesando CSV: {e}")
