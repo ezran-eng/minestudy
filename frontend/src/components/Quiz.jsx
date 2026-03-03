@@ -24,24 +24,17 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
     }
   };
 
-  const currentQ = customQuestions && customQuestions.length > 0
-    ? customQuestions[currentIndex]
-    : {
-        pregunta: '¿Cuál es el EPP obligatorio en toda operación subterránea según normativa vigente?',
-        opcion_a: 'Chaleco reflectante solamente',
-        opcion_b: 'Guantes y lentes de seguridad',
-        opcion_c: 'Casco, lámpara, botas con puntera de acero y autorescatador',
-        opcion_d: 'Solo casco y botas',
-        respuesta_correcta: 'c'
-      };
+  const hasQuestions = customQuestions && customQuestions.length > 0;
+  const currentQ = hasQuestions ? customQuestions[currentIndex] : null;
 
   const getCorrectIndex = () => {
+      if (!currentQ) return -1;
       const correct = currentQ.respuesta_correcta.toLowerCase();
       if (correct === 'a') return 0;
       if (correct === 'b') return 1;
       if (correct === 'c') return 2;
       if (correct === 'd') return 3;
-      return 2;
+      return -1;
   };
   const correctOpt = getCorrectIndex();
 
@@ -51,7 +44,7 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
     setSelectedOpt(index);
     setIsAnswered(true);
 
-    const isLast = !customQuestions || currentIndex === customQuestions.length - 1;
+    const isLast = !hasQuestions || currentIndex === customQuestions.length - 1;
 
     if (isLast && user && user.id) {
       try {
@@ -86,8 +79,14 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
       <div className="sheet">
         <div className="sheet-handle"></div>
         <div className="sheet-title">Quiz IA</div>
+        {!hasQuestions ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text2)' }}>
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>📭</div>
+            <div style={{ fontSize: '15px' }}>Sin preguntas cargadas aún</div>
+          </div>
+        ) : (<>
         <div className="sheet-sub">
-            {customQuestions ? `Pregunta ${currentIndex + 1} de ${customQuestions.length}` : 'Generado desde tus materiales'}
+            {`Pregunta ${currentIndex + 1} de ${customQuestions.length}`}
         </div>
         <div className="quiz-question">
           {currentQ.pregunta}
@@ -125,6 +124,7 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
             <div className="opt-letter">D</div>{currentQ.opcion_d}
           </div>
         </div>
+        </>)}
       </div>
     </div>
   );
