@@ -42,16 +42,26 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
       </div>
 
       {/* PDF iframe — Google Docs Viewer for compatibility on low-end Android */}
-      <iframe
-        src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdf.url)}&embedded=true`}
-        title={pdf.titulo}
-        style={{
-          flex: 1,
-          border: 'none',
-          width: '100%',
-          background: '#fff',
-        }}
-      />
+      <div style={{ flex: 1, position: 'relative' }}>
+        {/* Transparent overlay to block the "open external" button in Google Docs Viewer */}
+        <div style={{
+          position: 'absolute',
+          top: 0, right: 0,
+          width: '60px', height: '60px',
+          zIndex: 10
+        }} />
+        <iframe
+          src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdf.url)}&embedded=true`}
+          title={pdf.titulo}
+          sandbox="allow-scripts allow-same-origin"
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            background: '#fff',
+          }}
+        />
+      </div>
     </div>
   );
 };
