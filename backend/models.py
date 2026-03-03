@@ -46,6 +46,7 @@ class Unidad(Base):
     flashcards = relationship("Flashcard", back_populates="unidad", cascade="all, delete-orphan")
     quiz_preguntas = relationship("QuizPregunta", back_populates="unidad", cascade="all, delete-orphan")
     progresos = relationship("Progreso", back_populates="unidad")
+    infografias = relationship("Infografia", back_populates="unidad", cascade="all, delete-orphan")
 
     @property
     def flashcard_count(self):
@@ -106,6 +107,17 @@ class Progreso(Base):
     __table_args__ = (
         UniqueConstraint('id_usuario', 'id_materia', 'id_unidad', name='uix_progreso_usuario_materia_unidad'),
     )
+
+class Infografia(Base):
+    __tablename__ = "infografias"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    titulo = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    orden = Column(Integer, default=0, nullable=False)
+
+    unidad = relationship("Unidad", back_populates="infografias")
 
 class CardReview(Base):
     __tablename__ = "card_reviews"

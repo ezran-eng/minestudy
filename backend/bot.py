@@ -26,8 +26,11 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     WAITING_TEMA_NOMBRE,
     WAITING_FLASHCARD_CSV,
     WAITING_QUIZ_JSON,
-    SELECT_MATERIA, SELECT_UNIDAD, SELECT_TEMA, CONFIRM_ACTION
-) = range(13)
+    SELECT_MATERIA, SELECT_UNIDAD, SELECT_TEMA, CONFIRM_ACTION,
+    WAITING_INFOGRAFIA_TITULO, WAITING_INFOGRAFIA_FOTO,
+) = range(15)
+
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 
 # Allowed Admin Telegram ID
@@ -76,8 +79,17 @@ def get_main_menu():
             [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards', 'style': 'success'},
              {'text': "🎯 Quiz", 'callback_data': 'menu_quiz', 'style': 'success'}],
             [{'text': "📝 Temas", 'callback_data': 'menu_temas', 'style': 'primary'}],
+            [{'text': "🖼️ Infografías", 'callback_data': 'menu_infografias', 'style': 'success'}],
             [{'text': "📊 Stats", 'callback_data': 'menu_stats', 'style': 'primary'},
              {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload', 'style': 'primary'}]
+        ]
+    }
+
+def get_infografias_menu():
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Subir Infografía", 'callback_data': 'inf_new', 'style': 'success'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
         ]
     }
 
@@ -161,6 +173,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_raw_menu(chat_id, "🎯 **Menú de Quiz**", get_quiz_menu(), msg_id)
     elif data == 'menu_temas':
         await send_raw_menu(chat_id, "📝 **Menú de Temas**", get_temas_menu(), msg_id)
+    elif data == 'menu_infografias':
+        await send_raw_menu(chat_id, "🖼️ **Menú de Infografías**", get_infografias_menu(), msg_id)
     elif data == 'menu_stats':
         # Delegate to stats function, sending as a new message to keep menu
         await stats(update, context, direct=False)
@@ -238,6 +252,25 @@ async def show_tema_selection(update: Update, context: ContextTypes.DEFAULT_TYPE
     finally:
         db.close()
 
+async def show_all_unidades_selection(update: Update, prompt: str):
+    db = SessionLocal()
+    try:
+        materias = db.query(models.Materia).order_by(models.Materia.orden).all()
+        keyboard = []
+        for mat in materias:
+            unidades = sorted(mat.unidades, key=lambda u: (u.orden is None, u.orden))
+            for uni in unidades:
+                label = f"{mat.emoji or ''} {mat.nombre} · {uni.nombre}"
+                keyboard.append([InlineKeyboardButton(label, callback_data=f"sel_uni_{uni.id}")])
+        keyboard.append([InlineKeyboardButton("🔙 Cancelar", callback_data="cancel_to_main")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        if update.callback_query:
+            await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(prompt, reply_markup=reply_markup)
+    finally:
+        db.close()
+
 async def show_confirm_action(update: Update, prompt: str):
     keyboard = [
         [InlineKeyboardButton("✅ Sí, borrar", callback_data="confirm_yes"),
@@ -274,6 +307,9 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del']:
         await show_materia_selection(update, "¿A qué materia pertenece?")
         return SELECT_MATERIA
+    elif data == 'inf_new':
+        await show_all_unidades_selection(update, "🖼️ *Subir Infografía*\n¿A qué unidad pertenece?")
+        return SELECT_UNIDAD
 
     return ConversationHandler.END
 
@@ -364,6 +400,18 @@ async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         finally:
             db.close()
         return ConversationHandler.END
+    elif action == 'inf_new':
+        db = SessionLocal()
+        try:
+            unidad = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
+            uni_nombre = unidad.nombre if unidad else str(uni_id)
+        finally:
+            db.close()
+        await query.edit_message_text(
+            f"🖼️ Unidad: *{uni_nombre}*\n\nEnviá el *título* de la infografía:",
+            parse_mode='Markdown'
+        )
+        return WAITING_INFOGRAFIA_TITULO
 
     return ConversationHandler.END
 
@@ -824,6 +872,41 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
              db.close()
 
 
+# --- INFOGRAFÍA CONVERSATION ---
+async def inf_titulo_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['inf_titulo'] = update.message.text.strip()
+    await update.message.reply_text("📸 Ahora enviá la imagen:")
+    return WAITING_INFOGRAFIA_FOTO
+
+async def inf_foto_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message.photo:
+        await update.message.reply_text("Por favor enviá una imagen (foto), o /cancel.")
+        return WAITING_INFOGRAFIA_FOTO
+
+    uni_id = context.user_data.get('selected_unidad_id')
+    titulo = context.user_data.get('inf_titulo', 'Sin título')
+
+    photo = update.message.photo[-1]
+    tg_file = await context.bot.get_file(photo.file_id)
+    content = await tg_file.download_as_bytearray()
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"{API_URL}/admin/infografias/upload",
+                files={"file": ("infografia.jpg", bytes(content), "image/jpeg")},
+                data={"id_unidad": str(uni_id), "titulo": titulo},
+            )
+        if response.status_code == 200:
+            await send_success_menu(update, "✅ Infografía subida correctamente.", "inf_new")
+        else:
+            await update.message.reply_text(f"❌ Error al subir: {response.status_code} — {response.text}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+    return ConversationHandler.END
+
+
 @admin_only
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE, direct: bool = True) -> None:
     db = SessionLocal()
@@ -869,7 +952,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del)$')
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new)$')
     ],
     states={
         SELECT_MATERIA: [
@@ -896,7 +979,9 @@ admin_conv_handler = ConversationHandler(
         WAITING_UNIDAD_NOMBRE_EDIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, uni_nombre_edit_received)],
         WAITING_TEMA_NOMBRE: [MessageHandler(filters.TEXT & ~filters.COMMAND, tm_nombre_received)],
         WAITING_FLASHCARD_CSV: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, fc_doc_received)],
-        WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)]
+        WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)],
+        WAITING_INFOGRAFIA_TITULO: [MessageHandler(filters.TEXT & ~filters.COMMAND, inf_titulo_received)],
+        WAITING_INFOGRAFIA_FOTO: [MessageHandler(filters.PHOTO, inf_foto_received)],
     },
     fallbacks=[
         CommandHandler('cancel', cancel_conversation),
@@ -918,7 +1003,7 @@ application.add_handler(CommandHandler("stats", stats))
 
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
-application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
+application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_infografias|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
 
 async def error_handler(update, context):
     if 'Conflict' in str(context.error):

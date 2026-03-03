@@ -1,12 +1,28 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
+import os
+import uuid
+import boto3
+from botocore.client import Config
 
 import models
 import schemas
 from database import engine, get_db
+
+R2_PUBLIC_URL = "https://pub-d070e7bf4b014f54acc4915474377809.r2.dev"
+
+def get_r2_client():
+    return boto3.client(
+        "s3",
+        endpoint_url=os.environ["R2_ENDPOINT"],
+        aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+        config=Config(signature_version="s3v4"),
+        region_name="auto",
+    )
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
@@ -311,3 +327,64 @@ def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depend
         nueva_racha=nueva_racha,
         primer_dia=primer_dia
     )
+
+
+@app.get("/infografias", response_model=List[schemas.InfografiaBase])
+def get_infografias(id_unidad: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.Infografia)
+        .filter(models.Infografia.id_unidad == id_unidad)
+        .order_by(models.Infografia.orden)
+        .all()
+    )
+
+
+@app.post("/admin/infografias/upload", response_model=schemas.InfografiaBase)
+async def upload_infografia(
+    file: UploadFile = File(...),
+    id_unidad: int = Form(...),
+    titulo: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id_unidad).first()
+    if not db_unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    filename = f"{id_unidad}/{uuid.uuid4()}.{ext}"
+
+    content = await file.read()
+    r2 = get_r2_client()
+    r2.put_object(
+        Bucket=os.environ["R2_BUCKET"],
+        Key=filename,
+        Body=content,
+        ContentType=file.content_type or "image/jpeg",
+    )
+
+    max_orden = (
+        db.query(func.max(models.Infografia.orden))
+        .filter(models.Infografia.id_unidad == id_unidad)
+        .scalar()
+    ) or 0
+
+    infografia = models.Infografia(
+        id_unidad=id_unidad,
+        titulo=titulo,
+        url=f"{R2_PUBLIC_URL}/{filename}",
+        orden=max_orden + 1,
+    )
+    db.add(infografia)
+    db.commit()
+    db.refresh(infografia)
+    return infografia
+
+
+@app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_infografia(id: int, db: Session = Depends(get_db)):
+    infografia = db.query(models.Infografia).filter(models.Infografia.id == id).first()
+    if not infografia:
+        raise HTTPException(status_code=404, detail="Infografia not found")
+    db.delete(infografia)
+    db.commit()
+    return

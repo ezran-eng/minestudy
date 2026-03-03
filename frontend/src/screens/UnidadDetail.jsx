@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import Timer from '../components/Timer';
+import InfografiaCarousel from '../components/InfografiaCarousel';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { registrarActividad } from '../services/api';
+import api, { registrarActividad, getInfografias, uploadInfografia } from '../services/api';
 import { useToast } from '../components/Toast';
+
+const ADMIN_ID = 1063772095;
 
 const UnidadDetail = () => {
   const { id, idx } = useParams(); // idx here is actually the unidad id
@@ -16,6 +19,12 @@ const UnidadDetail = () => {
 
   const [isFlashOpen, setIsFlashOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
+  const [carouselStart, setCarouselStart] = useState(0);
+  const [infografias, setInfografias] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const isAdmin = user?.id === ADMIN_ID;
 
   // From navigation state if possible
   const [materia, setMateria] = useState(location.state?.materia || null);
@@ -48,6 +57,9 @@ const UnidadDetail = () => {
 
         const qRes = await api.get(`/unidades/${idx}/quiz`);
         setQuizQuestions(qRes.data);
+
+        const infRes = await getInfografias(idx);
+        setInfografias(infRes);
       } catch (e) {
          console.error(e);
       } finally {
@@ -93,6 +105,29 @@ const UnidadDetail = () => {
     }
   };
 
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const titulo = file.name.replace(/\.[^.]+$/, '');
+    setUploading(true);
+    try {
+      const nueva = await uploadInfografia(file, parseInt(idx), titulo);
+      setInfografias(prev => [...prev, nueva]);
+      showToast('Infografía subida exitosamente');
+    } catch (err) {
+      console.error(err);
+      showToast('Error al subir la infografía');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const openCarousel = (i) => {
+    setCarouselStart(i);
+    setIsCarouselOpen(true);
+  };
+
   return (
     <>
       <div className="screen active screen-container" id="screen-unidad">
@@ -133,6 +168,63 @@ const UnidadDetail = () => {
             </div>
           </div>
 
+          {(infografias.length > 0 || isAdmin) && (
+            <div style={{ marginTop: '24px' }}>
+              <div className="section-head" style={{ marginBottom: '12px' }}>
+                <div className="section-title">Infografías</div>
+                {isAdmin && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleFileSelect}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      style={{
+                        background: 'var(--s3)', border: '1px solid var(--border)',
+                        borderRadius: '8px', color: 'var(--gold)', fontSize: '12px',
+                        fontWeight: 600, padding: '5px 12px', cursor: 'pointer',
+                        opacity: uploading ? 0.6 : 1,
+                      }}
+                    >
+                      {uploading ? 'Subiendo...' : '+ Subir'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {infografias.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  {infografias.map((inf, i) => (
+                    <div
+                      key={inf.id}
+                      onClick={() => openCarousel(i)}
+                      style={{
+                        aspectRatio: '1', borderRadius: '10px', overflow: 'hidden',
+                        background: 'var(--s2)', cursor: 'pointer', position: 'relative',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <img
+                        src={inf.url}
+                        alt={inf.titulo}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text2)', fontSize: '13px', textAlign: 'center', padding: '12px 0' }}>
+                  Sin infografías aún
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ marginTop: '30px', textAlign: 'center' }}>
             <button
               className="btn-primary"
@@ -145,6 +237,12 @@ const UnidadDetail = () => {
         </div>
       </div>
 
+      <InfografiaCarousel
+        isOpen={isCarouselOpen}
+        onClose={() => setIsCarouselOpen(false)}
+        images={infografias}
+        startIndex={carouselStart}
+      />
       <Flashcard
         isOpen={isFlashOpen}
         onClose={() => setIsFlashOpen(false)}

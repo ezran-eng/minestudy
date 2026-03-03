@@ -75,6 +75,30 @@ export const getRanking = async () => {
   return response.json();
 };
 
+export const getInfografias = async (id_unidad) => {
+  const response = await fetch(`${API_URL}/infografias?id_unidad=${id_unidad}`);
+  if (!response.ok) throw new Error('Failed to get infografias');
+  return response.json();
+};
+
+export const uploadInfografia = async (file, id_unidad, titulo) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('id_unidad', id_unidad);
+  formData.append('titulo', titulo);
+  const response = await fetch(`${API_URL}/admin/infografias/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Failed to upload infografia');
+  return response.json();
+};
+
+export const deleteInfografia = async (id) => {
+  const response = await fetch(`${API_URL}/admin/infografias/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Failed to delete infografia');
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',
