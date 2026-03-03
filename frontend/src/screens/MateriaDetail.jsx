@@ -108,20 +108,13 @@ const MateriaDetail = () => {
                   <span key={t.id} className="topic-chip">{t.nombre}</span>
                 ))}
                 {hasMore && <span className="topic-chip">...</span>}
+                {u.flashcard_count > 0 && (
+                  <span className="topic-chip" style={{ background: 'var(--gold)', color: '#000' }}>
+                    {u.flashcard_count} tarjetas
+                  </span>
+                )}
               </div>
             );
-
-            if (isPending) {
-              return (
-                <div key={u.id} className={`unit-item ${statusClass}`}>
-                  <div className="pu-left">
-                    <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
-                    {topicsChips}
-                  </div>
-                  <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
-                </div>
-              );
-            }
 
             return (
               <Link to={`/materia/${id}/unidad/${u.id}`} state={{ unidad: u, materia, unitProgress: userPct }} key={u.id} className={`unit-item ${statusClass}`} style={{ textDecoration: 'none', color: 'inherit' }}>

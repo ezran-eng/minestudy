@@ -46,6 +46,14 @@ class Unidad(Base):
     quiz_preguntas = relationship("QuizPregunta", back_populates="unidad", cascade="all, delete-orphan")
     progresos = relationship("Progreso", back_populates="unidad")
 
+    @property
+    def flashcard_count(self):
+        return len(self.flashcards)
+
+    @property
+    def quiz_count(self):
+        return len(self.quiz_preguntas)
+
 class Tema(Base):
     __tablename__ = "temas"
 

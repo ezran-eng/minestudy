@@ -16,6 +16,8 @@ class UnidadBase(BaseModel):
     orden: Optional[int] = None
     estado_default: str
     temas: List[TemaBase] = []
+    flashcard_count: int = 0
+    quiz_count: int = 0
 
     model_config = {"from_attributes": True}
 
