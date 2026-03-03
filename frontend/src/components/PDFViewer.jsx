@@ -41,9 +41,9 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
         >✕</button>
       </div>
 
-      {/* PDF iframe */}
+      {/* PDF iframe — Google Docs Viewer for compatibility on low-end Android */}
       <iframe
-        src={pdf.url}
+        src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdf.url)}&embedded=true`}
         title={pdf.titulo}
         style={{
           flex: 1,
