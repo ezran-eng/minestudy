@@ -326,7 +326,17 @@ async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta unidad y todas sus dependencias?")
         return CONFIRM_ACTION
     elif action == 'tm_new':
-        await query.edit_message_text("Ahora enviá el nombre del tema:")
+        db = next(get_db())
+        unidad = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
+        temas = db.query(models.Tema).filter(models.Tema.id_unidad == uni_id).all()
+        db.close()
+        unidad_nombre = unidad.nombre if unidad else str(uni_id)
+        if temas:
+            lista = "\n".join(f"- {t.nombre}" for t in temas)
+            msg = f"📚 *Unidad: {unidad_nombre}*\n\nTemas existentes:\n{lista}\n\nAhora enviá el nombre del nuevo tema (o /cancelar para salir):"
+        else:
+            msg = f"📚 *Unidad: {unidad_nombre}*\n\nNo hay temas cargados aún.\n\nEnviá el nombre del primer tema:"
+        await query.edit_message_text(msg, parse_mode='Markdown')
         return WAITING_TEMA_NOMBRE
     elif action == 'tm_del':
         await show_tema_selection(update, context, "¿Qué tema querés borrar?")
