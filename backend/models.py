@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -18,6 +18,7 @@ class User(Base):
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
 
     progresos = relationship("Progreso", back_populates="usuario")
+    card_reviews = relationship("CardReview", back_populates="usuario")
 
 class Materia(Base):
     __tablename__ = "materias"
@@ -72,6 +73,7 @@ class Flashcard(Base):
     respuesta = Column(String, nullable=False)
 
     unidad = relationship("Unidad", back_populates="flashcards")
+    reviews = relationship("CardReview", back_populates="flashcard", cascade="all, delete-orphan")
 
 class QuizPregunta(Base):
     __tablename__ = "quiz_preguntas"
@@ -104,3 +106,17 @@ class Progreso(Base):
     __table_args__ = (
         UniqueConstraint('id_usuario', 'id_materia', 'id_unidad', name='uix_progreso_usuario_materia_unidad'),
     )
+
+class CardReview(Base):
+    __tablename__ = "card_reviews"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, primary_key=True)
+    id_flashcard = Column(Integer, ForeignKey("flashcards.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    interval = Column(Integer, default=1, nullable=False)
+    ease_factor = Column(Float, default=2.5, nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=False)
+    last_reviewed = Column(DateTime(timezone=True), nullable=False)
+    repeticiones = Column(Integer, default=0, nullable=False)
+
+    usuario = relationship("User", back_populates="card_reviews")
+    flashcard = relationship("Flashcard", back_populates="reviews")

@@ -38,8 +38,12 @@ const UnidadDetail = () => {
              }
         }
 
-        // Fetch specific flashcards and quiz questions
-        const fcRes = await api.get(`/unidades/${idx}/flashcards`);
+        // Fetch flashcards ordered by SRS due date
+        const userId = user?.id;
+        const fcEndpoint = userId
+          ? `/flashcards/due?id_unidad=${idx}&id_usuario=${userId}`
+          : `/unidades/${idx}/flashcards`;
+        const fcRes = await api.get(fcEndpoint);
         setFlashcards(fcRes.data);
 
         const qRes = await api.get(`/unidades/${idx}/quiz`);
@@ -145,7 +149,8 @@ const UnidadDetail = () => {
         isOpen={isFlashOpen}
         onClose={() => setIsFlashOpen(false)}
         materiaName={materia.nombre}
-        customCards={flashcards.length > 0 ? flashcards.map(f => ({ q: f.pregunta, a: f.respuesta })) : null}
+        userId={user?.id}
+        customCards={flashcards.length > 0 ? flashcards.map(f => ({ id: f.id, q: f.pregunta, a: f.respuesta })) : null}
       />
       <Quiz
         isOpen={isQuizOpen}

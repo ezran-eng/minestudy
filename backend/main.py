@@ -182,7 +182,83 @@ def get_ranking(db: Session = Depends(get_db)):
         })
     return result
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta, timezone
+
+@app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut)
+def review_flashcard(id: int, body: schemas.ReviewRequest, db: Session = Depends(get_db)):
+    flashcard = db.query(models.Flashcard).filter(models.Flashcard.id == id).first()
+    if not flashcard:
+        raise HTTPException(status_code=404, detail="Flashcard not found")
+
+    review = db.query(models.CardReview).filter(
+        models.CardReview.id_usuario == body.id_usuario,
+        models.CardReview.id_flashcard == id
+    ).first()
+
+    now = datetime.now(timezone.utc)
+
+    if review is None:
+        review = models.CardReview(
+            id_usuario=body.id_usuario,
+            id_flashcard=id,
+            interval=1,
+            ease_factor=2.5,
+            due_date=now,
+            last_reviewed=now,
+            repeticiones=0,
+        )
+        db.add(review)
+
+    if body.knew:
+        new_interval = max(1, round(review.interval * review.ease_factor))
+        new_ease = review.ease_factor + 0.1
+        new_repeticiones = review.repeticiones + 1
+    else:
+        new_interval = 1
+        new_ease = max(1.3, review.ease_factor - 0.2)
+        new_repeticiones = 0
+
+    review.interval = new_interval
+    review.ease_factor = new_ease
+    review.repeticiones = new_repeticiones
+    review.last_reviewed = now
+    review.due_date = now + timedelta(days=new_interval)
+
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+@app.get("/flashcards/due", response_model=List[schemas.FlashcardBase])
+def get_due_flashcards(id_unidad: int, id_usuario: int, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+
+    all_cards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()
+    if not all_cards:
+        return []
+
+    card_ids = [c.id for c in all_cards]
+    reviews = db.query(models.CardReview).filter(
+        models.CardReview.id_usuario == id_usuario,
+        models.CardReview.id_flashcard.in_(card_ids)
+    ).all()
+    review_map = {r.id_flashcard: r for r in reviews}
+
+    due, not_due, never = [], [], []
+    for card in all_cards:
+        r = review_map.get(card.id)
+        if r is None:
+            never.append(card)
+        elif r.due_date <= now:
+            due.append((r.due_date, card))
+        else:
+            not_due.append((r.due_date, card))
+
+    due.sort(key=lambda x: x[0])
+    not_due.sort(key=lambda x: x[0])
+
+    return [c for _, c in due] + never + [c for _, c in not_due]
+
 
 @app.post("/actividad", response_model=schemas.ActividadResponse)
 def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depends(get_db)):

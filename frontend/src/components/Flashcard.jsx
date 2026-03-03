@@ -3,7 +3,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { registrarActividad } from '../services/api';
 import { useToast } from './Toast';
 
-const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
+const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = null }) => {
   const { user } = useTelegram();
   const { showToast } = useToast();
   const defaultCards = [
@@ -28,7 +28,22 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null }) => {
   const flipCard = () => setFlipped(f => !f);
 
   const nextCard = async (knew) => {
+    const currentCard = cards[cardIdx];
     const isLastCard = cardIdx === cards.length - 1;
+
+    // Submit SRS review if card has an id and user is logged in
+    if (currentCard.id && userId) {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        await fetch(`${API_URL}/flashcards/${currentCard.id}/review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_usuario: userId, knew }),
+        });
+      } catch (err) {
+        console.error('Error submitting review:', err);
+      }
+    }
 
     if (isLastCard && user && user.id) {
       try {

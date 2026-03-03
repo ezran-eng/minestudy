@@ -114,3 +114,18 @@ class ActividadResponse(BaseModel):
     racha: int
     nueva_racha: bool
     primer_dia: bool
+
+class ReviewRequest(BaseModel):
+    id_usuario: int
+    knew: bool
+
+class CardReviewOut(BaseModel):
+    id_usuario: int
+    id_flashcard: int
+    interval: int
+    ease_factor: float
+    due_date: datetime
+    last_reviewed: datetime
+    repeticiones: int
+
+    model_config = {"from_attributes": True}
