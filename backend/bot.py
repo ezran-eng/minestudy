@@ -28,7 +28,8 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     WAITING_QUIZ_JSON,
     SELECT_MATERIA, SELECT_UNIDAD, SELECT_TEMA, CONFIRM_ACTION,
     WAITING_INFOGRAFIA_TITULO, WAITING_INFOGRAFIA_FOTO,
-) = range(15)
+    SELECT_INFOGRAFIA,
+) = range(16)
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -89,6 +90,7 @@ def get_infografias_menu():
     return {
         'inline_keyboard': [
             [{'text': "🟢 Subir Infografía", 'callback_data': 'inf_new', 'style': 'success'}],
+            [{'text': "🗑️ Eliminar Infografía", 'callback_data': 'inf_del', 'style': 'danger'}],
             [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
         ]
     }
@@ -310,6 +312,9 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     elif data == 'inf_new':
         await show_all_unidades_selection(update, "🖼️ *Subir Infografía*\n¿A qué unidad pertenece?")
         return SELECT_UNIDAD
+    elif data == 'inf_del':
+        await show_all_unidades_selection(update, "🗑️ *Eliminar Infografía*\n¿De qué unidad?")
+        return SELECT_UNIDAD
 
     return ConversationHandler.END
 
@@ -412,6 +417,31 @@ async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode='Markdown'
         )
         return WAITING_INFOGRAFIA_TITULO
+    elif action == 'inf_del':
+        db = SessionLocal()
+        try:
+            infografias = (
+                db.query(models.Infografia)
+                .filter(models.Infografia.id_unidad == uni_id)
+                .order_by(models.Infografia.orden)
+                .all()
+            )
+            if not infografias:
+                await query.edit_message_text("ℹ️ Esta unidad no tiene infografías.")
+                return ConversationHandler.END
+            keyboard = [
+                [InlineKeyboardButton(inf.titulo, callback_data=f"sel_inf_{inf.id}")]
+                for inf in infografias
+            ]
+            keyboard.append([InlineKeyboardButton("🔙 Cancelar", callback_data="cancel_to_main")])
+            await query.edit_message_text(
+                "🗑️ *Seleccioná la infografía a eliminar:*",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        finally:
+            db.close()
+        return SELECT_INFOGRAFIA
 
     return ConversationHandler.END
 
@@ -427,6 +457,22 @@ async def tema_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return CONFIRM_ACTION
 
     return ConversationHandler.END
+
+async def infografia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    inf_id = int(query.data.split('_')[2])
+    context.user_data['selected_infografia_id'] = inf_id
+
+    db = SessionLocal()
+    try:
+        inf = db.query(models.Infografia).filter(models.Infografia.id == inf_id).first()
+        titulo = inf.titulo if inf else str(inf_id)
+    finally:
+        db.close()
+
+    await show_confirm_action(update, f"⚠️ ¿Confirmás que querés eliminar la infografía *{titulo}*?")
+    return CONFIRM_ACTION
 
 async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -465,6 +511,15 @@ async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_T
             deleted = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == uni_id).delete()
             db.commit()
             await send_success_menu(update, f"✅ Borradas {deleted} preguntas de quiz.", action)
+        elif action == 'inf_del':
+            inf_id = context.user_data.get('selected_infografia_id')
+            inf = db.query(models.Infografia).filter(models.Infografia.id == inf_id).first()
+            if inf:
+                db.delete(inf)
+                db.commit()
+                await send_success_menu(update, "✅ Infografía eliminada.", action)
+            else:
+                await send_success_menu(update, "⚠️ La infografía ya no existe.", action)
     finally:
         db.close()
 
@@ -964,7 +1019,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new)$')
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new|inf_del)$')
     ],
     states={
         SELECT_MATERIA: [
@@ -994,6 +1049,10 @@ admin_conv_handler = ConversationHandler(
         WAITING_QUIZ_JSON: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, qz_doc_received)],
         WAITING_INFOGRAFIA_TITULO: [MessageHandler(filters.TEXT & ~filters.COMMAND, inf_titulo_received)],
         WAITING_INFOGRAFIA_FOTO: [MessageHandler(filters.PHOTO, inf_foto_received)],
+        SELECT_INFOGRAFIA: [
+            CallbackQueryHandler(infografia_selected, pattern='^sel_inf_'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$'),
+        ],
     },
     fallbacks=[
         CommandHandler('cancel', cancel_conversation),
