@@ -254,25 +254,6 @@ async def show_tema_selection(update: Update, context: ContextTypes.DEFAULT_TYPE
     finally:
         db.close()
 
-async def show_all_unidades_selection(update: Update, prompt: str):
-    db = SessionLocal()
-    try:
-        materias = db.query(models.Materia).order_by(models.Materia.orden).all()
-        keyboard = []
-        for mat in materias:
-            unidades = sorted(mat.unidades, key=lambda u: (u.orden is None, u.orden))
-            for uni in unidades:
-                label = f"{mat.emoji or ''} {mat.nombre} · {uni.nombre}"
-                keyboard.append([InlineKeyboardButton(label, callback_data=f"sel_uni_{uni.id}")])
-        keyboard.append([InlineKeyboardButton("🔙 Cancelar", callback_data="cancel_to_main")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        if update.callback_query:
-            await update.callback_query.edit_message_text(prompt, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text(prompt, reply_markup=reply_markup)
-    finally:
-        db.close()
-
 async def show_confirm_action(update: Update, prompt: str):
     keyboard = [
         [InlineKeyboardButton("✅ Sí, borrar", callback_data="confirm_yes"),
@@ -306,15 +287,9 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     if data == 'mat_new':
         await query.edit_message_text("🟢 **Nueva Materia**\nEnviá el emoji para la materia:")
         return WAITING_MATERIA_EMOJI
-    elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del']:
+    elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del']:
         await show_materia_selection(update, "¿A qué materia pertenece?")
         return SELECT_MATERIA
-    elif data == 'inf_new':
-        await show_all_unidades_selection(update, "🖼️ *Subir Infografía*\n¿A qué unidad pertenece?")
-        return SELECT_UNIDAD
-    elif data == 'inf_del':
-        await show_all_unidades_selection(update, "🗑️ *Eliminar Infografía*\n¿De qué unidad?")
-        return SELECT_UNIDAD
 
     return ConversationHandler.END
 
@@ -344,7 +319,7 @@ async def materia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif action == 'mat_del':
         await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta materia y todas sus dependencias?")
         return CONFIRM_ACTION
-    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del']:
+    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del']:
         await show_unidad_selection(update, context, "¿A qué unidad pertenece?")
         return SELECT_UNIDAD
 
