@@ -807,7 +807,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE, direct: bool
         today = date.today()
         # Ensure we check the date part of the datetime. Need to import func
         from sqlalchemy import func
-        # Note SQLite datetime comparison could be tricky, func.date() works in standard SQL/SQLite
         active_today = db.query(models.User).filter(func.date(models.User.ultima_actividad) == today.strftime('%Y-%m-%d')).count()
 
         # Top 3 streaks
