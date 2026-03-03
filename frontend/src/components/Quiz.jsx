@@ -78,7 +78,7 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
     <div className="overlay show" id="quiz-overlay" onClick={closeBg}>
       <div className="sheet">
         <div className="sheet-handle"></div>
-        <div className="sheet-title">Quiz IA</div>
+        <div className="sheet-title">Cuestionario</div>
         {!hasQuestions ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text2)' }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>📭</div>

@@ -143,7 +143,7 @@ const UnidadDetail = () => {
             <div className="resource-card quiz" onClick={() => setIsQuizOpen(true)}>
               <div className="resource-icon-wrap">🎯</div>
               <div className="resource-info">
-                <div className="resource-name">Quiz IA</div>
+                <div className="resource-name">Cuestionario</div>
                 <div className="resource-sub">Preguntas desde tus PDFs</div>
               </div>
               <div className="resource-badge">
