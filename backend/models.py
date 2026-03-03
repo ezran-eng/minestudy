@@ -47,6 +47,7 @@ class Unidad(Base):
     quiz_preguntas = relationship("QuizPregunta", back_populates="unidad", cascade="all, delete-orphan")
     progresos = relationship("Progreso", back_populates="unidad")
     infografias = relationship("Infografia", back_populates="unidad", cascade="all, delete-orphan")
+    pdfs = relationship("Pdf", back_populates="unidad", cascade="all, delete-orphan")
 
     @property
     def flashcard_count(self):
@@ -118,6 +119,17 @@ class Infografia(Base):
     orden = Column(Integer, default=0, nullable=False)
 
     unidad = relationship("Unidad", back_populates="infografias")
+
+class Pdf(Base):
+    __tablename__ = "pdfs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    titulo = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    orden = Column(Integer, default=0, nullable=False)
+
+    unidad = relationship("Unidad", back_populates="pdfs")
 
 class CardReview(Base):
     __tablename__ = "card_reviews"

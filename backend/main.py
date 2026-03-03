@@ -380,6 +380,77 @@ async def upload_infografia(
     return infografia
 
 
+@app.get("/pdfs", response_model=List[schemas.PdfBase])
+def get_pdfs(id_unidad: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.Pdf)
+        .filter(models.Pdf.id_unidad == id_unidad)
+        .order_by(models.Pdf.orden)
+        .all()
+    )
+
+
+@app.post("/admin/pdfs/upload", response_model=schemas.PdfBase)
+async def upload_pdf(
+    file: UploadFile = File(...),
+    id_unidad: int = Form(...),
+    titulo: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id_unidad).first()
+    if not db_unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "pdf"
+    filename = f"pdfs/{id_unidad}/{uuid.uuid4()}.{ext}"
+
+    content = await file.read()
+    r2 = get_r2_client()
+    r2.put_object(
+        Bucket=os.environ["R2_BUCKET"],
+        Key=filename,
+        Body=content,
+        ContentType=file.content_type or "application/pdf",
+    )
+
+    max_orden = (
+        db.query(func.max(models.Pdf.orden))
+        .filter(models.Pdf.id_unidad == id_unidad)
+        .scalar()
+    ) or 0
+
+    pdf = models.Pdf(
+        id_unidad=id_unidad,
+        titulo=titulo,
+        url=f"{R2_PUBLIC_URL}/{filename}",
+        orden=max_orden + 1,
+    )
+    db.add(pdf)
+    db.commit()
+    db.refresh(pdf)
+    return pdf
+
+
+@app.delete("/admin/pdfs/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_pdf(id: int, db: Session = Depends(get_db)):
+    pdf = db.query(models.Pdf).filter(models.Pdf.id == id).first()
+    if not pdf:
+        raise HTTPException(status_code=404, detail="Pdf not found")
+
+    stored_url = pdf.url
+    key = stored_url.removeprefix(f"{R2_PUBLIC_URL}/")
+    bucket = os.environ["R2_BUCKET"]
+    try:
+        r2 = get_r2_client()
+        r2.delete_object(Bucket=bucket, Key=key)
+    except Exception as e:
+        print(f"[R2 delete pdf] ERROR type={type(e).__name__} msg={e}")
+
+    db.delete(pdf)
+    db.commit()
+    return
+
+
 @app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_infografia(id: int, db: Session = Depends(get_db)):
     infografia = db.query(models.Infografia).filter(models.Infografia.id == id).first()

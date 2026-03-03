@@ -4,8 +4,9 @@ import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
+import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { registrarActividad, getInfografias } from '../services/api';
+import api, { registrarActividad, getInfografias, getPdfs } from '../services/api';
 import { useToast } from '../components/Toast';
 
 const UnidadDetail = () => {
@@ -20,6 +21,9 @@ const UnidadDetail = () => {
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [carouselStart, setCarouselStart] = useState(0);
   const [infografias, setInfografias] = useState([]);
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState(null);
+  const [pdfs, setPdfs] = useState([]);
 
   // From navigation state if possible
   const [materia, setMateria] = useState(location.state?.materia || null);
@@ -55,6 +59,9 @@ const UnidadDetail = () => {
 
         const infRes = await getInfografias(idx);
         setInfografias(infRes);
+
+        const pdfRes = await getPdfs(idx);
+        setPdfs(pdfRes);
       } catch (e) {
          console.error(e);
       } finally {
@@ -179,6 +186,34 @@ const UnidadDetail = () => {
             </div>
           )}
 
+          {pdfs.length > 0 && (
+            <div style={{ marginTop: '24px' }}>
+              <div className="section-head" style={{ marginBottom: '12px' }}>
+                <div className="section-title">📄 Apuntes</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {pdfs.map((pdf) => (
+                  <div
+                    key={pdf.id}
+                    onClick={() => { setSelectedPdf(pdf); setIsPdfOpen(true); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      background: 'var(--s2)', borderRadius: '10px',
+                      padding: '12px 14px', cursor: 'pointer',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <span style={{ fontSize: '22px', flexShrink: 0 }}>📄</span>
+                    <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
+                      {pdf.titulo}
+                    </span>
+                    <span style={{ fontSize: '18px', color: 'var(--text2)' }}>›</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ marginTop: '30px', textAlign: 'center' }}>
             <button
               className="btn-primary"
@@ -191,6 +226,11 @@ const UnidadDetail = () => {
         </div>
       </div>
 
+      <PDFViewer
+        isOpen={isPdfOpen}
+        onClose={() => setIsPdfOpen(false)}
+        pdf={selectedPdf}
+      />
       <InfografiaCarousel
         isOpen={isCarouselOpen}
         onClose={() => setIsCarouselOpen(false)}

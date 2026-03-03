@@ -29,7 +29,9 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
     SELECT_MATERIA, SELECT_UNIDAD, SELECT_TEMA, CONFIRM_ACTION,
     WAITING_INFOGRAFIA_TITULO, WAITING_INFOGRAFIA_FOTO,
     SELECT_INFOGRAFIA,
-) = range(16)
+    WAITING_PDF_TITULO, WAITING_PDF_DOC,
+    SELECT_PDF,
+) = range(19)
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -80,9 +82,19 @@ def get_main_menu():
             [{'text': "🃏 Flashcards", 'callback_data': 'menu_flashcards', 'style': 'success'},
              {'text': "🎯 Quiz", 'callback_data': 'menu_quiz', 'style': 'success'}],
             [{'text': "📝 Temas", 'callback_data': 'menu_temas', 'style': 'primary'}],
-            [{'text': "🖼️ Infografías", 'callback_data': 'menu_infografias', 'style': 'success'}],
+            [{'text': "🖼️ Infografías", 'callback_data': 'menu_infografias', 'style': 'success'},
+             {'text': "📄 PDFs", 'callback_data': 'menu_pdfs', 'style': 'success'}],
             [{'text': "📊 Stats", 'callback_data': 'menu_stats', 'style': 'primary'},
              {'text': "🔄 Recargar DB", 'callback_data': 'menu_reload', 'style': 'primary'}]
+        ]
+    }
+
+def get_pdfs_menu():
+    return {
+        'inline_keyboard': [
+            [{'text': "🟢 Subir PDF", 'callback_data': 'pdf_new', 'style': 'success'}],
+            [{'text': "🗑️ Eliminar PDF", 'callback_data': 'pdf_del', 'style': 'danger'}],
+            [{'text': "⚫ Volver", 'callback_data': 'menu_main'}]
         ]
     }
 
@@ -177,6 +189,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_raw_menu(chat_id, "📝 **Menú de Temas**", get_temas_menu(), msg_id)
     elif data == 'menu_infografias':
         await send_raw_menu(chat_id, "🖼️ **Menú de Infografías**", get_infografias_menu(), msg_id)
+    elif data == 'menu_pdfs':
+        await send_raw_menu(chat_id, "📄 **Menú de PDFs**", get_pdfs_menu(), msg_id)
     elif data == 'menu_stats':
         # Delegate to stats function, sending as a new message to keep menu
         await stats(update, context, direct=False)
@@ -287,7 +301,7 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     if data == 'mat_new':
         await query.edit_message_text("🟢 **Nueva Materia**\nEnviá el emoji para la materia:")
         return WAITING_MATERIA_EMOJI
-    elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del']:
+    elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del', 'pdf_new', 'pdf_del']:
         await show_materia_selection(update, "¿A qué materia pertenece?")
         return SELECT_MATERIA
 
@@ -319,7 +333,7 @@ async def materia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif action == 'mat_del':
         await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta materia y todas sus dependencias?")
         return CONFIRM_ACTION
-    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del']:
+    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del', 'pdf_new', 'pdf_del']:
         await show_unidad_selection(update, context, "¿A qué unidad pertenece?")
         return SELECT_UNIDAD
 
@@ -417,6 +431,43 @@ async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         finally:
             db.close()
         return SELECT_INFOGRAFIA
+    elif action == 'pdf_new':
+        db = SessionLocal()
+        try:
+            unidad = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
+            uni_nombre = unidad.nombre if unidad else str(uni_id)
+        finally:
+            db.close()
+        await query.edit_message_text(
+            f"📄 Unidad: *{uni_nombre}*\n\nEnviá el *título* del PDF:",
+            parse_mode='Markdown'
+        )
+        return WAITING_PDF_TITULO
+    elif action == 'pdf_del':
+        db = SessionLocal()
+        try:
+            pdfs = (
+                db.query(models.Pdf)
+                .filter(models.Pdf.id_unidad == uni_id)
+                .order_by(models.Pdf.orden)
+                .all()
+            )
+            if not pdfs:
+                await query.edit_message_text("ℹ️ Esta unidad no tiene PDFs.")
+                return ConversationHandler.END
+            keyboard = [
+                [InlineKeyboardButton(pdf.titulo, callback_data=f"sel_pdf_{pdf.id}")]
+                for pdf in pdfs
+            ]
+            keyboard.append([InlineKeyboardButton("🔙 Cancelar", callback_data="cancel_to_main")])
+            await query.edit_message_text(
+                "🗑️ *Seleccioná el PDF a eliminar:*",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        finally:
+            db.close()
+        return SELECT_PDF
 
     return ConversationHandler.END
 
@@ -447,6 +498,22 @@ async def infografia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
 
     await show_confirm_action(update, f"⚠️ ¿Confirmás que querés eliminar la infografía *{titulo}*?")
+    return CONFIRM_ACTION
+
+async def pdf_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    pdf_id = int(query.data.split('_')[2])
+    context.user_data['selected_pdf_id'] = pdf_id
+
+    db = SessionLocal()
+    try:
+        pdf = db.query(models.Pdf).filter(models.Pdf.id == pdf_id).first()
+        titulo = pdf.titulo if pdf else str(pdf_id)
+    finally:
+        db.close()
+
+    await show_confirm_action(update, f"⚠️ ¿Confirmás que querés eliminar el PDF *{titulo}*?")
     return CONFIRM_ACTION
 
 async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -496,6 +563,19 @@ async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_T
                 await send_success_menu(update, "✅ Infografía eliminada.", action)
             elif resp.status_code == 404:
                 await send_success_menu(update, "⚠️ La infografía ya no existe.", action)
+            else:
+                await query.edit_message_text(f"❌ Error al eliminar: {resp.status_code}")
+            return ConversationHandler.END
+        elif action == 'pdf_del':
+            pdf_id = context.user_data.get('selected_pdf_id')
+            db.close()  # release DB before async HTTP call
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.delete(f"{API_URL}/admin/pdfs/{pdf_id}")
+            logger.info(f"pdf_del: API DELETE status={resp.status_code}")
+            if resp.status_code == 204:
+                await send_success_menu(update, "✅ PDF eliminado.", action)
+            elif resp.status_code == 404:
+                await send_success_menu(update, "⚠️ El PDF ya no existe.", action)
             else:
                 await query.edit_message_text(f"❌ Error al eliminar: {resp.status_code}")
             return ConversationHandler.END
@@ -953,6 +1033,54 @@ async def inf_foto_received(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 
+# --- PDF CONVERSATION ---
+async def pdf_titulo_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['pdf_titulo'] = update.message.text.strip()
+    await update.message.reply_text("📎 Ahora enviá el archivo PDF:")
+    return WAITING_PDF_DOC
+
+async def pdf_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not update.message.document:
+        await update.message.reply_text("Por favor enviá un archivo PDF, o /cancel.")
+        return WAITING_PDF_DOC
+
+    uni_id = context.user_data.get('selected_unidad_id')
+    titulo = context.user_data.get('pdf_titulo', 'Sin título')
+    logger.info(f"pdf_doc_received: uni_id={uni_id}, titulo={titulo}")
+
+    if not uni_id:
+        logger.error("pdf_doc_received: uni_id is None — user_data lost")
+        await update.message.reply_text("❌ Error interno: se perdió la unidad seleccionada. Empezá de nuevo con /admin.")
+        return ConversationHandler.END
+
+    try:
+        doc = update.message.document
+        logger.info(f"pdf_doc_received: downloading file_id={doc.file_id}, name={doc.file_name}")
+        tg_file = await context.bot.get_file(doc.file_id)
+        content = await tg_file.download_as_bytearray()
+        logger.info(f"pdf_doc_received: downloaded {len(content)} bytes")
+
+        filename = doc.file_name or "documento.pdf"
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(
+                f"{API_URL}/admin/pdfs/upload",
+                files={"file": (filename, bytes(content), "application/pdf")},
+                data={"id_unidad": str(uni_id), "titulo": titulo},
+            )
+        logger.info(f"pdf_doc_received: API response status={response.status_code}, body={response.text[:200]}")
+
+        if response.status_code == 200:
+            await send_success_menu(update, "✅ PDF subido correctamente.", "pdf_new")
+        else:
+            await update.message.reply_text(f"❌ Error del servidor: {response.status_code}\n{response.text[:300]}")
+
+    except Exception as e:
+        logger.error(f"pdf_doc_received: exception — {type(e).__name__}: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Error inesperado: {type(e).__name__}: {e}")
+
+    return ConversationHandler.END
+
+
 @admin_only
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE, direct: bool = True) -> None:
     db = SessionLocal()
@@ -998,7 +1126,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new|inf_del)$')
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new|inf_del|pdf_new|pdf_del)$')
     ],
     states={
         SELECT_MATERIA: [
@@ -1032,6 +1160,12 @@ admin_conv_handler = ConversationHandler(
             CallbackQueryHandler(infografia_selected, pattern='^sel_inf_'),
             CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$'),
         ],
+        WAITING_PDF_TITULO: [MessageHandler(filters.TEXT & ~filters.COMMAND, pdf_titulo_received)],
+        WAITING_PDF_DOC: [MessageHandler(filters.Document.PDF | filters.Document.ALL, pdf_doc_received)],
+        SELECT_PDF: [
+            CallbackQueryHandler(pdf_selected, pattern='^sel_pdf_'),
+            CallbackQueryHandler(cancel_to_main_handler, pattern='^cancel_to_main$'),
+        ],
     },
     fallbacks=[
         CommandHandler('cancel', cancel_conversation),
@@ -1053,7 +1187,7 @@ application.add_handler(CommandHandler("stats", stats))
 
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
-application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_infografias|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
+application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_infografias|menu_pdfs|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
 
 async def error_handler(update, context):
     if 'Conflict' in str(context.error):

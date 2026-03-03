@@ -71,6 +71,15 @@ class InfografiaBase(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class PdfBase(BaseModel):
+    id: int
+    id_unidad: int
+    titulo: str
+    url: str
+    orden: int
+
+    model_config = {"from_attributes": True}
+
 class ProgresoBase(BaseModel):
     id_materia: int
     id_unidad: int

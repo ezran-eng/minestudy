@@ -99,6 +99,30 @@ export const deleteInfografia = async (id) => {
   if (!response.ok) throw new Error('Failed to delete infografia');
 };
 
+export const getPdfs = async (id_unidad) => {
+  const response = await fetch(`${API_URL}/pdfs?id_unidad=${id_unidad}`);
+  if (!response.ok) throw new Error('Failed to get pdfs');
+  return response.json();
+};
+
+export const uploadPdf = async (file, id_unidad, titulo) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('id_unidad', id_unidad);
+  formData.append('titulo', titulo);
+  const response = await fetch(`${API_URL}/admin/pdfs/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Failed to upload pdf');
+  return response.json();
+};
+
+export const deletePdf = async (id) => {
+  const response = await fetch(`${API_URL}/admin/pdfs/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Failed to delete pdf');
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',
