@@ -13,6 +13,7 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
   const panXRef   = useRef(0);
   const panYRef   = useRef(0);
   const containerRef = useRef(null);
+  const imgRef       = useRef(null);
 
   // Pinch gesture state
   const isPinching        = useRef(false);
@@ -48,8 +49,10 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
   const goPrev  = () => setCurrentIdx(i => (i - 1 + images.length) % images.length);
   const goNext  = () => setCurrentIdx(i => (i + 1) % images.length);
 
-  // Safe area: use Telegram WebApp API value, fallback 48
-  const topOffset = window.Telegram?.WebApp?.contentSafeAreaInset?.top ?? 48;
+  // Safe area: contentSafeAreaInset (below Telegram UI chrome) +
+  // safeAreaInset (device notch/status bar) — must sum both layers
+  const tg      = window.Telegram?.WebApp;
+  const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 44);
 
   // ─── Touch helpers ────────────────────────────────────────────────
   const pinchDist = (touches) => {
@@ -66,6 +69,23 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
   const containerCenter = () => {
     const r = containerRef.current.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+
+  // Clamp pan so image edges never go past the container boundary.
+  // getBoundingClientRect on the img includes the CSS scale transform,
+  // so dividing by s recovers the natural rendered size at scale=1.
+  const clampPan = (px, py, s) => {
+    if (!imgRef.current || !containerRef.current) return { x: px, y: py };
+    const imgRect = imgRef.current.getBoundingClientRect();
+    const cRect   = containerRef.current.getBoundingClientRect();
+    const naturalW = imgRect.width  / s;
+    const naturalH = imgRect.height / s;
+    const maxX = Math.max(0, (naturalW * s - cRect.width)  / 2);
+    const maxY = Math.max(0, (naturalH * s - cRect.height) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, px)),
+      y: Math.max(-maxY, Math.min(maxY, py)),
+    };
   };
 
   // ─── Touch handlers ───────────────────────────────────────────────
@@ -108,16 +128,18 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
       //   px1 = mid - c - local * s1
       const localX = (m0.x - c.x - px0) / s0;
       const localY = (m0.y - c.y - py0) / s0;
-      const newPanX = mid.x - c.x - localX * s1;
-      const newPanY = mid.y - c.y - localY * s1;
+      const rawPanX = mid.x - c.x - localX * s1;
+      const rawPanY = mid.y - c.y - localY * s1;
+      const { x: newPanX, y: newPanY } = clampPan(rawPanX, rawPanY, s1);
 
       scaleRef.current = s1; panXRef.current = newPanX; panYRef.current = newPanY;
       setScale(s1); setPanX(newPanX); setPanY(newPanY);
 
     } else if (e.touches.length === 1 && dragStartX.current !== null && scaleRef.current > 1) {
       // ── Pan: drag while zoomed ───────────────────────────────────
-      const newPanX = dragPanX0.current + (e.touches[0].clientX - dragStartX.current);
-      const newPanY = dragPanY0.current + (e.touches[0].clientY - dragStartY.current);
+      const rawPanX = dragPanX0.current + (e.touches[0].clientX - dragStartX.current);
+      const rawPanY = dragPanY0.current + (e.touches[0].clientY - dragStartY.current);
+      const { x: newPanX, y: newPanY } = clampPan(rawPanX, rawPanY, scaleRef.current);
       panXRef.current = newPanX; panYRef.current = newPanY;
       setPanX(newPanX); setPanY(newPanY);
     }
@@ -128,7 +150,14 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
       if (isPinching.current) {
         isPinching.current     = false;
         pinchStartDist.current = null;
-        if (scaleRef.current < 1.1) resetTransform();   // snap back
+        if (scaleRef.current < 1.1) {
+          resetTransform();
+        } else {
+          // Re-clamp after fingers lift in case pinch pushed edges out
+          const { x, y } = clampPan(panXRef.current, panYRef.current, scaleRef.current);
+          panXRef.current = x; panYRef.current = y;
+          setPanX(x); setPanY(y);
+        }
         return;
       }
       // ── Swipe to navigate (only when not zoomed) ─────────────────
@@ -152,7 +181,7 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingTop: `${topOffset + 14}px`,
+        paddingTop: `${safeTop}px`,
         paddingBottom: '14px',
         paddingLeft: '16px',
         paddingRight: '16px',
@@ -195,6 +224,7 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
           <button onClick={goPrev} style={arrowStyle('left')}>‹</button>
         )}
         <img
+          ref={imgRef}
           key={img.url}
           src={img.url}
           alt={img.titulo}
