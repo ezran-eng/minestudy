@@ -387,12 +387,19 @@ def delete_infografia(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Infografia not found")
 
     # Extract R2 key from public URL: everything after the domain
-    key = infografia.url.removeprefix(f"{R2_PUBLIC_URL}/")
+    stored_url = infografia.url
+    key = stored_url.removeprefix(f"{R2_PUBLIC_URL}/")
+    bucket = os.environ["R2_BUCKET"]
+    print(f"[R2 delete] stored_url='{stored_url}'")
+    print(f"[R2 delete] R2_PUBLIC_URL='{R2_PUBLIC_URL}'")
+    print(f"[R2 delete] extracted key='{key}'")
+    print(f"[R2 delete] bucket='{bucket}'")
     try:
-        get_r2_client().delete_object(Bucket=os.environ["R2_BUCKET"], Key=key)
+        r2 = get_r2_client()
+        response = r2.delete_object(Bucket=bucket, Key=key)
+        print(f"[R2 delete] response={response}")
     except Exception as e:
-        # Log but don't block the DB deletion
-        print(f"Warning: could not delete R2 object '{key}': {e}")
+        print(f"[R2 delete] ERROR type={type(e).__name__} msg={e}")
 
     db.delete(infografia)
     db.commit()
