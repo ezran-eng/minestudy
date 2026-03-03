@@ -385,6 +385,15 @@ def delete_infografia(id: int, db: Session = Depends(get_db)):
     infografia = db.query(models.Infografia).filter(models.Infografia.id == id).first()
     if not infografia:
         raise HTTPException(status_code=404, detail="Infografia not found")
+
+    # Extract R2 key from public URL: everything after the domain
+    key = infografia.url.removeprefix(f"{R2_PUBLIC_URL}/")
+    try:
+        get_r2_client().delete_object(Bucket=os.environ["R2_BUCKET"], Key=key)
+    except Exception as e:
+        # Log but don't block the DB deletion
+        print(f"Warning: could not delete R2 object '{key}': {e}")
+
     db.delete(infografia)
     db.commit()
     return
