@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { getProgresoUnidad } from '../services/api';
 
 const Study = () => {
   const navigate = useNavigate();
@@ -8,33 +8,38 @@ const Study = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMaterias = async () => {
+    const fetchAll = async () => {
       try {
         const response = await api.get('/materias');
+        const rawMaterias = response.data;
 
-        // Compute total percentage from progresos if needed,
-        // For now, let's grab user progress specifically
         const tg = window.Telegram?.WebApp;
-        const userId = tg?.initDataUnsafe?.user?.id || 1; // Default to 1 for local testing
-        const userRes = await api.get(`/users/${userId}`);
-        const userProgresos = userRes.data.progresos || [];
+        const userId = tg?.initDataUnsafe?.user?.id;
 
-        // Map progress to materias
-        const materiasWithProgress = response.data.map(materia => {
-          // Average percentage of all units for this materia
-          const materiaProgresos = userProgresos.filter(p => p.id_materia === materia.id);
-          const totalUnits = materia.unidades.length;
+        if (!userId) {
+          setMaterias(rawMaterias.map(m => ({ ...m, pct: 0 })));
+          return;
+        }
 
-          let pct = 0;
-          if (totalUnits > 0) {
-            const sumPct = materiaProgresos.reduce((acc, p) => acc + p.porcentaje, 0);
-            pct = Math.round(sumPct / totalUnits);
-          }
+        const materiasWithPct = await Promise.all(
+          rawMaterias.map(async (materia) => {
+            if (materia.unidades.length === 0) return { ...materia, pct: 0 };
+            const pcts = await Promise.all(
+              materia.unidades.map(async (u) => {
+                try {
+                  const res = await getProgresoUnidad(u.id, userId);
+                  return res.porcentaje_total ?? 0;
+                } catch {
+                  return 0;
+                }
+              })
+            );
+            const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+            return { ...materia, pct: avg };
+          })
+        );
 
-          return { ...materia, pct };
-        });
-
-        setMaterias(materiasWithProgress);
+        setMaterias(materiasWithPct);
       } catch (error) {
         console.error('Error fetching materias:', error);
       } finally {
@@ -42,7 +47,7 @@ const Study = () => {
       }
     };
 
-    fetchMaterias();
+    fetchAll();
   }, []);
 
   const handleMateriaClick = (materia) => {

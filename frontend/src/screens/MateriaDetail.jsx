@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import api from '../services/api';
+import api, { getProgresoUnidad } from '../services/api';
 
 const MateriaDetail = () => {
   const { id } = useParams();
@@ -9,36 +9,46 @@ const MateriaDetail = () => {
 
   const [materia, setMateria] = useState(location.state?.materia || null);
   const [loading, setLoading] = useState(!location.state?.materia);
-  const [progresos, setProgresos] = useState([]);
+  const [unidadProgresos, setUnidadProgresos] = useState({}); // { [unidad.id]: porcentaje_total }
 
   useEffect(() => {
-    // If not passed via state, we would fetch it.
-    // Assuming Study.jsx always passes it. If refreshed, we might need a fallback.
     const fetchMateriaData = async () => {
-        if (!materia) {
-          try {
-             const response = await api.get('/materias');
-             const found = response.data.find(m => m.id === parseInt(id));
-             if (found) setMateria(found);
-          } catch(e) {
-             console.error(e);
-          }
-        }
-
-        // Fetch user progress for these units
+      if (!materia) {
         try {
-            const tg = window.Telegram?.WebApp;
-            const userId = tg?.initDataUnsafe?.user?.id || 1;
-            const userRes = await api.get(`/users/${userId}`);
-            setProgresos(userRes.data.progresos || []);
+          const response = await api.get('/materias');
+          const found = response.data.find(m => m.id === parseInt(id));
+          if (found) setMateria(found);
         } catch(e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
+          console.error(e);
         }
+      }
+      setLoading(false);
     };
     fetchMateriaData();
-  }, [id, materia]);
+  }, [id]);
+
+  // Fetch real progreso for each unidad once materia is ready
+  useEffect(() => {
+    if (!materia) return;
+    const tg = window.Telegram?.WebApp;
+    const userId = tg?.initDataUnsafe?.user?.id;
+    if (!userId) return;
+
+    const fetchProgresos = async () => {
+      const entries = await Promise.all(
+        materia.unidades.map(async (u) => {
+          try {
+            const res = await getProgresoUnidad(u.id, userId);
+            return [u.id, res.porcentaje_total ?? 0];
+          } catch {
+            return [u.id, 0];
+          }
+        })
+      );
+      setUnidadProgresos(Object.fromEntries(entries));
+    };
+    fetchProgresos();
+  }, [materia]);
 
   if (loading) {
     return <div className="screen active" style={{ padding: '20px' }}>Cargando materia...</div>;
@@ -48,15 +58,11 @@ const MateriaDetail = () => {
     return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
   }
 
-  // Calculate overall pct dynamically
   const totalUnits = materia.unidades.length;
   let overallPct = 0;
   if (totalUnits > 0) {
-    const sumPct = materia.unidades.reduce((acc, u) => {
-        const p = progresos.find(prog => prog.id_unidad === u.id);
-        return acc + (p ? p.porcentaje : 0);
-    }, 0);
-    overallPct = Math.round(sumPct / totalUnits);
+    const sum = materia.unidades.reduce((acc, u) => acc + (unidadProgresos[u.id] ?? 0), 0);
+    overallPct = Math.round(sum / totalUnits);
   }
 
   return (
@@ -80,25 +86,14 @@ const MateriaDetail = () => {
         </div>
         <div className="unidades-list">
           {materia.unidades.map((u) => {
-            const p = progresos.find(prog => prog.id_unidad === u.id);
-            const userPct = p ? p.porcentaje : 0;
+            const userPct = Math.round(unidadProgresos[u.id] ?? 0);
 
-            // Logic for status based on real progress
-            let currentStatus = u.estado_default;
-            if (userPct === 100) {
-               currentStatus = 'done';
-            } else if (userPct > 0 || currentStatus === 'active') {
-               currentStatus = 'cur';
-            } else {
-               currentStatus = 'pend';
-            }
+            let statusClass = 'pend';
+            if (userPct === 100) statusClass = 'done';
+            else if (userPct > 0) statusClass = 'cur';
 
-            const isPending = currentStatus === 'pending' || currentStatus === 'pend';
-            const statusClass = currentStatus === 'done' ? 'done' : currentStatus === 'cur' ? 'cur' : 'pend';
-            const badgeClass = currentStatus === 'done' ? 'done' : currentStatus === 'cur' ? 'cur' : 'pend';
-            const badgeText = currentStatus === 'done' ? '✓ Completa' : currentStatus === 'cur' ? 'En curso' : 'Pendiente';
+            const badgeText = userPct === 100 ? '✓ Completa' : `${userPct}%`;
 
-            // Show max 3 topics, and "..." if there are more
             const displayTemas = u.temas.slice(0, 3);
             const hasMore = u.temas.length > 3;
 
@@ -117,12 +112,18 @@ const MateriaDetail = () => {
             );
 
             return (
-              <Link to={`/materia/${id}/unidad/${u.id}`} state={{ unidad: u, materia, unitProgress: userPct }} key={u.id} className={`unit-item ${statusClass}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link
+                to={`/materia/${id}/unidad/${u.id}`}
+                state={{ unidad: u, materia, unitProgress: userPct }}
+                key={u.id}
+                className={`unit-item ${statusClass}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
                 <div className="pu-left">
                   <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
                   {topicsChips}
                 </div>
-                <span className={`pu-badge ${badgeClass}`}>{badgeText}</span>
+                <span className={`pu-badge ${statusClass}`}>{badgeText}</span>
               </Link>
             );
           })}
