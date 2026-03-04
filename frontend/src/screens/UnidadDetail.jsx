@@ -6,13 +6,15 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { registrarActividad, getInfografias, getPdfs } from '../services/api';
+import api, { getInfografias, getPdfs } from '../services/api';
+import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
 
 const UnidadDetail = () => {
   const { id, idx } = useParams(); // idx here is actually the unidad id
   const { user } = useTelegram();
   const { showToast } = useToast();
+  const { registrarHoy } = useActividad(user?.id, showToast);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,39 +79,16 @@ const UnidadDetail = () => {
 
   const topicsArray = unidad.temas.map(t => t.nombre);
 
-  const handleMarkComplete = async () => {
-    if (user && user.id) {
-      try {
-        // Create progreso entry if complete
-        await api.put('/progreso', {
-            id_usuario: user.id,
-            id_materia: materia.id,
-            id_unidad: unidad.id,
-            porcentaje: 100
-        });
-
-        const fechaLocal = new Date().toISOString().split('T')[0];
-        const res = await registrarActividad(user.id, 'unidad', fechaLocal);
-
-        if (res.primer_dia) {
-          showToast('⚡ ¡Comenzaste tu racha! Estudia cada día para mantenerla viva.');
-        } else if (res.nueva_racha) {
-          showToast(`🔥 ¡Racha de ${res.racha} días! ¡Sigue así!`);
-        } else {
-          showToast('¡Unidad marcada como completa!');
-        }
-      } catch (err) {
-        console.error('Error registering activity:', err);
-        showToast('Error al marcar unidad');
-      }
-    } else {
-      showToast('¡Unidad marcada como completa!');
-    }
-  };
-
   const openCarousel = (i) => {
     setCarouselStart(i);
     setIsCarouselOpen(true);
+    registrarHoy();
+  };
+
+  const openPdf = (pdf) => {
+    setSelectedPdf(pdf);
+    setIsPdfOpen(true);
+    registrarHoy();
   };
 
   return (
@@ -195,7 +174,7 @@ const UnidadDetail = () => {
                 {pdfs.map((pdf) => (
                   <div
                     key={pdf.id}
-                    onClick={() => { setSelectedPdf(pdf); setIsPdfOpen(true); }}
+                    onClick={() => openPdf(pdf)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
                       background: 'var(--s2)', borderRadius: '10px',
@@ -214,15 +193,6 @@ const UnidadDetail = () => {
             </div>
           )}
 
-          <div style={{ marginTop: '30px', textAlign: 'center' }}>
-            <button
-              className="btn-primary"
-              style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold' }}
-              onClick={handleMarkComplete}
-            >
-              Marcar como completa
-            </button>
-          </div>
         </div>
       </div>
 
@@ -243,11 +213,13 @@ const UnidadDetail = () => {
         materiaName={materia.nombre}
         userId={user?.id}
         customCards={flashcards.length > 0 ? flashcards.map(f => ({ id: f.id, q: f.pregunta, a: f.respuesta })) : null}
+        onFirstAction={registrarHoy}
       />
       <Quiz
         isOpen={isQuizOpen}
         onClose={() => setIsQuizOpen(false)}
         customQuestions={quizQuestions.length > 0 ? quizQuestions : null}
+        onFirstAnswer={registrarHoy}
       />
       <Timer />
     </>

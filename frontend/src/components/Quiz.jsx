@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useTelegram } from '../hooks/useTelegram';
-import { registrarActividad } from '../services/api';
-import { useToast } from './Toast';
 
-const Quiz = ({ isOpen, onClose, customQuestions }) => {
-  const { user } = useTelegram();
-  const { showToast } = useToast();
+const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -46,19 +41,8 @@ const Quiz = ({ isOpen, onClose, customQuestions }) => {
 
     const isLast = !hasQuestions || currentIndex === customQuestions.length - 1;
 
-    if (isLast && user && user.id) {
-      try {
-        const fechaLocal = new Date().toISOString().split('T')[0];
-        const res = await registrarActividad(user.id, 'quiz', fechaLocal);
-
-        if (res.primer_dia) {
-          showToast('⚡ ¡Comenzaste tu racha! Estudia cada día para mantenerla viva.');
-        } else if (res.nueva_racha) {
-          showToast(`🔥 ¡Racha de ${res.racha} días! ¡Sigue así!`);
-        }
-      } catch (err) {
-        console.error('Error registering activity:', err);
-      }
+    if (currentIndex === 0) {
+      onFirstAnswer?.();
     }
 
     setTimeout(() => {
