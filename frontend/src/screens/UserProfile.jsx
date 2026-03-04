@@ -40,12 +40,7 @@ const UserProfile = () => {
             }
           </div>
           <div className="profile-name">{fullName || 'Estudiante'}</div>
-          {perfil.descripcion && (
-            <div style={{ fontSize: '13px', color: 'var(--text2)', marginTop: '6px', textAlign: 'center', padding: '0 24px', lineHeight: 1.5 }}>
-              {perfil.descripcion}
-            </div>
-          )}
-          <div className="streak-pill" style={{ margin: '8px auto 0', width: 'fit-content' }}>
+<div className="streak-pill" style={{ margin: '8px auto 0', width: 'fit-content' }}>
             🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
           </div>
         </div>
