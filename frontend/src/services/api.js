@@ -1,10 +1,21 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+const getInitDataHeader = () => {
+  const initData = window.Telegram?.WebApp?.initData;
+  return initData ? { 'X-Telegram-Init-Data': initData } : {};
+};
+
+const getAdminHeader = () => {
+  const secret = import.meta.env.VITE_ADMIN_SECRET;
+  return secret ? { 'X-Admin-Token': secret } : {};
+};
+
 export const createOrUpdateUser = async (userData) => {
   const response = await fetch(`${API_URL}/users`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getInitDataHeader(),
     },
     body: JSON.stringify(userData),
   });
@@ -24,7 +35,7 @@ const api = {
   put: async (endpoint, payload) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getInitDataHeader(), ...getAdminHeader() },
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`PUT ${endpoint} failed`);
@@ -34,12 +45,20 @@ const api = {
   post: async (endpoint, payload) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getInitDataHeader(), ...getAdminHeader() },
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`POST ${endpoint} failed`);
     const data = await response.json();
     return { data };
+  },
+  delete: async (endpoint) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: { ...getAdminHeader() },
+    });
+    if (!response.ok) throw new Error(`DELETE ${endpoint} failed`);
+    return {};
   }
 };
 
@@ -58,6 +77,7 @@ export const updateProgress = async (data) => {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      ...getInitDataHeader(),
     },
     body: JSON.stringify(data),
   });
@@ -88,6 +108,7 @@ export const uploadInfografia = async (file, id_unidad, titulo) => {
   formData.append('titulo', titulo);
   const response = await fetch(`${API_URL}/admin/infografias/upload`, {
     method: 'POST',
+    headers: { ...getAdminHeader() },
     body: formData,
   });
   if (!response.ok) throw new Error('Failed to upload infografia');
@@ -95,7 +116,7 @@ export const uploadInfografia = async (file, id_unidad, titulo) => {
 };
 
 export const deleteInfografia = async (id) => {
-  const response = await fetch(`${API_URL}/admin/infografias/${id}`, { method: 'DELETE' });
+  const response = await fetch(`${API_URL}/admin/infografias/${id}`, { method: 'DELETE', headers: { ...getAdminHeader() } });
   if (!response.ok) throw new Error('Failed to delete infografia');
 };
 
@@ -112,6 +133,7 @@ export const uploadPdf = async (file, id_unidad, titulo) => {
   formData.append('titulo', titulo);
   const response = await fetch(`${API_URL}/admin/pdfs/upload`, {
     method: 'POST',
+    headers: { ...getAdminHeader() },
     body: formData,
   });
   if (!response.ok) throw new Error('Failed to upload pdf');
@@ -119,14 +141,14 @@ export const uploadPdf = async (file, id_unidad, titulo) => {
 };
 
 export const deletePdf = async (id) => {
-  const response = await fetch(`${API_URL}/admin/pdfs/${id}`, { method: 'DELETE' });
+  const response = await fetch(`${API_URL}/admin/pdfs/${id}`, { method: 'DELETE', headers: { ...getAdminHeader() } });
   if (!response.ok) throw new Error('Failed to delete pdf');
 };
 
 export const registrarPdfVisto = async (id_pdf, id_usuario) => {
   const response = await fetch(`${API_URL}/pdfs/${id_pdf}/visto`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario }),
   });
   if (!response.ok) throw new Error('Failed to register pdf visto');
@@ -136,7 +158,7 @@ export const registrarPdfVisto = async (id_pdf, id_usuario) => {
 export const registrarInfografiaVista = async (id_infografia, id_usuario) => {
   const response = await fetch(`${API_URL}/infografias/${id_infografia}/vista`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario }),
   });
   if (!response.ok) throw new Error('Failed to register infografia vista');
@@ -146,7 +168,7 @@ export const registrarInfografiaVista = async (id_infografia, id_usuario) => {
 export const registrarQuizResultado = async (id_usuario, id_unidad, correctas, total) => {
   const response = await fetch(`${API_URL}/quiz/resultado`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario, id_unidad, correctas, total }),
   });
   if (!response.ok) throw new Error('Failed to register quiz resultado');
@@ -162,7 +184,7 @@ export const getProgresoUnidad = async (id_unidad, id_usuario) => {
 export const toggleSeguirMateria = async (id_materia, id_usuario) => {
   const response = await fetch(`${API_URL}/materias/${id_materia}/seguir`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario }),
   });
   if (!response.ok) throw new Error('Failed to toggle seguir');
@@ -184,6 +206,8 @@ export const getMateriasSeguidas = async (id_usuario) => {
 export const deleteProgresoMateria = async (id_usuario, id_materia) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/progreso-materia/${id_materia}`, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ id_usuario }),
   });
   if (!response.ok) throw new Error('Failed to delete progreso materia');
 };
@@ -197,7 +221,7 @@ export const getUserPerfil = async (id_usuario) => {
 export const registrarVista = async (id_unidad, id_usuario) => {
   const response = await fetch(`${API_URL}/unidades/${id_unidad}/vista`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario }),
   });
   if (!response.ok) throw new Error('Failed to register vista');
@@ -233,6 +257,7 @@ export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getInitDataHeader(),
     },
     body: JSON.stringify({ id_telegram, tipo, fecha_local }),
   });

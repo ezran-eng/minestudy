@@ -187,6 +187,10 @@ class ActividadResponse(BaseModel):
     nueva_racha: bool
     primer_dia: bool
 
+class DeleteProgresoBody(BaseModel):
+    id_usuario: int
+
+
 class ReviewRequest(BaseModel):
     id_usuario: int
     knew: bool

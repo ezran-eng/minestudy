@@ -2,11 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 import os
 import uuid
+import hmac
+import hashlib
 import boto3
 from botocore.client import Config
+from fastapi import Header, Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import httpx
 import models
@@ -58,16 +64,52 @@ with engine.connect() as conn:
 
 app = FastAPI(title="MineStudy Hub API")
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://minestudy.vercel.app"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.post("/users", response_model=schemas.User)
+# ─── Security dependencies ────────────────────────────────────────────────────
+def require_admin(x_admin_token: Optional[str] = Header(default=None)):
+    secret = os.environ.get("ADMIN_SECRET", "")
+    if not secret or not x_admin_token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not hmac.compare_digest(x_admin_token.encode(), secret.encode()):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
+    try:
+        pairs = dict(pair.split('=', 1) for pair in init_data.split('&') if '=' in pair)
+        received_hash = pairs.pop('hash', None)
+        if not received_hash:
+            return False
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(pairs.items()))
+        secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+        expected_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(received_hash, expected_hash)
+    except Exception:
+        return False
+
+
+def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)):
+    bot_token = os.environ.get("BOT_TOKEN", "")
+    if not x_telegram_init_data:
+        raise HTTPException(status_code=403, detail="Telegram auth required")
+    if not bot_token:
+        raise HTTPException(status_code=500, detail="Server misconfigured")
+    if not _validate_telegram_init_data(x_telegram_init_data, bot_token):
+        raise HTTPException(status_code=403, detail="Invalid Telegram auth")
+
+@app.post("/users", response_model=schemas.User, dependencies=[Depends(require_init_data)])
 def create_or_update_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id_telegram == user.id_telegram).first()
     if db_user:
@@ -92,7 +134,7 @@ def get_user_profile(id_telegram: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return db_user
 
-@app.put("/progreso", response_model=schemas.Progreso)
+@app.put("/progreso", response_model=schemas.Progreso, dependencies=[Depends(require_init_data)])
 def update_progress(progreso: schemas.ProgresoCreate, db: Session = Depends(get_db)):
     # Check if user exists
     db_user = db.query(models.User).filter(models.User.id_telegram == progreso.id_usuario).first()
@@ -130,7 +172,7 @@ def get_materias(db: Session = Depends(get_db)):
             unidad.temas.sort(key=lambda t: t.id) # Sort by id for temas as they don't have orden
     return db_materias
 
-@app.put("/materias/{id}", response_model=schemas.MateriaBase)
+@app.put("/materias/{id}", response_model=schemas.MateriaBase, dependencies=[Depends(require_admin)])
 def update_materia(id: int, materia: schemas.MateriaUpdate, db: Session = Depends(get_db)):
     db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
     if not db_materia:
@@ -144,7 +186,7 @@ def update_materia(id: int, materia: schemas.MateriaUpdate, db: Session = Depend
     db.refresh(db_materia)
     return db_materia
 
-@app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 def delete_materia(id: int, db: Session = Depends(get_db)):
     db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
     if not db_materia:
@@ -161,7 +203,7 @@ def get_unidades(id: int, db: Session = Depends(get_db)):
         return []
     return db_unidades
 
-@app.put("/unidades/{id}", response_model=schemas.UnidadBase)
+@app.put("/unidades/{id}", response_model=schemas.UnidadBase, dependencies=[Depends(require_admin)])
 def update_unidad(id: int, unidad: schemas.UnidadUpdate, db: Session = Depends(get_db)):
     db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
     if not db_unidad:
@@ -175,7 +217,7 @@ def update_unidad(id: int, unidad: schemas.UnidadUpdate, db: Session = Depends(g
     db.refresh(db_unidad)
     return db_unidad
 
-@app.delete("/unidades/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/unidades/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 def delete_unidad(id: int, db: Session = Depends(get_db)):
     db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
     if not db_unidad:
@@ -184,7 +226,7 @@ def delete_unidad(id: int, db: Session = Depends(get_db)):
     db.commit()
     return
 
-@app.delete("/temas/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/temas/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 def delete_tema(id: int, db: Session = Depends(get_db)):
     db_tema = db.query(models.Tema).filter(models.Tema.id == id).first()
     if not db_tema:
@@ -231,8 +273,9 @@ def get_ranking(db: Session = Depends(get_db)):
 
 from datetime import datetime, date, timedelta, timezone
 
-@app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut)
-def review_flashcard(id: int, body: schemas.ReviewRequest, db: Session = Depends(get_db)):
+@app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut, dependencies=[Depends(require_init_data)])
+@limiter.limit("60/minute")
+def review_flashcard(request: Request, id: int, body: schemas.ReviewRequest, db: Session = Depends(get_db)):
     flashcard = db.query(models.Flashcard).filter(models.Flashcard.id == id).first()
     if not flashcard:
         raise HTTPException(status_code=404, detail="Flashcard not found")
@@ -307,8 +350,9 @@ def get_due_flashcards(id_unidad: int, id_usuario: int, db: Session = Depends(ge
     return [c for _, c in due] + never + [c for _, c in not_due]
 
 
-@app.post("/actividad", response_model=schemas.ActividadResponse)
-def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depends(get_db)):
+@app.post("/actividad", response_model=schemas.ActividadResponse, dependencies=[Depends(require_init_data)])
+@limiter.limit("60/minute")
+def registrar_actividad(request: Request, actividad: schemas.ActividadCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id_telegram == actividad.id_telegram).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -360,7 +404,7 @@ def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depend
     )
 
 
-@app.post("/pdfs/{id}/visto")
+@app.post("/pdfs/{id}/visto", dependencies=[Depends(require_init_data)])
 def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, db: Session = Depends(get_db)):
     existing = db.query(models.PdfVisto).filter(
         models.PdfVisto.id_usuario == body.id_usuario,
@@ -372,7 +416,7 @@ def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, db: Session = Dep
     return {"ok": True}
 
 
-@app.post("/infografias/{id}/vista")
+@app.post("/infografias/{id}/vista", dependencies=[Depends(require_init_data)])
 def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, db: Session = Depends(get_db)):
     existing = db.query(models.InfografiaVista).filter(
         models.InfografiaVista.id_usuario == body.id_usuario,
@@ -384,7 +428,7 @@ def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, db:
     return {"ok": True}
 
 
-@app.post("/quiz/resultado")
+@app.post("/quiz/resultado", dependencies=[Depends(require_init_data)])
 def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, db: Session = Depends(get_db)):
     resultado = models.QuizResultado(
         id_usuario=body.id_usuario,
@@ -489,8 +533,10 @@ def get_infografias(id_unidad: int, db: Session = Depends(get_db)):
     )
 
 
-@app.post("/admin/infografias/upload", response_model=schemas.InfografiaBase)
+@app.post("/admin/infografias/upload", response_model=schemas.InfografiaBase, dependencies=[Depends(require_admin)])
+@limiter.limit("20/minute")
 async def upload_infografia(
+    request: Request,
     file: UploadFile = File(...),
     id_unidad: int = Form(...),
     titulo: str = Form(...),
@@ -540,8 +586,10 @@ def get_pdfs(id_unidad: int, db: Session = Depends(get_db)):
     )
 
 
-@app.post("/admin/pdfs/upload", response_model=schemas.PdfBase)
+@app.post("/admin/pdfs/upload", response_model=schemas.PdfBase, dependencies=[Depends(require_admin)])
+@limiter.limit("20/minute")
 async def upload_pdf(
+    request: Request,
     file: UploadFile = File(...),
     id_unidad: int = Form(...),
     titulo: str = Form(...),
@@ -581,8 +629,9 @@ async def upload_pdf(
     return pdf
 
 
-@app.delete("/admin/pdfs/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_pdf(id: int, db: Session = Depends(get_db)):
+@app.delete("/admin/pdfs/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+@limiter.limit("20/minute")
+def delete_pdf(request: Request, id: int, db: Session = Depends(get_db)):
     pdf = db.query(models.Pdf).filter(models.Pdf.id == id).first()
     if not pdf:
         raise HTTPException(status_code=404, detail="Pdf not found")
@@ -601,7 +650,7 @@ def delete_pdf(id: int, db: Session = Depends(get_db)):
     return
 
 
-@app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse)
+@app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse, dependencies=[Depends(require_init_data)])
 def toggle_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
     existing = db.query(models.MateriaSeguida).filter(
         models.MateriaSeguida.id_usuario == body.id_usuario,
@@ -630,9 +679,11 @@ def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
     return [{"id_telegram": u.id_telegram, "first_name": u.first_name, "foto_url": u.foto_url} for u in rows]
 
 
-@app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_progreso_materia(id_usuario: int, id_materia: int, db: Session = Depends(get_db)):
+@app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.DeleteProgresoBody, db: Session = Depends(get_db)):
     """Wipes all progress of a user for every unit in the given materia."""
+    if body.id_usuario != id_usuario:
+        raise HTTPException(status_code=403, detail="Forbidden")
     unidades = db.query(models.Unidad).filter(models.Unidad.id_materia == id_materia).all()
     unidad_ids = [u.id for u in unidades]
     if not unidad_ids:
@@ -726,8 +777,9 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/unidades/{id}/vista")
-def registrar_vista(id: int, body: schemas.VistaCreate, db: Session = Depends(get_db)):
+@app.post("/unidades/{id}/vista", dependencies=[Depends(require_init_data)])
+@limiter.limit("60/minute")
+def registrar_vista(request: Request, id: int, body: schemas.VistaCreate, db: Session = Depends(get_db)):
     cooldown = datetime.now(timezone.utc) - timedelta(minutes=30)
     existing = db.query(models.Vista).filter(
         models.Vista.id_usuario == body.id_usuario,
@@ -985,8 +1037,9 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
     ]
 
 
-@app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_infografia(id: int, db: Session = Depends(get_db)):
+@app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+@limiter.limit("20/minute")
+def delete_infografia(request: Request, id: int, db: Session = Depends(get_db)):
     infografia = db.query(models.Infografia).filter(models.Infografia.id == id).first()
     if not infografia:
         raise HTTPException(status_code=404, detail="Infografia not found")
