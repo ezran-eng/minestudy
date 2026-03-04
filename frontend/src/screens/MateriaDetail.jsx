@@ -92,7 +92,7 @@ const MateriaDetail = () => {
   const [loading, setLoading] = useState(!location.state?.materia);
   const [unidadProgresos, setUnidadProgresos] = useState({});
   const [vistasMateria, setVistasMateria] = useState(null);
-  const [siguiendo, setSiguiendo] = useState(false);
+  const [siguiendo, setSiguiendo] = useState(location.state?.materia?.siguiendo ?? location.state?.siguiendo ?? false);
   const [seguidores, setSeguidores] = useState([]);
   const [showSeguidores, setShowSeguidores] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);

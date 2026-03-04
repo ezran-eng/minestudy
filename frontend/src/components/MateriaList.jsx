@@ -8,7 +8,7 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
         onClick={() => {
           if (!(isOwnProfile && navigate)) return;
           console.log('[MateriaList] navigating to materia id:', m.id, m);
-          navigate(`/materia/${m.id}`);
+          navigate(`/materia/${m.id}`, { state: { siguiendo: true } });
         }}
         style={{
           background: 'var(--s2)', borderRadius: '12px',
