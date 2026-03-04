@@ -578,6 +578,77 @@ def delete_pdf(id: int, db: Session = Depends(get_db)):
     return
 
 
+@app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse)
+def toggle_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.MateriaSeguida).filter(
+        models.MateriaSeguida.id_usuario == body.id_usuario,
+        models.MateriaSeguida.id_materia == id,
+    ).first()
+    if existing:
+        db.delete(existing)
+        siguiendo = False
+    else:
+        db.add(models.MateriaSeguida(id_usuario=body.id_usuario, id_materia=id))
+        siguiendo = True
+    db.commit()
+    total = db.query(models.MateriaSeguida).filter(models.MateriaSeguida.id_materia == id).count()
+    return {"siguiendo": siguiendo, "total_seguidores": total}
+
+
+@app.get("/materias/{id}/seguidores")
+def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
+    rows = (
+        db.query(models.User)
+        .join(models.MateriaSeguida, models.MateriaSeguida.id_usuario == models.User.id_telegram)
+        .filter(models.MateriaSeguida.id_materia == id)
+        .order_by(models.MateriaSeguida.fecha.desc())
+        .all()
+    )
+    return [{"id_telegram": u.id_telegram, "first_name": u.first_name, "foto_url": u.foto_url} for u in rows]
+
+
+@app.get("/usuarios/{id}/materias-seguidas")
+def get_materias_seguidas(id: int, db: Session = Depends(get_db)):
+    rows = db.query(models.MateriaSeguida.id_materia).filter(
+        models.MateriaSeguida.id_usuario == id
+    ).all()
+    return {"materia_ids": [r[0] for r in rows]}
+
+
+@app.get("/usuarios/{id}/perfil", response_model=schemas.UserPerfil)
+def get_user_perfil(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    seguidas = (
+        db.query(models.Materia)
+        .join(models.MateriaSeguida, models.MateriaSeguida.id_materia == models.Materia.id)
+        .filter(models.MateriaSeguida.id_usuario == id)
+        .order_by(models.MateriaSeguida.fecha.desc())
+        .all()
+    )
+    materias_con_pct = []
+    for materia in seguidas:
+        unidades = sorted(materia.unidades, key=lambda u: (u.orden is None, u.orden))
+        if unidades:
+            pct = sum(_compute_progreso_unidad(u.id, id, db) for u in unidades) / len(unidades)
+        else:
+            pct = 0.0
+        materias_con_pct.append({
+            "id": materia.id, "nombre": materia.nombre,
+            "emoji": materia.emoji, "color": materia.color,
+            "porcentaje": round(pct, 1),
+        })
+    return {
+        "id_telegram": user.id_telegram,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "foto_url": user.foto_url,
+        "racha": user.racha or 0,
+        "materias_seguidas": materias_con_pct,
+    }
+
+
 @app.post("/unidades/{id}/vista")
 def registrar_vista(id: int, body: schemas.VistaCreate, db: Session = Depends(get_db)):
     cooldown = datetime.now(timezone.utc) - timedelta(minutes=30)

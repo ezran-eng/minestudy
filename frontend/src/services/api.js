@@ -159,6 +159,34 @@ export const getProgresoUnidad = async (id_unidad, id_usuario) => {
   return response.json();
 };
 
+export const toggleSeguirMateria = async (id_materia, id_usuario) => {
+  const response = await fetch(`${API_URL}/materias/${id_materia}/seguir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario }),
+  });
+  if (!response.ok) throw new Error('Failed to toggle seguir');
+  return response.json();
+};
+
+export const getSeguidoresMateria = async (id_materia) => {
+  const response = await fetch(`${API_URL}/materias/${id_materia}/seguidores`);
+  if (!response.ok) throw new Error('Failed to get seguidores');
+  return response.json();
+};
+
+export const getMateriasSeguidas = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/materias-seguidas`);
+  if (!response.ok) throw new Error('Failed to get materias seguidas');
+  return response.json();
+};
+
+export const getUserPerfil = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/perfil`);
+  if (!response.ok) throw new Error('Failed to get perfil');
+  return response.json();
+};
+
 export const registrarVista = async (id_unidad, id_usuario) => {
   const response = await fetch(`${API_URL}/unidades/${id_unidad}/vista`, {
     method: 'POST',

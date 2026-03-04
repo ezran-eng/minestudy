@@ -84,6 +84,35 @@ class PdfBase(BaseModel):
 class VistaCreate(BaseModel):
     id_usuario: int
 
+class SeguirCreate(BaseModel):
+    id_usuario: int
+
+class SeguidorUser(BaseModel):
+    id_telegram: int
+    first_name: str
+    foto_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+class SeguirResponse(BaseModel):
+    siguiendo: bool
+    total_seguidores: int
+
+class MateriaPorcentaje(BaseModel):
+    id: int
+    nombre: str
+    emoji: Optional[str] = None
+    color: Optional[str] = None
+    porcentaje: float
+
+class UserPerfil(BaseModel):
+    id_telegram: int
+    first_name: str
+    last_name: Optional[str] = None
+    foto_url: Optional[str] = None
+    racha: int
+    materias_seguidas: List[MateriaPorcentaje]
+
 class PdfVistoCreate(BaseModel):
     id_usuario: int
 

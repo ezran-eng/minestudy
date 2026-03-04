@@ -6,6 +6,7 @@ import Study from './screens/Study';
 import MateriaDetail from './screens/MateriaDetail';
 import UnidadDetail from './screens/UnidadDetail';
 import Profile from './screens/Profile';
+import UserProfile from './screens/UserProfile';
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 
@@ -28,6 +29,7 @@ const AppContent = ({ user }) => {
         <Route path="/materia/:id" element={<MateriaDetail />} />
         <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/perfil/:id" element={<UserProfile />} />
       </Routes>
       <BottomNav user={user} />
     </>

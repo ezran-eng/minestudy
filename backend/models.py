@@ -23,6 +23,7 @@ class User(Base):
     infografias_vistas = relationship("InfografiaVista", back_populates="usuario")
     quiz_resultados = relationship("QuizResultado", back_populates="usuario")
     vistas = relationship("Vista", back_populates="usuario")
+    materias_seguidas = relationship("MateriaSeguida", back_populates="usuario")
 
 class Materia(Base):
     __tablename__ = "materias"
@@ -35,6 +36,7 @@ class Materia(Base):
 
     unidades = relationship("Unidad", back_populates="materia", cascade="all, delete-orphan")
     progresos = relationship("Progreso", back_populates="materia")
+    seguidores = relationship("MateriaSeguida", back_populates="materia", cascade="all, delete-orphan")
 
 class Unidad(Base):
     __tablename__ = "unidades"
@@ -201,3 +203,13 @@ class Vista(Base):
 
     usuario = relationship("User", back_populates="vistas")
     unidad = relationship("Unidad", back_populates="vistas")
+
+class MateriaSeguida(Base):
+    __tablename__ = "materia_seguida"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, primary_key=True)
+    id_materia = Column(Integer, ForeignKey("materias.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User", back_populates="materias_seguidas")
+    materia = relationship("Materia", back_populates="seguidores")

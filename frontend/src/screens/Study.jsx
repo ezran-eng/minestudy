@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getProgresoUnidad, getVistasMateria } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
 
 const Study = () => {
@@ -8,6 +8,7 @@ const Study = () => {
   const [materias, setMaterias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const userIdRef = useRef(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -17,14 +18,16 @@ const Study = () => {
 
         const tg = window.Telegram?.WebApp;
         const userId = tg?.initDataUnsafe?.user?.id;
+        userIdRef.current = userId;
 
         if (!userId) {
-          setMaterias(rawMaterias.map(m => ({ ...m, pct: 0 })));
+          setMaterias(rawMaterias.map(m => ({ ...m, pct: 0, vistas: 0, siguiendo: false })));
           return;
         }
 
-        const materiasWithPct = await Promise.all(
-          rawMaterias.map(async (materia) => {
+        const [seguidasRes, ...materiaResults] = await Promise.all([
+          getMateriasSeguidas(userId).catch(() => ({ materia_ids: [] })),
+          ...rawMaterias.map(async (materia) => {
             const [pcts, vistasRes] = await Promise.all([
               materia.unidades.length === 0
                 ? Promise.resolve([0])
@@ -39,23 +42,56 @@ const Study = () => {
               getVistasMateria(materia.id).catch(() => ({ total: 0 })),
             ]);
             const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-            return { ...materia, pct: avg, vistas: vistasRes.total ?? 0 };
-          })
-        );
+            return { avg, vistas: vistasRes.total ?? 0 };
+          }),
+        ]);
 
-        setMaterias(materiasWithPct);
+        const seguidasSet = new Set(seguidasRes.materia_ids || []);
+        const processed = rawMaterias.map((m, i) => ({
+          ...m,
+          pct: materiaResults[i].avg,
+          vistas: materiaResults[i].vistas,
+          siguiendo: seguidasSet.has(m.id),
+        }));
+
+        // Followed materias first, then rest (preserve original order within each group)
+        processed.sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+        setMaterias(processed);
       } catch (error) {
         console.error('Error fetching materias:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchAll();
   }, []);
 
   const handleMateriaClick = (materia) => {
     navigate(`/materia/${materia.id}`, { state: { materia } });
+  };
+
+  const handleToggleSeguir = async (e, materiaId) => {
+    e.stopPropagation();
+    const userId = userIdRef.current;
+    if (!userId) return;
+    // Optimistic toggle
+    setMaterias(prev => {
+      const updated = prev.map(m =>
+        m.id === materiaId ? { ...m, siguiendo: !m.siguiendo } : m
+      );
+      return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+    });
+    try {
+      await toggleSeguirMateria(materiaId, userId);
+    } catch {
+      // Revert on error
+      setMaterias(prev => {
+        const reverted = prev.map(m =>
+          m.id === materiaId ? { ...m, siguiendo: !m.siguiendo } : m
+        );
+        return [...reverted].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+      });
+    }
   };
 
   if (loading) {
@@ -106,7 +142,16 @@ const Study = () => {
             >
               <div className="materia-emoji-big">{materia.emoji}</div>
               <div className="materia-info">
-                <div className="materia-name-row">{materia.nombre}</div>
+                <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {materia.nombre}
+                  {materia.siguiendo && (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 6px',
+                      borderRadius: '6px', background: 'rgba(212,168,71,0.15)',
+                      color: 'var(--gold)', border: '1px solid var(--gold)',
+                    }}>Siguiendo</span>
+                  )}
+                </div>
                 <div className="materia-bottom">
                   <span className="materia-pct">{materia.pct}%</span>
                   <div className="mini-bar-wrap">
@@ -115,14 +160,24 @@ const Study = () => {
                   <VistaBadge vistas={materia.vistas ?? 0} style={{ marginLeft: '6px' }} />
                 </div>
               </div>
-              <div className="materia-arrow">›</div>
+              <button
+                onClick={(e) => handleToggleSeguir(e, materia.id)}
+                style={{
+                  padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                  border: materia.siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
+                  background: materia.siguiendo ? 'rgba(212,168,71,0.15)' : 'transparent',
+                  color: materia.siguiendo ? 'var(--gold)' : 'var(--text2)',
+                  cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                }}
+              >
+                {materia.siguiendo ? '✓' : '➕'}
+              </button>
             </div>
           );
         })}
       </div>
     </div>
   );
-
 };
 
 export default Study;
