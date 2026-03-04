@@ -726,7 +726,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
         .filter(models.QuizResultado.id_usuario == id)
         .order_by(models.QuizResultado.fecha.desc())
-        .limit(10)
+        .limit(5)
         .all()
     )
     for q, u_nombre in quizzes:
@@ -743,7 +743,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .join(models.Pdf, models.PdfVisto.id_pdf == models.Pdf.id)
         .filter(models.PdfVisto.id_usuario == id)
         .order_by(models.PdfVisto.visto_at.desc())
-        .limit(10)
+        .limit(5)
         .all()
     )
     for pv, titulo in pdfs_v:
@@ -760,7 +760,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .join(models.Infografia, models.InfografiaVista.id_infografia == models.Infografia.id)
         .filter(models.InfografiaVista.id_usuario == id)
         .order_by(models.InfografiaVista.visto_at.desc())
-        .limit(10)
+        .limit(5)
         .all()
     )
     for iv, titulo in infs_v:
@@ -781,7 +781,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .filter(models.CardReview.id_usuario == id)
         .group_by(func.date(models.CardReview.last_reviewed))
         .order_by(func.date(models.CardReview.last_reviewed).desc())
-        .limit(10)
+        .limit(5)
         .all()
     )
     for row in reviews_by_day:
@@ -792,7 +792,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
             "ts": row.last_ts,
         })
 
-    # Sort by timestamp desc, take top 10, add "hace"
+    # Sort by timestamp desc, take top 5, add "hace"
     def sort_key(e):
         ts = e["ts"]
         if ts is None:
@@ -802,7 +802,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
     events.sort(key=sort_key, reverse=True)
     return [
         {"tipo": e["tipo"], "titulo": e["titulo"], "detalle": e["detalle"], "hace": _hace(e["ts"])}
-        for e in events[:10]
+        for e in events[:5]
     ]
 
 
