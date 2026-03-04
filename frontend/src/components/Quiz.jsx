@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const LETTER = ['A', 'B', 'C', 'D'];
 const OPTS = ['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d'];
 
-const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null }) => {
+const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFinish = null }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -48,6 +48,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null }) => {
   const goNext = () => {
     const isLast = currentIndex === customQuestions.length - 1;
     if (isLast) {
+      onQuizFinish?.(correctCount, customQuestions.length);
       onClose();
     } else {
       setCurrentIndex(prev => prev + 1);

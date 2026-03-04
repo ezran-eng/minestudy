@@ -19,6 +19,9 @@ class User(Base):
 
     progresos = relationship("Progreso", back_populates="usuario")
     card_reviews = relationship("CardReview", back_populates="usuario")
+    pdfs_vistos = relationship("PdfVisto", back_populates="usuario")
+    infografias_vistas = relationship("InfografiaVista", back_populates="usuario")
+    quiz_resultados = relationship("QuizResultado", back_populates="usuario")
 
 class Materia(Base):
     __tablename__ = "materias"
@@ -48,6 +51,7 @@ class Unidad(Base):
     progresos = relationship("Progreso", back_populates="unidad")
     infografias = relationship("Infografia", back_populates="unidad", cascade="all, delete-orphan")
     pdfs = relationship("Pdf", back_populates="unidad", cascade="all, delete-orphan")
+    quiz_resultados = relationship("QuizResultado", back_populates="unidad", cascade="all, delete-orphan")
 
     @property
     def flashcard_count(self):
@@ -120,6 +124,7 @@ class Infografia(Base):
     orden = Column(Integer, default=0, nullable=False)
 
     unidad = relationship("Unidad", back_populates="infografias")
+    vistas = relationship("InfografiaVista", back_populates="infografia", cascade="all, delete-orphan")
 
 class Pdf(Base):
     __tablename__ = "pdfs"
@@ -131,6 +136,40 @@ class Pdf(Base):
     orden = Column(Integer, default=0, nullable=False)
 
     unidad = relationship("Unidad", back_populates="pdfs")
+    vistos = relationship("PdfVisto", back_populates="pdf", cascade="all, delete-orphan")
+
+class PdfVisto(Base):
+    __tablename__ = "pdf_visto"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, primary_key=True)
+    id_pdf = Column(Integer, ForeignKey("pdfs.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    visto_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User", back_populates="pdfs_vistos")
+    pdf = relationship("Pdf", back_populates="vistos")
+
+class InfografiaVista(Base):
+    __tablename__ = "infografia_vista"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, primary_key=True)
+    id_infografia = Column(Integer, ForeignKey("infografias.id", ondelete="CASCADE"), nullable=False, primary_key=True)
+    visto_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User", back_populates="infografias_vistas")
+    infografia = relationship("Infografia", back_populates="vistas")
+
+class QuizResultado(Base):
+    __tablename__ = "quiz_resultado"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    correctas = Column(Integer, nullable=False)
+    total = Column(Integer, nullable=False)
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User", back_populates="quiz_resultados")
+    unidad = relationship("Unidad", back_populates="quiz_resultados")
 
 class CardReview(Base):
     __tablename__ = "card_reviews"

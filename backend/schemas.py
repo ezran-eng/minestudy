@@ -81,6 +81,25 @@ class PdfBase(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class PdfVistoCreate(BaseModel):
+    id_usuario: int
+
+class InfografiaVistaCreate(BaseModel):
+    id_usuario: int
+
+class QuizResultadoCreate(BaseModel):
+    id_usuario: int
+    id_unidad: int
+    correctas: int
+    total: int
+
+class ProgresoUnidad(BaseModel):
+    porcentaje_total: float
+    flashcards: dict
+    cuestionario: dict
+    pdfs: dict
+    infografias: dict
+
 class ProgresoBase(BaseModel):
     id_materia: int
     id_unidad: int

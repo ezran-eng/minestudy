@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
+const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0, onImageView = null }) => {
   const [currentIdx, setCurrentIdx] = useState(startIndex);
 
   // Rendering state
@@ -41,6 +41,13 @@ const InfografiaCarousel = ({ isOpen, onClose, images, startIndex = 0 }) => {
 
   // Reset transform on image change
   useEffect(() => { resetTransform(); }, [currentIdx]);
+
+  // Notify parent when a new image is viewed
+  useEffect(() => {
+    if (isOpen && images && images.length > 0) {
+      onImageView?.(images[currentIdx].id);
+    }
+  }, [isOpen, currentIdx]);
 
   if (!isOpen || !images || images.length === 0) return null;
 

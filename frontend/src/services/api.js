@@ -123,6 +123,42 @@ export const deletePdf = async (id) => {
   if (!response.ok) throw new Error('Failed to delete pdf');
 };
 
+export const registrarPdfVisto = async (id_pdf, id_usuario) => {
+  const response = await fetch(`${API_URL}/pdfs/${id_pdf}/visto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario }),
+  });
+  if (!response.ok) throw new Error('Failed to register pdf visto');
+  return response.json();
+};
+
+export const registrarInfografiaVista = async (id_infografia, id_usuario) => {
+  const response = await fetch(`${API_URL}/infografias/${id_infografia}/vista`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario }),
+  });
+  if (!response.ok) throw new Error('Failed to register infografia vista');
+  return response.json();
+};
+
+export const registrarQuizResultado = async (id_usuario, id_unidad, correctas, total) => {
+  const response = await fetch(`${API_URL}/quiz/resultado`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario, id_unidad, correctas, total }),
+  });
+  if (!response.ok) throw new Error('Failed to register quiz resultado');
+  return response.json();
+};
+
+export const getProgresoUnidad = async (id_unidad, id_usuario) => {
+  const response = await fetch(`${API_URL}/unidades/${id_unidad}/progreso?id_usuario=${id_usuario}`);
+  if (!response.ok) throw new Error('Failed to get progreso');
+  return response.json();
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',

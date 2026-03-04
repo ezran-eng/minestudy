@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
@@ -6,12 +6,31 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getInfografias, getPdfs } from '../services/api';
+import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado } from '../services/api';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
 
+const CircularProgress = ({ pct }) => {
+  const r = 26;
+  const circ = 2 * Math.PI * r;
+  const dash = circ - (Math.min(pct, 100) / 100) * circ;
+  return (
+    <svg width="68" height="68" viewBox="0 0 68 68" style={{ flexShrink: 0 }}>
+      <circle cx="34" cy="34" r={r} fill="none" stroke="var(--s3)" strokeWidth="6" />
+      <circle cx="34" cy="34" r={r} fill="none" stroke="var(--gold)" strokeWidth="6"
+        strokeDasharray={circ} strokeDashoffset={dash}
+        strokeLinecap="round" transform="rotate(-90 34 34)"
+        style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+      />
+      <text x="34" y="39" textAnchor="middle" fill="var(--text)" fontSize="13" fontWeight="700">
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  );
+};
+
 const UnidadDetail = () => {
-  const { id, idx } = useParams(); // idx here is actually the unidad id
+  const { id, idx } = useParams();
   const { user } = useTelegram();
   const { showToast } = useToast();
   const { registrarHoy } = useActividad(user?.id, showToast);
@@ -26,29 +45,42 @@ const UnidadDetail = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState(null);
   const [pdfs, setPdfs] = useState([]);
+  const [progreso, setProgreso] = useState(null);
+  // Local sets for immediate ✅ feedback before API refetch
+  const [pdfsVistos, setPdfsVistos] = useState(new Set());
+  const [infografiasVistas, setInfografiasVistas] = useState(new Set());
 
-  // From navigation state if possible
   const [materia, setMateria] = useState(location.state?.materia || null);
   const [unidad, setUnidad] = useState(location.state?.unidad || null);
-
   const [flashcards, setFlashcards] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(!materia || !unidad);
+
+  const fetchProgreso = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await getProgresoUnidad(idx, user.id);
+      setProgreso(res);
+      setPdfsVistos(new Set(res.pdfs?.ids_vistos || []));
+      setInfografiasVistas(new Set(res.infografias?.ids_vistas || []));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [idx, user?.id]);
 
   useEffect(() => {
     const fetchUnidadData = async () => {
       try {
         if (!materia || !unidad) {
-             const mRes = await api.get('/materias');
-             const foundM = mRes.data.find(m => m.id === parseInt(id));
-             if (foundM) {
-                setMateria(foundM);
-                const foundU = foundM.unidades.find(u => u.id === parseInt(idx));
-                if (foundU) setUnidad(foundU);
-             }
+          const mRes = await api.get('/materias');
+          const foundM = mRes.data.find(m => m.id === parseInt(id));
+          if (foundM) {
+            setMateria(foundM);
+            const foundU = foundM.unidades.find(u => u.id === parseInt(idx));
+            if (foundU) setUnidad(foundU);
+          }
         }
 
-        // Fetch flashcards ordered by SRS due date
         const userId = user?.id;
         const fcEndpoint = userId
           ? `/flashcards/due?id_unidad=${idx}&id_usuario=${userId}`
@@ -65,13 +97,17 @@ const UnidadDetail = () => {
         const pdfRes = await getPdfs(idx);
         setPdfs(pdfRes);
       } catch (e) {
-         console.error(e);
+        console.error(e);
       } finally {
-         setLoading(false);
+        setLoading(false);
       }
     };
     fetchUnidadData();
   }, [id, idx, materia, unidad]);
+
+  useEffect(() => {
+    fetchProgreso();
+  }, [fetchProgreso]);
 
   if (loading) return <div className="screen active" style={{ padding: '20px' }}>Cargando unidad...</div>;
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
@@ -85,11 +121,44 @@ const UnidadDetail = () => {
     registrarHoy();
   };
 
-  const openPdf = (pdf) => {
+  const openPdf = async (pdf) => {
     setSelectedPdf(pdf);
     setIsPdfOpen(true);
     registrarHoy();
+    if (user?.id) {
+      setPdfsVistos(prev => new Set([...prev, pdf.id]));
+      try {
+        await registrarPdfVisto(pdf.id, user.id);
+        fetchProgreso();
+      } catch (e) { console.error(e); }
+    }
   };
+
+  const handleInfografiaVista = async (infId) => {
+    if (!user?.id || infografiasVistas.has(infId)) return;
+    setInfografiasVistas(prev => new Set([...prev, infId]));
+    try {
+      await registrarInfografiaVista(infId, user.id);
+      fetchProgreso();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleQuizFinish = async (correctas, total) => {
+    if (!user?.id) return;
+    try {
+      await registrarQuizResultado(user.id, parseInt(idx), correctas, total);
+      fetchProgreso();
+    } catch (e) { console.error(e); }
+  };
+
+  // Badge helpers
+  const flashBadge = progreso?.flashcards.total > 0
+    ? `${progreso.flashcards.dominadas}/${progreso.flashcards.total} dominadas`
+    : flashcards.length > 0 ? `${flashcards.length} tarjetas` : 'Sin tarjetas';
+
+  const quizBadge = progreso?.cuestionario.total > 0 && progreso?.cuestionario.correctas > 0
+    ? `${progreso.cuestionario.correctas}/${progreso.cuestionario.total}`
+    : quizQuestions.length > 0 ? `${quizQuestions.length} preguntas` : 'Nuevo';
 
   return (
     <>
@@ -98,6 +167,39 @@ const UnidadDetail = () => {
           <div className="btn-back" onClick={() => navigate(`/materia/${id}`)}>‹</div>
         </div>
         <div className="detail-body detail-body-pad">
+
+          {/* Progress bar */}
+          {progreso && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '16px',
+              background: 'var(--s2)', borderRadius: '14px',
+              padding: '14px 16px', marginBottom: '20px',
+              border: '1px solid var(--border)',
+            }}>
+              <CircularProgress pct={progreso.porcentaje_total} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                  Progreso de la unidad
+                </div>
+                {progreso.flashcards.total > 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '2px' }}>
+                    🃏 {progreso.flashcards.dominadas}/{progreso.flashcards.total} flashcards dominadas
+                  </div>
+                )}
+                {progreso.cuestionario.total > 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '2px' }}>
+                    🎯 {progreso.cuestionario.correctas}/{progreso.cuestionario.total} respuestas correctas
+                  </div>
+                )}
+                {progreso.pdfs.total > 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                    📄 {progreso.pdfs.vistos}/{progreso.pdfs.total} apuntes vistos
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="pu-topics-box">
             {topicsArray.map((t, i) => (
               <span key={i} style={{ display: 'inline-block', background: 'var(--s3)', borderRadius: '8px', padding: '5px 12px', margin: '3px 3px', fontSize: '11px', color: 'var(--text2)', fontWeight: 500 }}>
@@ -105,6 +207,7 @@ const UnidadDetail = () => {
               </span>
             ))}
           </div>
+
           <div className="section-head" style={{ marginTop: '18px', marginBottom: '10px' }}>
             <div className="section-title">Recursos</div>
           </div>
@@ -115,9 +218,7 @@ const UnidadDetail = () => {
                 <div className="resource-name">Flashcards</div>
                 <div className="resource-sub">Repaso con spaced repetition</div>
               </div>
-              <div className="resource-badge">
-                {flashcards.length > 0 ? `${flashcards.length} tarjetas` : 'Sin tarjetas'}
-              </div>
+              <div className="resource-badge">{flashBadge}</div>
             </div>
             <div className="resource-card quiz" onClick={() => setIsQuizOpen(true)}>
               <div className="resource-icon-wrap">🎯</div>
@@ -125,9 +226,7 @@ const UnidadDetail = () => {
                 <div className="resource-name">Cuestionario</div>
                 <div className="resource-sub">Preguntas desde tus PDFs</div>
               </div>
-              <div className="resource-badge">
-                {quizQuestions.length > 0 ? `${quizQuestions.length} preguntas` : 'Nuevo'}
-              </div>
+              <div className="resource-badge">{quizBadge}</div>
             </div>
           </div>
 
@@ -136,32 +235,30 @@ const UnidadDetail = () => {
               <div className="section-head" style={{ marginBottom: '12px' }}>
                 <div className="section-title">Infografías</div>
               </div>
-
-              {infografias.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  {infografias.map((inf, i) => (
-                    <div
-                      key={inf.id}
-                      onClick={() => openCarousel(i)}
-                      style={{
-                        aspectRatio: '1', borderRadius: '10px', overflow: 'hidden',
-                        background: 'var(--s2)', cursor: 'pointer', position: 'relative',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      <img
-                        src={inf.url}
-                        alt={inf.titulo}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ color: 'var(--text2)', fontSize: '13px', textAlign: 'center', padding: '12px 0' }}>
-                  Sin infografías aún
-                </div>
-              )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {infografias.map((inf, i) => (
+                  <div
+                    key={inf.id}
+                    onClick={() => openCarousel(i)}
+                    style={{
+                      aspectRatio: '1', borderRadius: '10px', overflow: 'hidden',
+                      background: 'var(--s2)', cursor: 'pointer', position: 'relative',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <img src={inf.url} alt={inf.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {infografiasVistas.has(inf.id) && (
+                      <div style={{
+                        position: 'absolute', top: '4px', right: '4px',
+                        background: 'rgba(0,0,0,0.55)', borderRadius: '50%',
+                        width: '20px', height: '20px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px',
+                      }}>✅</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -186,7 +283,10 @@ const UnidadDetail = () => {
                     <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
                       {pdf.titulo}
                     </span>
-                    <span style={{ fontSize: '18px', color: 'var(--text2)' }}>›</span>
+                    {pdfsVistos.has(pdf.id)
+                      ? <span style={{ fontSize: '16px' }}>✅</span>
+                      : <span style={{ fontSize: '18px', color: 'var(--text2)' }}>›</span>
+                    }
                   </div>
                 ))}
               </div>
@@ -206,6 +306,7 @@ const UnidadDetail = () => {
         onClose={() => setIsCarouselOpen(false)}
         images={infografias}
         startIndex={carouselStart}
+        onImageView={handleInfografiaVista}
       />
       <Flashcard
         isOpen={isFlashOpen}
@@ -220,6 +321,7 @@ const UnidadDetail = () => {
         onClose={() => setIsQuizOpen(false)}
         customQuestions={quizQuestions.length > 0 ? quizQuestions : null}
         onFirstAnswer={registrarHoy}
+        onQuizFinish={handleQuizFinish}
       />
       <Timer />
     </>

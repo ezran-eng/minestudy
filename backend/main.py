@@ -337,6 +337,125 @@ def registrar_actividad(actividad: schemas.ActividadCreate, db: Session = Depend
     )
 
 
+@app.post("/pdfs/{id}/visto")
+def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.PdfVisto).filter(
+        models.PdfVisto.id_usuario == body.id_usuario,
+        models.PdfVisto.id_pdf == id
+    ).first()
+    if not existing:
+        db.add(models.PdfVisto(id_usuario=body.id_usuario, id_pdf=id))
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/infografias/{id}/vista")
+def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.InfografiaVista).filter(
+        models.InfografiaVista.id_usuario == body.id_usuario,
+        models.InfografiaVista.id_infografia == id
+    ).first()
+    if not existing:
+        db.add(models.InfografiaVista(id_usuario=body.id_usuario, id_infografia=id))
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/quiz/resultado")
+def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, db: Session = Depends(get_db)):
+    resultado = models.QuizResultado(
+        id_usuario=body.id_usuario,
+        id_unidad=body.id_unidad,
+        correctas=body.correctas,
+        total=body.total,
+    )
+    db.add(resultado)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/unidades/{id}/progreso")
+def get_progreso_unidad(id: int, id_usuario: int, db: Session = Depends(get_db)):
+    # Flashcards
+    all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id).all()
+    total_fc = len(all_flashcards)
+    dominadas = 0
+    if total_fc > 0:
+        fc_ids = [f.id for f in all_flashcards]
+        dominadas = db.query(models.CardReview).filter(
+            models.CardReview.id_usuario == id_usuario,
+            models.CardReview.id_flashcard.in_(fc_ids),
+            models.CardReview.repeticiones > 0
+        ).count()
+    fc_pct = (dominadas / total_fc * 100) if total_fc > 0 else 0
+
+    # Cuestionario — último resultado
+    total_quiz = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id).count()
+    correctas = 0
+    if total_quiz > 0:
+        ultimo = (
+            db.query(models.QuizResultado)
+            .filter(models.QuizResultado.id_usuario == id_usuario, models.QuizResultado.id_unidad == id)
+            .order_by(models.QuizResultado.fecha.desc())
+            .first()
+        )
+        if ultimo:
+            correctas = ultimo.correctas
+    qz_pct = (correctas / total_quiz * 100) if total_quiz > 0 else 0
+
+    # PDFs
+    all_pdfs = db.query(models.Pdf).filter(models.Pdf.id_unidad == id).all()
+    total_pdfs = len(all_pdfs)
+    pdfs_vistos = 0
+    ids_pdfs_vistos = []
+    if total_pdfs > 0:
+        pdf_ids = [p.id for p in all_pdfs]
+        vistos = db.query(models.PdfVisto).filter(
+            models.PdfVisto.id_usuario == id_usuario,
+            models.PdfVisto.id_pdf.in_(pdf_ids)
+        ).all()
+        pdfs_vistos = len(vistos)
+        ids_pdfs_vistos = [v.id_pdf for v in vistos]
+    pdf_pct = (pdfs_vistos / total_pdfs * 100) if total_pdfs > 0 else 0
+
+    # Infografías
+    all_inf = db.query(models.Infografia).filter(models.Infografia.id_unidad == id).all()
+    total_inf = len(all_inf)
+    inf_vistas = 0
+    ids_inf_vistas = []
+    if total_inf > 0:
+        inf_ids = [i.id for i in all_inf]
+        vistas = db.query(models.InfografiaVista).filter(
+            models.InfografiaVista.id_usuario == id_usuario,
+            models.InfografiaVista.id_infografia.in_(inf_ids)
+        ).all()
+        inf_vistas = len(vistas)
+        ids_inf_vistas = [v.id_infografia for v in vistas]
+
+    # Porcentaje total con redistribución de pesos
+    components = {}
+    if total_fc > 0:
+        components['fc'] = (fc_pct, 0.50)
+    if total_quiz > 0:
+        components['qz'] = (qz_pct, 0.35)
+    if total_pdfs > 0:
+        components['pdf'] = (pdf_pct, 0.15)
+
+    if components:
+        total_weight = sum(w for _, w in components.values())
+        porcentaje_total = sum(score * (w / total_weight) for score, w in components.values())
+    else:
+        porcentaje_total = 0
+
+    return {
+        "porcentaje_total": round(porcentaje_total, 1),
+        "flashcards": {"dominadas": dominadas, "total": total_fc, "porcentaje": round(fc_pct, 1)},
+        "cuestionario": {"correctas": correctas, "total": total_quiz, "porcentaje": round(qz_pct, 1)},
+        "pdfs": {"vistos": pdfs_vistos, "total": total_pdfs, "ids_vistos": ids_pdfs_vistos},
+        "infografias": {"vistas": inf_vistas, "total": total_inf, "ids_vistas": ids_inf_vistas},
+    }
+
+
 @app.get("/infografias", response_model=List[schemas.InfografiaBase])
 def get_infografias(id_unidad: int, db: Session = Depends(get_db)):
     return (
