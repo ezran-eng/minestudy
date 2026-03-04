@@ -5,7 +5,11 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
     {materias.map(m => (
       <div
         key={m.id}
-        onClick={() => isOwnProfile && navigate ? navigate(`/materia/${m.id}`, { state: { materia: m } }) : undefined}
+        onClick={() => {
+          if (!(isOwnProfile && navigate)) return;
+          console.log('[MateriaList] navigating to materia id:', m.id, m);
+          navigate(`/materia/${m.id}`);
+        }}
         style={{
           background: 'var(--s2)', borderRadius: '12px',
           padding: '12px 14px', border: '1px solid var(--border)',
