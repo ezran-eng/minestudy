@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria, deleteProgresoMateria } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Study = () => {
   const navigate = useNavigate();
   const [materias, setMaterias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [confirmUnfollowId, setConfirmUnfollowId] = useState(null);
   const userIdRef = useRef(null);
 
   useEffect(() => {
@@ -70,25 +72,47 @@ const Study = () => {
     navigate(`/materia/${materia.id}`, { state: { materia } });
   };
 
-  const handleToggleSeguir = async (e, materiaId) => {
+  const handleToggleSeguir = (e, materiaId) => {
     e.stopPropagation();
     const userId = userIdRef.current;
     if (!userId) return;
-    // Optimistic toggle
+    const materia = materias.find(m => m.id === materiaId);
+    if (materia?.siguiendo) {
+      setConfirmUnfollowId(materiaId);
+    } else {
+      doFollow(materiaId, userId);
+    }
+  };
+
+  const doFollow = async (materiaId, userId) => {
     setMaterias(prev => {
-      const updated = prev.map(m =>
-        m.id === materiaId ? { ...m, siguiendo: !m.siguiendo } : m
-      );
+      const updated = prev.map(m => m.id === materiaId ? { ...m, siguiendo: true } : m);
       return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
     });
     try {
       await toggleSeguirMateria(materiaId, userId);
     } catch {
-      // Revert on error
       setMaterias(prev => {
-        const reverted = prev.map(m =>
-          m.id === materiaId ? { ...m, siguiendo: !m.siguiendo } : m
-        );
+        const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: false } : m);
+        return [...reverted].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+      });
+    }
+  };
+
+  const doUnfollow = async () => {
+    const materiaId = confirmUnfollowId;
+    const userId = userIdRef.current;
+    setConfirmUnfollowId(null);
+    setMaterias(prev => {
+      const updated = prev.map(m => m.id === materiaId ? { ...m, siguiendo: false, pct: 0 } : m);
+      return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+    });
+    try {
+      await deleteProgresoMateria(userId, materiaId);
+      await toggleSeguirMateria(materiaId, userId);
+    } catch {
+      setMaterias(prev => {
+        const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: true } : m);
         return [...reverted].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
       });
     }
@@ -109,6 +133,7 @@ const Study = () => {
     : materias;
 
   return (
+    <>
     <div className="screen active screen-container" id="screen-study">
       <div className="study-body-pad" style={{ paddingBottom: '8px' }}>
         <input
@@ -177,6 +202,19 @@ const Study = () => {
         })}
       </div>
     </div>
+
+    {confirmUnfollowId !== null && (
+      <ConfirmModal
+        title="⚠️ ¿Dejar de seguir?"
+        message="Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer."
+        confirmLabel="Sí, dejar de seguir"
+        cancelLabel="Cancelar"
+        dangerous
+        onConfirm={doUnfollow}
+        onCancel={() => setConfirmUnfollowId(null)}
+      />
+    )}
+    </>
   );
 };
 

@@ -111,7 +111,8 @@ class UserPerfil(BaseModel):
     last_name: Optional[str] = None
     foto_url: Optional[str] = None
     racha: int
-    materias_seguidas: List[MateriaPorcentaje]
+    materias_cursando: List[MateriaPorcentaje]
+    materias_completadas: List[MateriaPorcentaje]
 
 class PdfVistoCreate(BaseModel):
     id_usuario: int

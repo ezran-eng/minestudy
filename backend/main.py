@@ -607,6 +607,53 @@ def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
     return [{"id_telegram": u.id_telegram, "first_name": u.first_name, "foto_url": u.foto_url} for u in rows]
 
 
+@app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_progreso_materia(id_usuario: int, id_materia: int, db: Session = Depends(get_db)):
+    """Wipes all progress of a user for every unit in the given materia."""
+    unidades = db.query(models.Unidad).filter(models.Unidad.id_materia == id_materia).all()
+    unidad_ids = [u.id for u in unidades]
+    if not unidad_ids:
+        return
+
+    # card_reviews
+    fc_ids = [r[0] for r in db.query(models.Flashcard.id).filter(models.Flashcard.id_unidad.in_(unidad_ids)).all()]
+    if fc_ids:
+        db.query(models.CardReview).filter(
+            models.CardReview.id_usuario == id_usuario,
+            models.CardReview.id_flashcard.in_(fc_ids),
+        ).delete(synchronize_session=False)
+
+    # quiz_resultado
+    db.query(models.QuizResultado).filter(
+        models.QuizResultado.id_usuario == id_usuario,
+        models.QuizResultado.id_unidad.in_(unidad_ids),
+    ).delete(synchronize_session=False)
+
+    # pdf_visto
+    pdf_ids = [r[0] for r in db.query(models.Pdf.id).filter(models.Pdf.id_unidad.in_(unidad_ids)).all()]
+    if pdf_ids:
+        db.query(models.PdfVisto).filter(
+            models.PdfVisto.id_usuario == id_usuario,
+            models.PdfVisto.id_pdf.in_(pdf_ids),
+        ).delete(synchronize_session=False)
+
+    # infografia_vista
+    inf_ids = [r[0] for r in db.query(models.Infografia.id).filter(models.Infografia.id_unidad.in_(unidad_ids)).all()]
+    if inf_ids:
+        db.query(models.InfografiaVista).filter(
+            models.InfografiaVista.id_usuario == id_usuario,
+            models.InfografiaVista.id_infografia.in_(inf_ids),
+        ).delete(synchronize_session=False)
+
+    # vistas
+    db.query(models.Vista).filter(
+        models.Vista.id_usuario == id_usuario,
+        models.Vista.id_unidad.in_(unidad_ids),
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+
 @app.get("/usuarios/{id}/materias-seguidas")
 def get_materias_seguidas(id: int, db: Session = Depends(get_db)):
     rows = db.query(models.MateriaSeguida.id_materia).filter(
@@ -627,25 +674,31 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         .order_by(models.MateriaSeguida.fecha.desc())
         .all()
     )
-    materias_con_pct = []
+    materias_cursando = []
+    materias_completadas = []
     for materia in seguidas:
         unidades = sorted(materia.unidades, key=lambda u: (u.orden is None, u.orden))
         if unidades:
             pct = sum(_compute_progreso_unidad(u.id, id, db) for u in unidades) / len(unidades)
         else:
             pct = 0.0
-        materias_con_pct.append({
+        item = {
             "id": materia.id, "nombre": materia.nombre,
             "emoji": materia.emoji, "color": materia.color,
             "porcentaje": round(pct, 1),
-        })
+        }
+        if unidades and round(pct, 1) >= 100.0:
+            materias_completadas.append(item)
+        else:
+            materias_cursando.append(item)
     return {
         "id_telegram": user.id_telegram,
         "first_name": user.first_name,
         "last_name": user.last_name,
         "foto_url": user.foto_url,
         "racha": user.racha or 0,
-        "materias_seguidas": materias_con_pct,
+        "materias_cursando": materias_cursando,
+        "materias_completadas": materias_completadas,
     }
 
 

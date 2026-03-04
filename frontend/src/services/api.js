@@ -181,6 +181,13 @@ export const getMateriasSeguidas = async (id_usuario) => {
   return response.json();
 };
 
+export const deleteProgresoMateria = async (id_usuario, id_materia) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/progreso-materia/${id_materia}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete progreso materia');
+};
+
 export const getUserPerfil = async (id_usuario) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/perfil`);
   if (!response.ok) throw new Error('Failed to get perfil');

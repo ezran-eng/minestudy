@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria, deleteProgresoMateria } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ─── Avatar stack shown in header ─────────────────────────────────────────────
 const MAX_AVATARS = 4;
@@ -94,6 +95,7 @@ const MateriaDetail = () => {
   const [siguiendo, setSiguiendo] = useState(false);
   const [seguidores, setSeguidores] = useState([]);
   const [showSeguidores, setShowSeguidores] = useState(false);
+  const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
 
   useEffect(() => {
     const fetchMateriaData = async () => {
@@ -142,23 +144,41 @@ const MateriaDetail = () => {
     fetchProgresos();
   }, [materia, user?.id]);
 
-  const handleToggleSeguir = async () => {
+  const handleToggleSeguir = () => {
     if (!user?.id) return;
+    if (siguiendo) {
+      setShowUnfollowConfirm(true);
+    } else {
+      doFollow();
+    }
+  };
+
+  const doFollow = async () => {
     const prev = siguiendo;
-    // Optimistic update
-    setSiguiendo(!prev);
-    setSeguidores(prev
-      ? seguidores.filter(s => s.id_telegram !== user.id)
-      : [{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...seguidores]
-    );
+    setSiguiendo(true);
+    setSeguidores([{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...seguidores]);
     try {
       const res = await toggleSeguirMateria(materia.id, user.id);
       setSiguiendo(res.siguiendo);
-      // Refresh full list for accuracy
       const list = await getSeguidoresMateria(materia.id);
       setSeguidores(list);
     } catch {
-      // Revert on error
+      setSiguiendo(prev);
+    }
+  };
+
+  const doUnfollow = async () => {
+    setShowUnfollowConfirm(false);
+    const prev = siguiendo;
+    setSiguiendo(false);
+    setSeguidores(seguidores.filter(s => s.id_telegram !== user.id));
+    try {
+      await deleteProgresoMateria(user.id, materia.id);
+      await toggleSeguirMateria(materia.id, user.id);
+      setUnidadProgresos({});
+      const list = await getSeguidoresMateria(materia.id);
+      setSeguidores(list);
+    } catch {
       setSiguiendo(prev);
     }
   };
@@ -258,6 +278,18 @@ const MateriaDetail = () => {
           seguidores={seguidores}
           onClose={() => setShowSeguidores(false)}
           onClickUser={(uid) => { setShowSeguidores(false); navigate(`/perfil/${uid}`); }}
+        />
+      )}
+
+      {showUnfollowConfirm && (
+        <ConfirmModal
+          title="⚠️ ¿Dejar de seguir?"
+          message="Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer."
+          confirmLabel="Sí, dejar de seguir"
+          cancelLabel="Cancelar"
+          dangerous
+          onConfirm={doUnfollow}
+          onCancel={() => setShowUnfollowConfirm(false)}
         />
       )}
     </>
