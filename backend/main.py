@@ -546,7 +546,9 @@ async def upload_infografia(
     if not db_unidad:
         raise HTTPException(status_code=404, detail="Unidad not found")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in {"jpg", "jpeg", "png", "webp"}:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido")
     filename = f"{id_unidad}/{uuid.uuid4()}.{ext}"
 
     content = await file.read()
@@ -599,7 +601,9 @@ async def upload_pdf(
     if not db_unidad:
         raise HTTPException(status_code=404, detail="Unidad not found")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "pdf"
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in {"pdf"}:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido")
     filename = f"pdfs/{id_unidad}/{uuid.uuid4()}.{ext}"
 
     content = await file.read()
