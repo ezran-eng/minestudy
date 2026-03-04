@@ -1,83 +1,90 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getRanking, getUserProfile } from '../services/api';
-import { Section, Cell } from '@telegram-apps/telegram-ui';
+import { getUserPerfil } from '../services/api';
+import MateriaList from '../components/MateriaList';
 
 const Profile = () => {
   const { user } = useTelegram();
-  const [ranking, setRanking] = useState([]);
-  const [loadingRanking, setLoadingRanking] = useState(true);
-  const [backendUser, setBackendUser] = useState(null);
+  const navigate = useNavigate();
+  const [perfil, setPerfil] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && user.id) {
-      getUserProfile(user.id)
-        .then(data => setBackendUser(data))
-        .catch(err => console.error('Error fetching backend user:', err));
-    }
-  }, [user]);
+    if (!user?.id) return;
+    getUserPerfil(user.id)
+      .then(setPerfil)
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [user?.id]);
 
-  useEffect(() => {
-    getRanking()
-      .then(data => {
-        setRanking(data);
-        setLoadingRanking(false);
-      })
-      .catch(err => {
-        console.error('Error fetching ranking:', err);
-        setLoadingRanking(false);
-      });
-  }, []);
+  if (loading) {
+    return (
+      <div className="screen active screen-container" id="screen-profile">
+        <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text2)' }}>
+          Cargando perfil...
+        </div>
+      </div>
+    );
+  }
 
-  const displayUser = backendUser || user;
-  const profileName = displayUser ? `${displayUser.first_name || ''} ${displayUser.last_name || ''}`.trim() : 'Estudiante de Minería';
-  const username = displayUser?.username ? `@${displayUser.username}` : 'Sin nombre de usuario';
-  const photoUrl = backendUser ? backendUser.foto_url : user?.photo_url;
-  const racha = backendUser?.racha || 0;
+  if (!perfil) {
+    return (
+      <div className="screen active screen-container" id="screen-profile">
+        <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text2)' }}>
+          No se pudo cargar el perfil
+        </div>
+      </div>
+    );
+  }
+
+  const fullName = `${perfil.first_name} ${perfil.last_name || ''}`.trim();
+  const username = user?.username ? `@${user.username}` : null;
 
   return (
     <div className="screen active screen-container" id="screen-profile">
       <div className="profile-body">
+
         <div className="profile-hero">
           <div className="profile-avatar-big">
-            {photoUrl ? <img src={photoUrl} alt="Avatar" /> : '⛏️'}
+            {perfil.foto_url
+              ? <img src={perfil.foto_url} alt="Avatar" />
+              : <span style={{ fontSize: '36px' }}>👤</span>
+            }
           </div>
-          <div className="profile-name">{profileName || 'Estudiante'}</div>
-          <div className="profile-user">{username}</div>
-        </div>
-
-        <div className="stats-grid" style={{ marginBottom: '16px' }}>
-          <div className="stat-card"><div className="stat-val">{racha}</div><div className="stat-lbl">Racha</div></div>
-          <div className="stat-card"><div className="stat-val">284</div><div className="stat-lbl">Sesiones</div></div>
-          <div className="stat-card"><div className="stat-val">89%</div><div className="stat-lbl">Precisión</div></div>
-        </div>
-
-        <div className="ranking-card">
-          <div className="ranking-title">Ranking Global</div>
-          {loadingRanking ? (
-            <div className="ranking-empty">Cargando ranking...</div>
-          ) : ranking.length === 0 ? (
-            <div className="ranking-empty">No hay datos de ranking aún.</div>
-          ) : (
-            ranking.slice(0, 5).map((rankUser, index) => (
-              <div className="ranking-item" key={rankUser.id_telegram || index}>
-                <div className="rank-pos">#{index + 1}</div>
-                <div className="rank-name">{rankUser.first_name} {rankUser.last_name || ''}</div>
-                <div className="rank-score">{Number(rankUser.total_progress).toFixed(1)}%</div>
-              </div>
-            ))
+          <div className="profile-name">{fullName || 'Estudiante'}</div>
+          {username && (
+            <div className="profile-user">{username}</div>
           )}
+          <div className="streak-pill" style={{ margin: '8px auto 0', width: 'fit-content' }}>
+            🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
+          </div>
         </div>
 
-        <Section header="Configuración" style={{ marginBottom: '16px', borderRadius: 'var(--r2)', overflow: 'hidden' }}>
-          <Cell before="🔔" after="Activas">Notificaciones</Cell>
-          <Cell before="🌐" after="Español">Idioma</Cell>
-          <Cell before="📤" after="›">Exportar progreso</Cell>
-        </Section>
-
-        <Section header="Acerca de" style={{ borderRadius: 'var(--r2)', overflow: 'hidden' }}>
-          <Cell before="✦" after="v1.0">DaathApp</Cell>
-        </Section>
+        {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
+          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '24px 16px' }}>
+            No sigues ninguna materia todavía
+          </div>
+        ) : (
+          <>
+            {perfil.materias_cursando.length > 0 && (
+              <>
+                <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
+                  <div className="section-title">📚 Cursando</div>
+                </div>
+                <MateriaList materias={perfil.materias_cursando} isOwnProfile navigate={navigate} />
+              </>
+            )}
+            {perfil.materias_completadas.length > 0 && (
+              <>
+                <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
+                  <div className="section-title">🎓 Completadas</div>
+                </div>
+                <MateriaList materias={perfil.materias_completadas} isOwnProfile navigate={navigate} />
+              </>
+            )}
+          </>
+        )}
 
       </div>
     </div>
