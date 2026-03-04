@@ -110,6 +110,7 @@ class UserPerfil(BaseModel):
     first_name: str
     last_name: Optional[str] = None
     foto_url: Optional[str] = None
+    descripcion: Optional[str] = None
     racha: int
     materias_cursando: List[MateriaPorcentaje]
     materias_completadas: List[MateriaPorcentaje]

@@ -8,11 +8,32 @@ import uuid
 import boto3
 from botocore.client import Config
 
+import httpx
 import models
 import schemas
 from database import engine, get_db
 
 R2_PUBLIC_URL = "https://pub-d070e7bf4b014f54acc4915474377809.r2.dev"
+
+_BIO_UNAVAILABLE = object()  # sentinel: API call failed, don't touch descripcion
+
+def _get_telegram_bio(id_telegram: int):
+    """Returns bio string or None if call succeeded, _BIO_UNAVAILABLE if call failed."""
+    bot_token = os.environ.get("BOT_TOKEN")
+    if not bot_token:
+        return _BIO_UNAVAILABLE
+    try:
+        resp = httpx.get(
+            f"https://api.telegram.org/bot{bot_token}/getChat",
+            params={"chat_id": id_telegram},
+            timeout=5.0,
+        )
+        data = resp.json()
+        if data.get("ok"):
+            return data["result"].get("bio") or None
+        return _BIO_UNAVAILABLE
+    except Exception:
+        return _BIO_UNAVAILABLE
 
 def get_r2_client():
     return boto3.client(
@@ -50,13 +71,15 @@ app.add_middleware(
 def create_or_update_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id_telegram == user.id_telegram).first()
     if db_user:
-        # Update user
         for key, value in user.model_dump(exclude_unset=True).items():
             setattr(db_user, key, value)
     else:
-        # Create user
         db_user = models.User(**user.model_dump())
         db.add(db_user)
+
+    bio = _get_telegram_bio(user.id_telegram)
+    if bio is not _BIO_UNAVAILABLE:
+        db_user.descripcion = bio  # str if has bio, None if no bio
 
     db.commit()
     db.refresh(db_user)
@@ -696,6 +719,7 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         "first_name": user.first_name,
         "last_name": user.last_name,
         "foto_url": user.foto_url,
+        "descripcion": user.descripcion,
         "racha": user.racha or 0,
         "materias_cursando": materias_cursando,
         "materias_completadas": materias_completadas,
