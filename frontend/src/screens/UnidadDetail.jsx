@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
@@ -56,17 +56,27 @@ const UnidadDetail = () => {
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(!materia || !unidad);
 
-  const fetchProgreso = useCallback(async () => {
-    if (!user?.id) return;
+  // Keep stable refs so callbacks inside child components never go stale
+  const idxRef = useRef(idx);
+  const userIdRef = useRef(user?.id);
+  useEffect(() => { idxRef.current = idx; }, [idx]);
+  useEffect(() => { userIdRef.current = user?.id; }, [user?.id]);
+
+  const refreshProgreso = async () => {
+    if (!userIdRef.current) return;
     try {
-      const res = await getProgresoUnidad(idx, user.id);
+      const res = await getProgresoUnidad(idxRef.current, userIdRef.current);
       setProgreso(res);
       setPdfsVistos(new Set(res.pdfs?.ids_vistos || []));
       setInfografiasVistas(new Set(res.infografias?.ids_vistas || []));
     } catch (e) {
       console.error(e);
     }
-  }, [idx, user?.id]);
+  };
+
+  // Stable ref so child components (Flashcard) always call the latest version
+  const refreshProgresoRef = useRef(refreshProgreso);
+  useEffect(() => { refreshProgresoRef.current = refreshProgreso; });
 
   useEffect(() => {
     const fetchUnidadData = async () => {
@@ -105,9 +115,10 @@ const UnidadDetail = () => {
     fetchUnidadData();
   }, [id, idx, materia, unidad]);
 
+  // Fetch progreso once after main data loads (when user is known)
   useEffect(() => {
-    fetchProgreso();
-  }, [fetchProgreso]);
+    if (!loading && user?.id) refreshProgreso();
+  }, [loading, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="screen active" style={{ padding: '20px' }}>Cargando unidad...</div>;
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
@@ -129,7 +140,7 @@ const UnidadDetail = () => {
       setPdfsVistos(prev => new Set([...prev, pdf.id]));
       try {
         await registrarPdfVisto(pdf.id, user.id);
-        fetchProgreso();
+        await refreshProgreso();
       } catch (e) { console.error(e); }
     }
   };
@@ -139,7 +150,7 @@ const UnidadDetail = () => {
     setInfografiasVistas(prev => new Set([...prev, infId]));
     try {
       await registrarInfografiaVista(infId, user.id);
-      fetchProgreso();
+      await refreshProgreso();
     } catch (e) { console.error(e); }
   };
 
@@ -147,8 +158,12 @@ const UnidadDetail = () => {
     if (!user?.id) return;
     try {
       await registrarQuizResultado(user.id, parseInt(idx), correctas, total);
-      fetchProgreso();
+      await refreshProgreso();
     } catch (e) { console.error(e); }
+  };
+
+  const handleCardReviewed = () => {
+    refreshProgresoRef.current();
   };
 
   // Badge helpers
@@ -315,6 +330,7 @@ const UnidadDetail = () => {
         userId={user?.id}
         customCards={flashcards.length > 0 ? flashcards.map(f => ({ id: f.id, q: f.pregunta, a: f.respuesta })) : null}
         onFirstAction={registrarHoy}
+        onCardReviewed={handleCardReviewed}
       />
       <Quiz
         isOpen={isQuizOpen}

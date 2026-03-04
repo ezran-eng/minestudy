@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = null, onFirstAction = null }) => {
+const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = null, onFirstAction = null, onCardReviewed = null }) => {
   const defaultCards = [
     { q: '¿Cuál es la dureza del cuarzo en la escala de Mohs?', a: 'Dureza 7 — es uno de los minerales más comunes y resistentes de la corteza terrestre.' },
     { q: '¿Qué significa RQD en geomecánica?', a: 'Rock Quality Designation — mide la calidad de la roca según el porcentaje de testigos intactos mayores a 10 cm.' },
@@ -43,6 +43,8 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
     if (cardIdx === 0) {
       onFirstAction?.();
     }
+
+    onCardReviewed?.();
 
     setCardIdx((prev) => (prev + 1) % cards.length);
     setFlipped(false);
