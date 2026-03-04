@@ -159,6 +159,18 @@ export const getProgresoUnidad = async (id_unidad, id_usuario) => {
   return response.json();
 };
 
+export const getUserStats = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/stats`);
+  if (!response.ok) throw new Error('Failed to get user stats');
+  return response.json();
+};
+
+export const getActividadReciente = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/actividad-reciente`);
+  if (!response.ok) throw new Error('Failed to get actividad reciente');
+  return response.json();
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',

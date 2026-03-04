@@ -578,6 +578,234 @@ def delete_pdf(id: int, db: Session = Depends(get_db)):
     return
 
 
+def _compute_progreso_unidad(id_unidad: int, id_usuario: int, db: Session) -> float:
+    """Computes porcentaje_total for a unit (reused by stats endpoint)."""
+    all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()
+    total_fc = len(all_flashcards)
+    dominadas = 0
+    if total_fc > 0:
+        fc_ids = [f.id for f in all_flashcards]
+        dominadas = db.query(models.CardReview).filter(
+            models.CardReview.id_usuario == id_usuario,
+            models.CardReview.id_flashcard.in_(fc_ids),
+            models.CardReview.repeticiones > 0,
+        ).count()
+    fc_pct = (dominadas / total_fc * 100) if total_fc > 0 else 0
+
+    total_quiz = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id_unidad).count()
+    correctas = 0
+    if total_quiz > 0:
+        ultimo = (
+            db.query(models.QuizResultado)
+            .filter(models.QuizResultado.id_usuario == id_usuario, models.QuizResultado.id_unidad == id_unidad)
+            .order_by(models.QuizResultado.fecha.desc())
+            .first()
+        )
+        if ultimo:
+            correctas = ultimo.correctas
+    qz_pct = (correctas / total_quiz * 100) if total_quiz > 0 else 0
+
+    all_pdfs = db.query(models.Pdf).filter(models.Pdf.id_unidad == id_unidad).all()
+    total_pdfs = len(all_pdfs)
+    pdf_pct = 0
+    if total_pdfs > 0:
+        pdf_ids = [p.id for p in all_pdfs]
+        pdfs_vistos = db.query(models.PdfVisto).filter(
+            models.PdfVisto.id_usuario == id_usuario,
+            models.PdfVisto.id_pdf.in_(pdf_ids),
+        ).count()
+        pdf_pct = pdfs_vistos / total_pdfs * 100
+
+    components = {}
+    if total_fc > 0: components['fc'] = (fc_pct, 0.50)
+    if total_quiz > 0: components['qz'] = (qz_pct, 0.35)
+    if total_pdfs > 0: components['pdf'] = (pdf_pct, 0.15)
+    if not components:
+        return 0.0
+    total_weight = sum(w for _, w in components.values())
+    return sum(score * (w / total_weight) for score, w in components.values())
+
+
+@app.get("/usuarios/{id}/stats")
+def get_user_stats(id: int, db: Session = Depends(get_db)):
+    # 1. Flashcards dominadas
+    flashcards_dominadas = db.query(models.CardReview).filter(
+        models.CardReview.id_usuario == id,
+        models.CardReview.repeticiones > 0,
+    ).count()
+
+    # 2. Cuestionarios completados
+    cuestionarios_completados = db.query(models.QuizResultado).filter(
+        models.QuizResultado.id_usuario == id,
+    ).count()
+
+    # 3. Progreso general & foco del día (unit with lowest pct excluding 100%)
+    materias = db.query(models.Materia).order_by(models.Materia.orden).all()
+    all_pcts = []
+    foco = None
+    foco_pct = 101.0
+    for materia in materias:
+        unidades_sorted = sorted(materia.unidades, key=lambda u: (u.orden is None, u.orden))
+        for unidad in unidades_sorted:
+            pct = _compute_progreso_unidad(unidad.id, id, db)
+            all_pcts.append(pct)
+            if pct < 100.0 and pct < foco_pct:
+                foco_pct = pct
+                foco = {
+                    "materia_id": materia.id,
+                    "materia_nombre": materia.nombre,
+                    "unidad_id": unidad.id,
+                    "unidad_nombre": unidad.nombre,
+                    "porcentaje": round(pct, 1),
+                }
+    progreso_general = round(sum(all_pcts) / len(all_pcts), 1) if all_pcts else 0.0
+
+    # 4. Materias activas — at least 1 action in any unit of the materia
+    active_unidad_ids: set[int] = set()
+
+    fc_ids = [r[0] for r in db.query(models.CardReview.id_flashcard).filter(
+        models.CardReview.id_usuario == id).all()]
+    if fc_ids:
+        rows = db.query(models.Flashcard.id_unidad).filter(models.Flashcard.id.in_(fc_ids)).distinct().all()
+        active_unidad_ids.update(r[0] for r in rows)
+
+    rows = db.query(models.QuizResultado.id_unidad).filter(
+        models.QuizResultado.id_usuario == id).distinct().all()
+    active_unidad_ids.update(r[0] for r in rows)
+
+    rows = db.query(models.Pdf.id_unidad).join(
+        models.PdfVisto, (models.PdfVisto.id_pdf == models.Pdf.id) & (models.PdfVisto.id_usuario == id)
+    ).distinct().all()
+    active_unidad_ids.update(r[0] for r in rows)
+
+    rows = db.query(models.Infografia.id_unidad).join(
+        models.InfografiaVista,
+        (models.InfografiaVista.id_infografia == models.Infografia.id) & (models.InfografiaVista.id_usuario == id),
+    ).distinct().all()
+    active_unidad_ids.update(r[0] for r in rows)
+
+    materias_activas = 0
+    if active_unidad_ids:
+        materias_activas = db.query(models.Unidad.id_materia).filter(
+            models.Unidad.id.in_(active_unidad_ids)
+        ).distinct().count()
+
+    return {
+        "flashcards_dominadas": flashcards_dominadas,
+        "cuestionarios_completados": cuestionarios_completados,
+        "progreso_general": progreso_general,
+        "materias_activas": materias_activas,
+        "foco": foco,
+    }
+
+
+@app.get("/usuarios/{id}/actividad-reciente")
+def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+
+    def _hace(dt):
+        if dt is None:
+            return ""
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        secs = int((now - dt).total_seconds())
+        if secs < 3600:
+            return f"hace {max(1, secs // 60)} min"
+        if secs < 86400:
+            h = secs // 3600
+            return f"hace {h} {'hora' if h == 1 else 'horas'}"
+        if secs < 172800:
+            return "ayer"
+        return f"hace {secs // 86400} días"
+
+    events = []
+
+    # Quiz resultados
+    quizzes = (
+        db.query(models.QuizResultado, models.Unidad.nombre.label("u_nombre"))
+        .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
+        .filter(models.QuizResultado.id_usuario == id)
+        .order_by(models.QuizResultado.fecha.desc())
+        .limit(10)
+        .all()
+    )
+    for q, u_nombre in quizzes:
+        events.append({
+            "tipo": "quiz",
+            "titulo": "Cuestionario completado",
+            "detalle": f"{q.correctas}/{q.total} correctas · {u_nombre}",
+            "ts": q.fecha,
+        })
+
+    # PDFs vistos
+    pdfs_v = (
+        db.query(models.PdfVisto, models.Pdf.titulo.label("pdf_titulo"))
+        .join(models.Pdf, models.PdfVisto.id_pdf == models.Pdf.id)
+        .filter(models.PdfVisto.id_usuario == id)
+        .order_by(models.PdfVisto.visto_at.desc())
+        .limit(10)
+        .all()
+    )
+    for pv, titulo in pdfs_v:
+        events.append({
+            "tipo": "pdf",
+            "titulo": "PDF visto",
+            "detalle": titulo,
+            "ts": pv.visto_at,
+        })
+
+    # Infografías vistas
+    infs_v = (
+        db.query(models.InfografiaVista, models.Infografia.titulo.label("inf_titulo"))
+        .join(models.Infografia, models.InfografiaVista.id_infografia == models.Infografia.id)
+        .filter(models.InfografiaVista.id_usuario == id)
+        .order_by(models.InfografiaVista.visto_at.desc())
+        .limit(10)
+        .all()
+    )
+    for iv, titulo in infs_v:
+        events.append({
+            "tipo": "infografia",
+            "titulo": "Infografía vista",
+            "detalle": titulo,
+            "ts": iv.visto_at,
+        })
+
+    # Flashcards: group reviews by calendar date
+    reviews_by_day = (
+        db.query(
+            func.date(models.CardReview.last_reviewed).label("review_date"),
+            func.count(models.CardReview.id_flashcard).label("cnt"),
+            func.max(models.CardReview.last_reviewed).label("last_ts"),
+        )
+        .filter(models.CardReview.id_usuario == id)
+        .group_by(func.date(models.CardReview.last_reviewed))
+        .order_by(func.date(models.CardReview.last_reviewed).desc())
+        .limit(10)
+        .all()
+    )
+    for row in reviews_by_day:
+        events.append({
+            "tipo": "flashcard",
+            "titulo": "Flashcards repasadas",
+            "detalle": f"{row.cnt} tarjetas",
+            "ts": row.last_ts,
+        })
+
+    # Sort by timestamp desc, take top 10, add "hace"
+    def sort_key(e):
+        ts = e["ts"]
+        if ts is None:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+
+    events.sort(key=sort_key, reverse=True)
+    return [
+        {"tipo": e["tipo"], "titulo": e["titulo"], "detalle": e["detalle"], "hace": _hace(e["ts"])}
+        for e in events[:10]
+    ]
+
+
 @app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_infografia(id: int, db: Session = Depends(get_db)):
     infografia = db.query(models.Infografia).filter(models.Infografia.id == id).first()
