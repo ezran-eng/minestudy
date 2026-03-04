@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
 import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria, deleteProgresoMateria } from '../services/api';
@@ -96,6 +96,8 @@ const MateriaDetail = () => {
   const [seguidores, setSeguidores] = useState([]);
   const [showSeguidores, setShowSeguidores] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     const fetchMateriaData = async () => {
@@ -143,6 +145,12 @@ const MateriaDetail = () => {
     };
     fetchProgresos();
   }, [materia, user?.id]);
+
+  const handleLockedClick = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setShowToast(true);
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 2500);
+  };
 
   const handleToggleSeguir = () => {
     if (!user?.id) return;
@@ -234,6 +242,31 @@ const MateriaDetail = () => {
           <div className="section-head" style={{ marginBottom: '10px' }}>
             <div className="section-title">Programa</div>
           </div>
+
+          {!siguiendo && (
+            <div style={{
+              background: 'rgba(212,168,71,0.08)', border: '1px solid rgba(212,168,71,0.3)',
+              borderRadius: '12px', padding: '14px 16px', marginBottom: '12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+            }}>
+              <span style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.4 }}>
+                🔒 Seguí esta materia para desbloquear el contenido
+              </span>
+              {user?.id && (
+                <button
+                  onClick={handleToggleSeguir}
+                  style={{
+                    flexShrink: 0, padding: '7px 14px', borderRadius: '8px',
+                    fontSize: '13px', fontWeight: 700,
+                    background: 'var(--gold)', border: 'none', color: '#000', cursor: 'pointer',
+                  }}
+                >
+                  ➕ Seguir
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="unidades-list">
             {materia.unidades.map((u) => {
               const userPct = Math.round(unidadProgresos[u.id] ?? 0);
@@ -243,14 +276,9 @@ const MateriaDetail = () => {
               const badgeText = userPct === 100 ? '✓ Completa' : `${userPct}%`;
               const displayTemas = u.temas.slice(0, 3);
               const hasMore = u.temas.length > 3;
-              return (
-                <Link
-                  to={`/materia/${id}/unidad/${u.id}`}
-                  state={{ unidad: u, materia, unitProgress: userPct }}
-                  key={u.id}
-                  className={`unit-item ${statusClass}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
+
+              const cardContent = (
+                <>
                   <div className="pu-left">
                     <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
                     <div className="pu-topics-chips">
@@ -265,7 +293,34 @@ const MateriaDetail = () => {
                       )}
                     </div>
                   </div>
-                  <span className={`pu-badge ${statusClass}`}>{badgeText}</span>
+                  <span className={`pu-badge ${siguiendo ? statusClass : 'pend'}`}>
+                    {siguiendo ? badgeText : '🔒'}
+                  </span>
+                </>
+              );
+
+              if (!siguiendo) {
+                return (
+                  <div
+                    key={u.id}
+                    className="unit-item pend"
+                    onClick={handleLockedClick}
+                    style={{ cursor: 'pointer', opacity: 0.75 }}
+                  >
+                    {cardContent}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  to={`/materia/${id}/unidad/${u.id}`}
+                  state={{ unidad: u, materia, unitProgress: userPct }}
+                  key={u.id}
+                  className={`unit-item ${statusClass}`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  {cardContent}
                 </Link>
               );
             })}
@@ -291,6 +346,18 @@ const MateriaDetail = () => {
           onConfirm={doUnfollow}
           onCancel={() => setShowUnfollowConfirm(false)}
         />
+      )}
+
+      {showToast && (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--s1)', border: '1px solid var(--border)',
+          borderRadius: '10px', padding: '10px 18px',
+          fontSize: '13px', color: 'var(--text)', fontWeight: 500,
+          zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        }}>
+          Seguí esta materia para acceder al contenido
+        </div>
       )}
     </>
   );
