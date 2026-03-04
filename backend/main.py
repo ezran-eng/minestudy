@@ -578,6 +578,37 @@ def delete_pdf(id: int, db: Session = Depends(get_db)):
     return
 
 
+@app.post("/unidades/{id}/vista")
+def registrar_vista(id: int, body: schemas.VistaCreate, db: Session = Depends(get_db)):
+    cooldown = datetime.now(timezone.utc) - timedelta(minutes=30)
+    existing = db.query(models.Vista).filter(
+        models.Vista.id_usuario == body.id_usuario,
+        models.Vista.id_unidad == id,
+        models.Vista.fecha >= cooldown,
+    ).first()
+    if not existing:
+        db.add(models.Vista(id_usuario=body.id_usuario, id_unidad=id))
+        db.commit()
+    return {"ok": True}
+
+
+@app.get("/unidades/{id}/vistas")
+def get_vistas_unidad(id: int, db: Session = Depends(get_db)):
+    total = db.query(models.Vista).filter(models.Vista.id_unidad == id).count()
+    return {"total": total}
+
+
+@app.get("/materias/{id}/vistas")
+def get_vistas_materia(id: int, db: Session = Depends(get_db)):
+    total = (
+        db.query(models.Vista)
+        .join(models.Unidad, models.Vista.id_unidad == models.Unidad.id)
+        .filter(models.Unidad.id_materia == id)
+        .count()
+    )
+    return {"total": total}
+
+
 def _compute_progreso_unidad(id_unidad: int, id_usuario: int, db: Session) -> float:
     """Computes porcentaje_total for a unit (reused by stats endpoint)."""
     all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()

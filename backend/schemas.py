@@ -81,6 +81,9 @@ class PdfBase(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class VistaCreate(BaseModel):
+    id_usuario: int
+
 class PdfVistoCreate(BaseModel):
     id_usuario: int
 

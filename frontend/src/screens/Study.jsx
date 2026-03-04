@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getProgresoUnidad } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria } from '../services/api';
+import VistaBadge from '../components/VistaBadge';
 
 const Study = () => {
   const navigate = useNavigate();
@@ -24,19 +25,21 @@ const Study = () => {
 
         const materiasWithPct = await Promise.all(
           rawMaterias.map(async (materia) => {
-            if (materia.unidades.length === 0) return { ...materia, pct: 0 };
-            const pcts = await Promise.all(
-              materia.unidades.map(async (u) => {
-                try {
-                  const res = await getProgresoUnidad(u.id, userId);
-                  return res.porcentaje_total ?? 0;
-                } catch {
-                  return 0;
-                }
-              })
-            );
+            const [pcts, vistasRes] = await Promise.all([
+              materia.unidades.length === 0
+                ? Promise.resolve([0])
+                : Promise.all(
+                    materia.unidades.map(async (u) => {
+                      try {
+                        const res = await getProgresoUnidad(u.id, userId);
+                        return res.porcentaje_total ?? 0;
+                      } catch { return 0; }
+                    })
+                  ),
+              getVistasMateria(materia.id).catch(() => ({ total: 0 })),
+            ]);
             const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-            return { ...materia, pct: avg };
+            return { ...materia, pct: avg, vistas: vistasRes.total ?? 0 };
           })
         );
 
@@ -109,6 +112,7 @@ const Study = () => {
                   <div className="mini-bar-wrap">
                     <div className="mini-bar" style={{ width: `${materia.pct}%`, background: color }}></div>
                   </div>
+                  <VistaBadge vistas={materia.vistas ?? 0} style={{ marginLeft: '6px' }} />
                 </div>
               </div>
               <div className="materia-arrow">›</div>

@@ -159,6 +159,28 @@ export const getProgresoUnidad = async (id_unidad, id_usuario) => {
   return response.json();
 };
 
+export const registrarVista = async (id_unidad, id_usuario) => {
+  const response = await fetch(`${API_URL}/unidades/${id_unidad}/vista`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario }),
+  });
+  if (!response.ok) throw new Error('Failed to register vista');
+  return response.json();
+};
+
+export const getVistasUnidad = async (id_unidad) => {
+  const response = await fetch(`${API_URL}/unidades/${id_unidad}/vistas`);
+  if (!response.ok) throw new Error('Failed to get vistas');
+  return response.json();
+};
+
+export const getVistasMateria = async (id_materia) => {
+  const response = await fetch(`${API_URL}/materias/${id_materia}/vistas`);
+  if (!response.ok) throw new Error('Failed to get vistas materia');
+  return response.json();
+};
+
 export const getUserStats = async (id_usuario) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/stats`);
   if (!response.ok) throw new Error('Failed to get user stats');

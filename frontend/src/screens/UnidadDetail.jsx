@@ -6,7 +6,7 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado } from '../services/api';
+import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista } from '../services/api';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
 
@@ -55,6 +55,12 @@ const UnidadDetail = () => {
   const [flashcards, setFlashcards] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(!materia || !unidad);
+
+  // Register a view when user enters the unit (respects 30-min cooldown server-side)
+  useEffect(() => {
+    if (!user?.id) return;
+    registrarVista(idx, user.id).catch(err => console.error('[vista]', err));
+  }, [idx, user?.id]);
 
   // Keep stable refs so callbacks inside child components never go stale
   const idxRef = useRef(idx);

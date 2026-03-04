@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, ForeignKey, UniqueConstraint, Index, func
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -22,6 +22,7 @@ class User(Base):
     pdfs_vistos = relationship("PdfVisto", back_populates="usuario")
     infografias_vistas = relationship("InfografiaVista", back_populates="usuario")
     quiz_resultados = relationship("QuizResultado", back_populates="usuario")
+    vistas = relationship("Vista", back_populates="usuario")
 
 class Materia(Base):
     __tablename__ = "materias"
@@ -52,6 +53,7 @@ class Unidad(Base):
     infografias = relationship("Infografia", back_populates="unidad", cascade="all, delete-orphan")
     pdfs = relationship("Pdf", back_populates="unidad", cascade="all, delete-orphan")
     quiz_resultados = relationship("QuizResultado", back_populates="unidad", cascade="all, delete-orphan")
+    vistas = relationship("Vista", back_populates="unidad", cascade="all, delete-orphan")
 
     @property
     def flashcard_count(self):
@@ -184,3 +186,18 @@ class CardReview(Base):
 
     usuario = relationship("User", back_populates="card_reviews")
     flashcard = relationship("Flashcard", back_populates="reviews")
+
+class Vista(Base):
+    __tablename__ = "vistas"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id", ondelete="CASCADE"), nullable=False)
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_vistas_usuario_unidad_fecha", "id_usuario", "id_unidad", "fecha"),
+    )
+
+    usuario = relationship("User", back_populates="vistas")
+    unidad = relationship("Unidad", back_populates="vistas")

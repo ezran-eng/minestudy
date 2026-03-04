@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import api, { getProgresoUnidad } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria } from '../services/api';
+import VistaBadge from '../components/VistaBadge';
 
 const MateriaDetail = () => {
   const { id } = useParams();
@@ -10,6 +11,7 @@ const MateriaDetail = () => {
   const [materia, setMateria] = useState(location.state?.materia || null);
   const [loading, setLoading] = useState(!location.state?.materia);
   const [unidadProgresos, setUnidadProgresos] = useState({}); // { [unidad.id]: porcentaje_total }
+  const [vistasMateria, setVistasMateria] = useState(null);
 
   useEffect(() => {
     const fetchMateriaData = async () => {
@@ -50,6 +52,13 @@ const MateriaDetail = () => {
     fetchProgresos();
   }, [materia]);
 
+  useEffect(() => {
+    if (!materia) return;
+    getVistasMateria(materia.id)
+      .then(res => setVistasMateria(res.total ?? 0))
+      .catch(() => setVistasMateria(0));
+  }, [materia]);
+
   if (loading) {
     return <div className="screen active" style={{ padding: '20px' }}>Cargando materia...</div>;
   }
@@ -79,6 +88,11 @@ const MateriaDetail = () => {
           <div className="detail-bar-wrap">
             <div className="detail-bar" style={{ width: `${overallPct}%`, background: `linear-gradient(90deg, ${materia.color || 'var(--gold)'}, var(--gold2))` }}></div>
           </div>
+          {vistasMateria !== null && (
+            <div style={{ marginTop: '6px' }}>
+              <VistaBadge vistas={vistasMateria} />
+            </div>
+          )}
         </div>
 
         <div className="section-head" style={{ marginBottom: '10px' }}>
