@@ -214,18 +214,18 @@ const MateriaDetail = () => {
               <span className="detail-prog-label">Progreso general</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="detail-prog-pct">{overallPct}%</span>
-                {user?.id && (
+                {siguiendo && user?.id && (
                   <button
                     onClick={handleToggleSeguir}
                     style={{
                       padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                      border: siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
-                      background: siguiendo ? 'rgba(212,168,71,0.15)' : 'var(--s2)',
-                      color: siguiendo ? 'var(--gold)' : 'var(--text2)',
+                      border: '1px solid var(--gold)',
+                      background: 'rgba(212,168,71,0.15)',
+                      color: 'var(--gold)',
                       cursor: 'pointer',
                     }}
                   >
-                    {siguiendo ? '✓ Siguiendo' : '➕ Seguir'}
+                    ✓ Siguiendo
                   </button>
                 )}
               </div>
