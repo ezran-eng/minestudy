@@ -72,22 +72,14 @@ const Home = () => {
       {/* Tu Progreso */}
       <div className="section" style={{ padding: '0 16px', marginBottom: '16px' }}>
         <div className="section-head"><div className="section-title">Tu progreso</div></div>
-        <div className="stats-grid">
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <div className="stat-card">
-            <div className="stat-val">{stats?.flashcards_dominadas ?? '—'}</div>
-            <div className="stat-lbl">FC dominadas</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-val">{stats?.cuestionarios_completados ?? '—'}</div>
-            <div className="stat-lbl">Cuestionarios</div>
+            <div className="stat-val">🔥 {racha}</div>
+            <div className="stat-lbl">Racha (días)</div>
           </div>
           <div className="stat-card">
             <div className="stat-val">{stats != null ? `${Math.round(stats.progreso_general)}%` : '—'}</div>
-            <div className="stat-lbl">Progreso</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-val">{stats?.materias_activas ?? '—'}</div>
-            <div className="stat-lbl">Materias activas</div>
+            <div className="stat-lbl">📊 Progreso</div>
           </div>
         </div>
       </div>
