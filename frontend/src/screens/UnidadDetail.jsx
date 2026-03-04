@@ -6,7 +6,8 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista } from '../services/api';
+import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getVistasUnidad } from '../services/api';
+import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
 
@@ -46,6 +47,7 @@ const UnidadDetail = () => {
   const [selectedPdf, setSelectedPdf] = useState(null);
   const [pdfs, setPdfs] = useState([]);
   const [progreso, setProgreso] = useState(null);
+  const [vistas, setVistas] = useState(null);
   // Local sets for immediate ✅ feedback before API refetch
   const [pdfsVistos, setPdfsVistos] = useState(new Set());
   const [infografiasVistas, setInfografiasVistas] = useState(new Set());
@@ -56,10 +58,11 @@ const UnidadDetail = () => {
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(!materia || !unidad);
 
-  // Register a view when user enters the unit (respects 30-min cooldown server-side)
+  // Register a view + fetch view count when user enters the unit
   useEffect(() => {
     if (!user?.id) return;
     registrarVista(idx, user.id).catch(err => console.error('[vista]', err));
+    getVistasUnidad(idx).then(res => setVistas(res.total ?? 0)).catch(() => setVistas(0));
   }, [idx, user?.id]);
 
   // Keep stable refs so callbacks inside child components never go stale
@@ -199,8 +202,9 @@ const UnidadDetail = () => {
             }}>
               <CircularProgress pct={progreso.porcentaje_total} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
-                  Progreso de la unidad
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>Progreso de la unidad</span>
+                  {vistas !== null && <VistaBadge vistas={vistas} />}
                 </div>
                 {progreso.flashcards.total > 0 && (
                   <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '2px' }}>
