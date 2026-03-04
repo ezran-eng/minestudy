@@ -6,6 +6,7 @@ const Study = () => {
   const navigate = useNavigate();
   const [materias, setMaterias] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -64,10 +65,34 @@ const Study = () => {
     );
   }
 
+  const filtered = query.trim()
+    ? materias.filter(m => m.nombre.toLowerCase().includes(query.toLowerCase()))
+    : materias;
+
   return (
     <div className="screen active screen-container" id="screen-study">
-      <div className="materias-list study-body-pad">
-        {materias.map((materia) => {
+      <div className="study-body-pad" style={{ paddingBottom: '8px' }}>
+        <input
+          type="text"
+          placeholder="Buscar materia..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: 'var(--s2)', border: '1px solid var(--border)',
+            borderRadius: '10px', padding: '10px 14px',
+            fontSize: '14px', color: 'var(--text)',
+            outline: 'none',
+          }}
+        />
+      </div>
+      <div className="materias-list study-body-pad" style={{ paddingTop: 0 }}>
+        {filtered.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', marginTop: '32px' }}>
+            No se encontraron materias
+          </div>
+        )}
+        {filtered.map((materia) => {
           const color = materia.color || 'var(--gold)';
           return (
             <div
@@ -93,6 +118,7 @@ const Study = () => {
       </div>
     </div>
   );
+
 };
 
 export default Study;
