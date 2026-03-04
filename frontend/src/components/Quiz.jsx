@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const LETTER = ['A', 'B', 'C', 'D'];
 const OPTS = ['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d'];
@@ -8,6 +8,8 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
   const [selectedOpt, setSelectedOpt] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  // Ref to avoid stale closure in goNext and onQuizFinish
+  const correctCountRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -15,6 +17,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
       setSelectedOpt(null);
       setIsAnswered(false);
       setCorrectCount(0);
+      correctCountRef.current = 0;
     }
   }, [isOpen, customQuestions]);
 
@@ -39,16 +42,22 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
   const answerQuiz = (index) => {
     if (isAnswered) return;
     const isCorrect = index === correctOpt;
+    console.log(`[Quiz] Q${currentIndex + 1}: selected=${index}, correctOpt=${correctOpt}, isCorrect=${isCorrect}, respuesta_correcta="${currentQ?.respuesta_correcta}", countBefore=${correctCountRef.current}`);
     setSelectedOpt(index);
     setIsAnswered(true);
-    if (isCorrect) setCorrectCount(c => c + 1);
+    if (isCorrect) {
+      correctCountRef.current += 1;
+      setCorrectCount(correctCountRef.current);
+      console.log(`[Quiz] correctCount → ${correctCountRef.current}`);
+    }
     if (currentIndex === 0) onFirstAnswer?.();
   };
 
   const goNext = () => {
     const isLast = currentIndex === customQuestions.length - 1;
     if (isLast) {
-      onQuizFinish?.(correctCount, customQuestions.length);
+      // Use ref to guarantee latest count (state may be stale in closure)
+      onQuizFinish?.(correctCountRef.current, customQuestions.length);
       onClose();
     } else {
       setCurrentIndex(prev => prev + 1);
