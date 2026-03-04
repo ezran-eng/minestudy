@@ -25,7 +25,7 @@ _BIO_UNAVAILABLE = object()  # sentinel: API call failed, don't touch descripcio
 
 def _get_telegram_bio(id_telegram: int):
     """Returns bio string or None if call succeeded, _BIO_UNAVAILABLE if call failed."""
-    bot_token = os.environ.get("BOT_TOKEN")
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         return _BIO_UNAVAILABLE
     try:
@@ -101,7 +101,7 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
 
 def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)):
-    bot_token = os.environ.get("BOT_TOKEN", "")
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not x_telegram_init_data:
         raise HTTPException(status_code=403, detail="Telegram auth required")
     if not bot_token:
