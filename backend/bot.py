@@ -45,7 +45,7 @@ MINI_APP_URL = "https://minestudy.vercel.app"
 _WELCOME = {
     "es": (
         "👋 ¡Hola, *{name}*!\n\n"
-        "Bienvenido a *DaathApp*, tu plataforma de estudio para ingeniería minera. 🪨⛏\n\n"
+        "Bienvenido a *DaathApp*, tu plataforma de estudio universitario. 📚\n\n"
         "📚 *¿Qué podés hacer?*\n"
         "• 🃏 Flashcards con *spaced repetition* para memorizar más fácil\n"
         "• 🎯 Cuestionarios para poner a prueba tu conocimiento\n"
@@ -57,7 +57,7 @@ _WELCOME = {
     ),
     "en": (
         "👋 Hey, *{name}*!\n\n"
-        "Welcome to *DaathApp*, your study platform for mining engineering. 🪨⛏\n\n"
+        "Welcome to *DaathApp*, your university study platform. 📚\n\n"
         "📚 *What can you do?*\n"
         "• 🃏 Flashcards with *spaced repetition* to memorize more easily\n"
         "• 🎯 Quizzes to test your knowledge\n"
@@ -69,7 +69,7 @@ _WELCOME = {
     ),
     "pt": (
         "👋 Olá, *{name}*!\n\n"
-        "Bem-vindo ao *DaathApp*, sua plataforma de estudos para engenharia de minas. 🪨⛏\n\n"
+        "Bem-vindo ao *DaathApp*, sua plataforma de estudos universitários. 📚\n\n"
         "📚 *O que você pode fazer?*\n"
         "• 🃏 Flashcards com *repetição espaçada* para memorizar mais facilmente\n"
         "• 🎯 Questionários para testar seu conhecimento\n"
@@ -81,7 +81,7 @@ _WELCOME = {
     ),
     "ru": (
         "👋 Привет, *{name}*!\n\n"
-        "Добро пожаловать в *DaathApp* — платформу для учёбы по горному делу. 🪨⛏\n\n"
+        "Добро пожаловать в *DaathApp* — твою платформу для учёбы в университете. 📚\n\n"
         "📚 *Что ты можешь делать?*\n"
         "• 🃏 Карточки с *интервальными повторениями* для лёгкого запоминания\n"
         "• 🎯 Тесты для проверки знаний\n"
@@ -93,7 +93,7 @@ _WELCOME = {
     ),
     "ar": (
         "👋 مرحباً، *{name}*!\n\n"
-        "أهلاً بك في *DaathApp*، منصتك للدراسة في هندسة التعدين. 🪨⛏\n\n"
+        "أهلاً بك في *DaathApp*، منصتك للدراسة الجامعية. 📚\n\n"
         "📚 *ماذا يمكنك أن تفعل؟*\n"
         "• 🃏 بطاقات تعليمية بتقنية *التكرار المتباعد* للحفظ بسهولة\n"
         "• 🎯 اختبارات لتقييم معرفتك\n"
@@ -114,8 +114,12 @@ _OPEN_BTN = {
 }
 
 def _lang(user) -> str:
-    code = (user.language_code or "es").split("-")[0].lower()
-    return code if code in _WELCOME else "es"
+    raw = user.language_code or ""
+    code = raw.split("-")[0].lower() if raw else ""
+    resolved = code if code in _WELCOME else "es"
+    logger.info("[lang] user=%s id=%s language_code=%r → code=%r → resolved=%s",
+                user.first_name, user.id, raw, code, resolved)
+    return resolved
 
 async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
