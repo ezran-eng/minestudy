@@ -15,9 +15,13 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 import httpx
+import logging
+from urllib.parse import unquote
 import models
 import schemas
 from database import engine, get_db
+
+logger = logging.getLogger("minestudy.auth")
 from sqlalchemy.exc import IntegrityError
 
 R2_PUBLIC_URL = "https://pub-d070e7bf4b014f54acc4915474377809.r2.dev"
@@ -104,12 +108,43 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
         pairs = dict(pair.split('=', 1) for pair in init_data.split('&') if '=' in pair)
         received_hash = pairs.pop('hash', None)
         if not received_hash:
+            logger.warning("[auth] initData has no hash field — keys present: %s", list(pairs.keys()))
             return False
-        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(pairs.items()))
+
         secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+
+        # Attempt 1: raw values (URL-encoded, as received)
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(pairs.items()))
         expected_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        return hmac.compare_digest(received_hash, expected_hash)
-    except Exception:
+
+        logger.info("[auth] data_check_string (raw): %s", data_check_string[:120])
+        logger.info("[auth] received_hash:  %s", received_hash)
+        logger.info("[auth] computed_hash (raw): %s", expected_hash)
+
+        if hmac.compare_digest(received_hash, expected_hash):
+            return True
+
+        # Attempt 2: URL-decoded values (some Telegram clients send decoded initData)
+        decoded_pairs = {k: unquote(v) for k, v in pairs.items()}
+        data_check_string_decoded = '\n'.join(f"{k}={v}" for k, v in sorted(decoded_pairs.items()))
+        expected_hash_decoded = hmac.new(secret_key, data_check_string_decoded.encode(), hashlib.sha256).hexdigest()
+
+        logger.info("[auth] data_check_string (decoded): %s", data_check_string_decoded[:120])
+        logger.info("[auth] computed_hash (decoded): %s", expected_hash_decoded)
+
+        if hmac.compare_digest(received_hash, expected_hash_decoded):
+            logger.warning("[auth] MATCH on decoded values — client is sending URL-decoded initData")
+            return True
+
+        logger.warning(
+            "[auth] HMAC mismatch — neither raw nor decoded matched. "
+            "received=%s raw_computed=%s decoded_computed=%s",
+            received_hash, expected_hash, expected_hash_decoded,
+        )
+        return False
+
+    except Exception as exc:
+        logger.exception("[auth] exception during initData validation: %s", exc)
         return False
 
 
