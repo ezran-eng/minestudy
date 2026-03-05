@@ -772,7 +772,47 @@ def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
         .order_by(models.MateriaSeguida.fecha.desc())
         .all()
     )
-    return [{"id_telegram": u.id_telegram, "first_name": u.first_name, "foto_url": u.foto_url} for u in rows]
+    result = []
+    for u in rows:
+        result.append({
+            "id_telegram": u.id_telegram,
+            "first_name": u.first_name if u.mostrar_nombre else "Anónimo",
+            "foto_url": u.foto_url if u.mostrar_foto else None,
+        })
+    return result
+
+
+@app.get("/usuarios/{id}/privacidad", response_model=schemas.PrivacidadOut, dependencies=[Depends(require_init_data)])
+def get_privacidad(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@app.put("/usuarios/{id}/privacidad", response_model=schemas.PrivacidadOut, dependencies=[Depends(require_init_data)])
+def update_privacidad(id: int, body: schemas.PrivacidadUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(user, field, value)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/usuarios/{id}/onboarding", dependencies=[Depends(require_init_data)])
+def complete_onboarding(id: int, body: schemas.PrivacidadUpdate, db: Session = Depends(get_db)):
+    """Mark onboarding as completed and save initial privacy settings in one call."""
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.onboarding_completado = True
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(user, field, value)
+    db.commit()
+    return {"ok": True}
 
 
 @app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 import Home from './screens/Home';
@@ -7,20 +7,15 @@ import MateriaDetail from './screens/MateriaDetail';
 import UnidadDetail from './screens/UnidadDetail';
 import Profile from './screens/Profile';
 import UserProfile from './screens/UserProfile';
+import Onboarding from './screens/Onboarding';
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 
 import { useTelegram } from './hooks/useTelegram';
-import { createOrUpdateUser } from './services/api';
+import { createOrUpdateUser, getPrivacidad } from './services/api';
 
-// A wrapper component to conditionally show the BottomNav
 const AppContent = ({ user }) => {
   const location = useLocation();
-  // Bottom nav is typically hidden in detailed screens (MateriaDetail, UnidadDetail) in mobile apps
-  // But based on the HTML prototype, the bottom nav was a global fixed element at the bottom.
-  // We'll show it everywhere or customize based on the path if needed.
-  // The HTML shows screen bottom: 64px which accounts for the bottom nav.
-
   return (
     <>
       <Routes>
@@ -38,6 +33,8 @@ const AppContent = ({ user }) => {
 
 const App = () => {
   const { user, tg } = useTelegram();
+  // null = loading, false = not done, true = done
+  const [onboardingDone, setOnboardingDone] = useState(null);
 
   useEffect(() => {
     if (tg) {
@@ -57,10 +54,44 @@ const App = () => {
       };
 
       createOrUpdateUser(userData)
-        .then(data => console.log('[App] user synced:', data))
-        .catch(err => console.error('[App] error syncing user:', err));
+        .then(() => getPrivacidad(user.id))
+        .then(data => setOnboardingDone(data.onboarding_completado))
+        .catch(err => {
+          console.error('[App] error during init:', err);
+          setOnboardingDone(true); // don't block the user on error
+        });
     }
   }, [user, tg]);
+
+  // No user from Telegram yet — just show the app normally
+  if (!user) {
+    return (
+      <Router>
+        <ToastProvider>
+          <AppContent user={user} />
+        </ToastProvider>
+      </Router>
+    );
+  }
+
+  // Waiting for onboarding check
+  if (onboardingDone === null) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div>
+      </div>
+    );
+  }
+
+  // First time — show onboarding
+  if (onboardingDone === false) {
+    return (
+      <Onboarding
+        user={user}
+        onComplete={() => setOnboardingDone(true)}
+      />
+    );
+  }
 
   return (
     <Router>

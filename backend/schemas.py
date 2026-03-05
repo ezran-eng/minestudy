@@ -178,6 +178,23 @@ class RankingUser(BaseModel):
 
     model_config = {"from_attributes": True}
 
+class PrivacidadUpdate(BaseModel):
+    mostrar_foto: Optional[bool] = None
+    mostrar_nombre: Optional[bool] = None
+    mostrar_username: Optional[bool] = None
+    mostrar_progreso: Optional[bool] = None
+    mostrar_cursos: Optional[bool] = None
+
+class PrivacidadOut(BaseModel):
+    mostrar_foto: bool
+    mostrar_nombre: bool
+    mostrar_username: bool
+    mostrar_progreso: bool
+    mostrar_cursos: bool
+    onboarding_completado: bool
+
+    model_config = {"from_attributes": True}
+
 class ActividadCreate(BaseModel):
     id_telegram: int
     tipo: str

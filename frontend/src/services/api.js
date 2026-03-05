@@ -260,6 +260,34 @@ export const getActividadReciente = async (id_usuario) => {
   return response.json();
 };
 
+export const getPrivacidad = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/privacidad`, {
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to get privacidad');
+  return response.json();
+};
+
+export const updatePrivacidad = async (id_usuario, data) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/privacidad`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update privacidad');
+  return response.json();
+};
+
+export const completeOnboarding = async (id_usuario, privacidad) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/onboarding`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(privacidad),
+  });
+  if (!response.ok) throw new Error('Failed to complete onboarding');
+  return response.json();
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',

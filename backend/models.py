@@ -16,6 +16,14 @@ class User(Base):
     racha = Column(Integer, default=0)
     ultima_actividad = Column(DateTime(timezone=True), nullable=True)
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
+    # Onboarding
+    onboarding_completado = Column(Boolean, default=False, nullable=False)
+    # Privacy settings (all public by default)
+    mostrar_foto = Column(Boolean, default=True, nullable=False)
+    mostrar_nombre = Column(Boolean, default=True, nullable=False)
+    mostrar_username = Column(Boolean, default=True, nullable=False)
+    mostrar_progreso = Column(Boolean, default=True, nullable=False)
+    mostrar_cursos = Column(Boolean, default=True, nullable=False)
 
     progresos = relationship("Progreso", back_populates="usuario")
     card_reviews = relationship("CardReview", back_populates="usuario")
