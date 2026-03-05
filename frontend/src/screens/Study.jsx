@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria, deleteProgresoMateria } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -90,7 +90,28 @@ const Study = () => {
       return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
     });
     try {
-      await toggleSeguirMateria(materiaId, userId);
+      try {
+        await toggleSeguirMateria(materiaId, userId);
+      } catch (err) {
+        // If user doesn't exist yet in DB (race between app load and first follow),
+        // register them first and retry once.
+        if (err.detail === 'user_not_registered') {
+          const tg = window.Telegram?.WebApp;
+          const tgUser = tg?.initDataUnsafe?.user;
+          if (tgUser) {
+            await createOrUpdateUser({
+              id_telegram: tgUser.id,
+              first_name: tgUser.first_name || 'Desconocido',
+              last_name: tgUser.last_name || null,
+              username: tgUser.username || null,
+              foto_url: tgUser.photo_url || null,
+            });
+          }
+          await toggleSeguirMateria(materiaId, userId);
+        } else {
+          throw err;
+        }
+      }
     } catch {
       setMaterias(prev => {
         const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: false } : m);

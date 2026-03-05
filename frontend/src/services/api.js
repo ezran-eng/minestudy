@@ -187,7 +187,12 @@ export const toggleSeguirMateria = async (id_materia, id_usuario) => {
     headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
     body: JSON.stringify({ id_usuario }),
   });
-  if (!response.ok) throw new Error('Failed to toggle seguir');
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const err = new Error('Failed to toggle seguir');
+    err.detail = body?.detail;
+    throw err;
+  }
   return response.json();
 };
 

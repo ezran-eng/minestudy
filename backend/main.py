@@ -18,6 +18,7 @@ import httpx
 import models
 import schemas
 from database import engine, get_db
+from sqlalchemy.exc import IntegrityError
 
 R2_PUBLIC_URL = "https://pub-d070e7bf4b014f54acc4915474377809.r2.dev"
 
@@ -665,6 +666,14 @@ def toggle_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Dep
         siguiendo = False
     else:
         db.add(models.MateriaSeguida(id_usuario=body.id_usuario, id_materia=id))
+        try:
+            db.flush()  # detect FK violation before committing
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="user_not_registered",
+            )
         siguiendo = True
     db.commit()
     total = db.query(models.MateriaSeguida).filter(models.MateriaSeguida.id_materia == id).count()

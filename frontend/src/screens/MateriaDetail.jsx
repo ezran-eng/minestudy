@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria, deleteProgresoMateria } from '../services/api';
+import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria, deleteProgresoMateria, createOrUpdateUser } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -98,6 +98,10 @@ const MateriaDetail = () => {
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const toastTimerRef = useRef(null);
+  // Generation counter: incremented on every follow/unfollow action to invalidate
+  // any in-flight getSeguidoresMateria call from the useEffect (prevents stale data
+  // from overwriting the state set by the toggle response).
+  const seguidoresGenRef = useRef(0);
 
   useEffect(() => {
     const fetchMateriaData = async () => {
@@ -121,8 +125,10 @@ const MateriaDetail = () => {
       .then(res => setVistasMateria(res.total ?? 0))
       .catch(() => setVistasMateria(0));
 
+    const gen = ++seguidoresGenRef.current;
     getSeguidoresMateria(materia.id)
       .then(list => {
+        if (seguidoresGenRef.current !== gen) return; // stale — a follow/unfollow started, ignore
         setSeguidores(list);
         if (user?.id) setSiguiendo(list.some(s => s.id_telegram === user.id));
       })
@@ -162,11 +168,30 @@ const MateriaDetail = () => {
   };
 
   const doFollow = async () => {
+    seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     const prev = siguiendo;
     setSiguiendo(true);
     setSeguidores([{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...seguidores]);
     try {
-      const res = await toggleSeguirMateria(materia.id, user.id);
+      let res;
+      try {
+        res = await toggleSeguirMateria(materia.id, user.id);
+      } catch (err) {
+        // If user doesn't exist yet in DB (race between app load and first follow),
+        // register them first and retry once.
+        if (err.detail === 'user_not_registered') {
+          await createOrUpdateUser({
+            id_telegram: user.id,
+            first_name: user.first_name || 'Desconocido',
+            last_name: user.last_name || null,
+            username: user.username || null,
+            foto_url: user.photo_url || null,
+          });
+          res = await toggleSeguirMateria(materia.id, user.id);
+        } else {
+          throw err;
+        }
+      }
       setSiguiendo(res.siguiendo);
       const list = await getSeguidoresMateria(materia.id);
       setSeguidores(list);
@@ -176,6 +201,7 @@ const MateriaDetail = () => {
   };
 
   const doUnfollow = async () => {
+    seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     setShowUnfollowConfirm(false);
     const prev = siguiendo;
     setSiguiendo(false);
