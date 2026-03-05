@@ -6,7 +6,7 @@ import httpx
 import logging
 from datetime import date
 from io import StringIO
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler, ConversationHandler
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -39,11 +39,100 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 # Allowed Admin Telegram ID
 ADMIN_ID = 1063772095
 
-# Decorator to restrict access to ADMIN_ID
+MINI_APP_URL = "https://minestudy.vercel.app"
+
+# ── Welcome messages per language ────────────────────────────────────────────
+_WELCOME = {
+    "es": (
+        "👋 ¡Hola, *{name}*!\n\n"
+        "Bienvenido a *DaathApp*, tu plataforma de estudio para ingeniería minera. 🪨⛏\n\n"
+        "📚 *¿Qué podés hacer?*\n"
+        "• 🃏 Flashcards con *spaced repetition* para memorizar más fácil\n"
+        "• 🎯 Cuestionarios para poner a prueba tu conocimiento\n"
+        "• 🖼 Infografías y 📄 PDFs organizados por unidad\n"
+        "• 📈 Progreso real por materia y unidad\n\n"
+        "▶️ *¿Cómo abrir la app?*\n"
+        "Tocá el botón azul *Study* en la parte inferior izquierda del chat, "
+        "o usá el botón de abajo 👇"
+    ),
+    "en": (
+        "👋 Hey, *{name}*!\n\n"
+        "Welcome to *DaathApp*, your study platform for mining engineering. 🪨⛏\n\n"
+        "📚 *What can you do?*\n"
+        "• 🃏 Flashcards with *spaced repetition* to memorize more easily\n"
+        "• 🎯 Quizzes to test your knowledge\n"
+        "• 🖼 Infographics and 📄 PDFs organized by unit\n"
+        "• 📈 Real progress tracking by subject and unit\n\n"
+        "▶️ *How to open the app?*\n"
+        "Tap the blue *Study* button at the bottom left of the chat, "
+        "or use the button below 👇"
+    ),
+    "pt": (
+        "👋 Olá, *{name}*!\n\n"
+        "Bem-vindo ao *DaathApp*, sua plataforma de estudos para engenharia de minas. 🪨⛏\n\n"
+        "📚 *O que você pode fazer?*\n"
+        "• 🃏 Flashcards com *repetição espaçada* para memorizar mais facilmente\n"
+        "• 🎯 Questionários para testar seu conhecimento\n"
+        "• 🖼 Infográficos e 📄 PDFs organizados por unidade\n"
+        "• 📈 Progresso real por matéria e unidade\n\n"
+        "▶️ *Como abrir o app?*\n"
+        "Toque no botão azul *Study* no canto inferior esquerdo do chat, "
+        "ou use o botão abaixo 👇"
+    ),
+    "ru": (
+        "👋 Привет, *{name}*!\n\n"
+        "Добро пожаловать в *DaathApp* — платформу для учёбы по горному делу. 🪨⛏\n\n"
+        "📚 *Что ты можешь делать?*\n"
+        "• 🃏 Карточки с *интервальными повторениями* для лёгкого запоминания\n"
+        "• 🎯 Тесты для проверки знаний\n"
+        "• 🖼 Инфографики и 📄 PDF-файлы по разделам\n"
+        "• 📈 Реальный прогресс по предметам и разделам\n\n"
+        "▶️ *Как открыть приложение?*\n"
+        "Нажми на синюю кнопку *Study* в нижнем левом углу чата, "
+        "или используй кнопку ниже 👇"
+    ),
+    "ar": (
+        "👋 مرحباً، *{name}*!\n\n"
+        "أهلاً بك في *DaathApp*، منصتك للدراسة في هندسة التعدين. 🪨⛏\n\n"
+        "📚 *ماذا يمكنك أن تفعل؟*\n"
+        "• 🃏 بطاقات تعليمية بتقنية *التكرار المتباعد* للحفظ بسهولة\n"
+        "• 🎯 اختبارات لتقييم معرفتك\n"
+        "• 🖼 إنفوغرافيك و 📄 ملفات PDF منظمة حسب الوحدة\n"
+        "• 📈 تتبع التقدم الحقيقي حسب المادة والوحدة\n\n"
+        "▶️ *كيف تفتح التطبيق؟*\n"
+        "اضغط على زر *Study* الأزرق في الجزء السفلي الأيسر من المحادثة، "
+        "أو استخدم الزر أدناه 👇"
+    ),
+}
+
+_OPEN_BTN = {
+    "es": "📖 Abrir DaathApp",
+    "en": "📖 Open DaathApp",
+    "pt": "📖 Abrir DaathApp",
+    "ru": "📖 Открыть DaathApp",
+    "ar": "📖 فتح DaathApp",
+}
+
+def _lang(user) -> str:
+    code = (user.language_code or "es").split("-")[0].lower()
+    return code if code in _WELCOME else "es"
+
+async def send_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    lang = _lang(user)
+    text = _WELCOME[lang].format(name=user.first_name or "estudiante")
+    keyboard = [[InlineKeyboardButton(_OPEN_BTN[lang], web_app=WebAppInfo(url=MINI_APP_URL))]]
+    await update.message.reply_text(
+        text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+# Decorator to restrict access to ADMIN_ID (non-admins get the welcome message)
 def admin_only(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if update.effective_user.id != ADMIN_ID:
-            await update.message.reply_text("No tienes permisos para usar este comando.")
+            await send_welcome(update, context)
             return
         return await func(update, context, *args, **kwargs)
     return wrapper
@@ -56,9 +145,19 @@ def get_db():
     finally:
         db.close()
 
-@admin_only
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("👋 Hola Admin. Estoy listo para gestionar el contenido. Usa /admin para el menú.")
+    if update.effective_user.id == ADMIN_ID:
+        await update.message.reply_text(
+            "👋 Hola Admin. Estoy listo para gestionar el contenido. Usa /admin para el menú."
+        )
+    else:
+        await send_welcome(update, context)
+
+async def unknown_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Catch-all: any message or unknown command from non-admin → welcome."""
+    if update.effective_user.id == ADMIN_ID:
+        return  # let admin use the bot normally
+    await send_welcome(update, context)
 
 async def send_raw_menu(chat_id, text, reply_markup, message_id=None):
     url = f'https://api.telegram.org/bot{TOKEN}/editMessageText' if message_id else f'https://api.telegram.org/bot{TOKEN}/sendMessage'
@@ -1203,6 +1302,9 @@ application.add_handler(CommandHandler("stats", stats))
 # Standalone callback query handler for menus
 # Note: Handled AFTER the conversation handler, so conversation fallbacks don't consume it
 application.add_handler(CallbackQueryHandler(button_handler, pattern='^(menu_main|menu_materias|menu_unidades|menu_temas|menu_flashcards|menu_quiz|menu_infografias|menu_pdfs|menu_stats|menu_reload|mat_list|uni_list|fc_list|qz_list)$'))
+
+# Catch-all: unknown commands and free text → welcome for non-admin users
+application.add_handler(MessageHandler(filters.ALL & ~filters.UpdateType.EDITED_MESSAGE, unknown_handler))
 
 async def error_handler(update, context):
     if 'Conflict' in str(context.error):
