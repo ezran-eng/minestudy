@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -12,30 +12,24 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const PDFViewer = ({ isOpen, onClose, pdf }) => {
   const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const containerRef = useRef(null);
 
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 44);
 
   const onDocumentLoadSuccess = useCallback(({ numPages }) => {
     setNumPages(numPages);
-    setPageNumber(1);
-    setLoading(false);
     setError(null);
   }, []);
 
   const onDocumentLoadError = useCallback((err) => {
     console.error('[PDFViewer] load error:', err);
-    setLoading(false);
     setError('No se pudo cargar el PDF. Intenta de nuevo.');
   }, []);
 
   if (!isOpen || !pdf) return null;
 
-  const containerWidth = Math.min(window.innerWidth, 800);
+  const pageWidth = Math.min(window.innerWidth, 800);
 
   return (
     <div style={{
@@ -72,25 +66,21 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
         >✕</button>
       </div>
 
-      {/* PDF content */}
-      <div
-        ref={containerRef}
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '12px 0',
-          background: '#2a2a2a',
-        }}
-      >
+      {/* Scrollable PDF content — all pages stacked */}
+      <div style={{
+        flex: 1,
+        overflow: 'auto',
+        background: '#2a2a2a',
+        display: 'flex',
+        justifyContent: 'center',
+      }}>
         {error ? (
           <div style={{ color: 'var(--text2)', fontSize: '14px', marginTop: '40px', textAlign: 'center', padding: '0 24px' }}>
             {error}
           </div>
         ) : (
           <Document
+            key={pdf.id}
             file={`${API_URL}/pdfs/${pdf.id}/file`}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
@@ -100,62 +90,32 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
               </div>
             }
           >
-            <Page
-              pageNumber={pageNumber}
-              width={containerWidth}
-              renderAnnotationLayer={false}
-              renderTextLayer={false}
-              loading={
-                <div style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '20px' }}>
-                  Cargando página...
-                </div>
-              }
-            />
+            {numPages && Array.from({ length: numPages }, (_, i) => (
+              <div key={i} style={{ marginBottom: '8px' }}>
+                <Page
+                  pageNumber={i + 1}
+                  width={pageWidth}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                />
+              </div>
+            ))}
           </Document>
         )}
       </div>
 
-      {/* Navigation bar */}
+      {/* Page count indicator */}
       {numPages && numPages > 1 && (
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '16px',
-          padding: '12px 16px',
+          textAlign: 'center',
+          padding: '8px',
           background: '#111',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           flexShrink: 0,
+          fontSize: '12px',
+          color: 'var(--text2)',
         }}>
-          <button
-            onClick={() => setPageNumber(p => Math.max(1, p - 1))}
-            disabled={pageNumber <= 1}
-            style={{
-              background: pageNumber <= 1 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
-              border: 'none', borderRadius: '8px',
-              color: pageNumber <= 1 ? 'rgba(255,255,255,0.3)' : '#fff',
-              fontSize: '18px', cursor: pageNumber <= 1 ? 'default' : 'pointer',
-              width: '40px', height: '40px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >‹</button>
-
-          <span style={{ color: 'var(--text)', fontSize: '14px', minWidth: '80px', textAlign: 'center' }}>
-            {pageNumber} / {numPages}
-          </span>
-
-          <button
-            onClick={() => setPageNumber(p => Math.min(numPages, p + 1))}
-            disabled={pageNumber >= numPages}
-            style={{
-              background: pageNumber >= numPages ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
-              border: 'none', borderRadius: '8px',
-              color: pageNumber >= numPages ? 'rgba(255,255,255,0.3)' : '#fff',
-              fontSize: '18px', cursor: pageNumber >= numPages ? 'default' : 'pointer',
-              width: '40px', height: '40px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >›</button>
+          {numPages} páginas · deslizá para leer
         </div>
       )}
     </div>
