@@ -170,6 +170,8 @@ const MateriaDetail = () => {
   const doFollow = async () => {
     seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     const prev = siguiendo;
+    console.log('[doFollow] START — siguiendo antes:', prev, '| user.id:', user?.id, '| materia:', materia?.id);
+    console.log('[doFollow] initData present:', !!window.Telegram?.WebApp?.initData);
     setSiguiendo(true);
     // Optimistic: add user to avatar list only if not already present (prevents duplicate display)
     setSeguidores(prev =>
@@ -181,10 +183,13 @@ const MateriaDetail = () => {
       let res;
       try {
         res = await toggleSeguirMateria(materia.id, user.id, true); // explicit follow (idempotent)
+        console.log('[doFollow] toggle response (1st attempt):', res);
       } catch (err) {
+        console.warn('[doFollow] toggle error (1st attempt):', err.message, '| detail:', err.detail);
         // If user doesn't exist yet in DB (race between app load and first follow),
         // register them first and retry once.
         if (err.detail === 'user_not_registered') {
+          console.log('[doFollow] user_not_registered — registering and retrying');
           await createOrUpdateUser({
             id_telegram: user.id,
             first_name: user.first_name || 'Desconocido',
@@ -193,14 +198,17 @@ const MateriaDetail = () => {
             foto_url: user.photo_url || null,
           });
           res = await toggleSeguirMateria(materia.id, user.id, true);
+          console.log('[doFollow] toggle response (retry):', res);
         } else {
           throw err;
         }
       }
+      console.log('[doFollow] siguiendo después:', res.siguiendo);
       setSiguiendo(res.siguiendo);
       const list = await getSeguidoresMateria(materia.id);
       setSeguidores(list);
-    } catch {
+    } catch (err) {
+      console.error('[doFollow] FATAL error — revirtiendo a', prev, '| error:', err);
       setSiguiendo(prev);
     }
   };
