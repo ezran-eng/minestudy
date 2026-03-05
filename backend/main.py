@@ -65,6 +65,16 @@ with engine.connect() as conn:
 
 app = FastAPI(title="MineStudy Hub API")
 
+# Startup diagnostic: confirm bot token is loaded (never log the full token)
+_raw_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+_token_stripped = _raw_token.strip()
+if not _token_stripped:
+    print("[startup] WARNING: TELEGRAM_BOT_TOKEN is not set — all initData validation will fail")
+elif _raw_token != _token_stripped:
+    print(f"[startup] WARNING: TELEGRAM_BOT_TOKEN has leading/trailing whitespace (len before={len(_raw_token)} after={len(_token_stripped)}) — this will break HMAC validation")
+else:
+    print(f"[startup] TELEGRAM_BOT_TOKEN OK — len={len(_token_stripped)}, prefix={_token_stripped[:6]!r}")
+
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -72,7 +82,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://minestudy.vercel.app"],
+    # "null" origin covers Telegram Desktop and native mobile WebViews that
+    # send Origin: null for embedded web apps (file:// / android-app:// contexts)
+    allow_origins=["https://minestudy.vercel.app", "null"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,16 +114,15 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
 
 def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)):
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()  # strip whitespace from env var
     if not x_telegram_init_data:
         print("[auth] 403: X-Telegram-Init-Data header missing")
         raise HTTPException(status_code=403, detail="Telegram auth required")
     if not bot_token:
-        print("[auth] 500: TELEGRAM_BOT_TOKEN env var not set")
+        print("[auth] 500: TELEGRAM_BOT_TOKEN env var not set or empty after strip")
         raise HTTPException(status_code=500, detail="Server misconfigured")
     if not _validate_telegram_init_data(x_telegram_init_data, bot_token):
-        # Log first 40 chars of initData so we can compare with expected format
-        print(f"[auth] 403: initData hash invalid. initData[:40]={x_telegram_init_data[:40]!r}")
+        print(f"[auth] 403: initData hash invalid. initData[:60]={x_telegram_init_data[:60]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
 @app.post("/users", response_model=schemas.User)
