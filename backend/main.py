@@ -104,14 +104,19 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)):
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not x_telegram_init_data:
+        print("[auth] 403: X-Telegram-Init-Data header missing")
         raise HTTPException(status_code=403, detail="Telegram auth required")
     if not bot_token:
+        print("[auth] 500: TELEGRAM_BOT_TOKEN env var not set")
         raise HTTPException(status_code=500, detail="Server misconfigured")
     if not _validate_telegram_init_data(x_telegram_init_data, bot_token):
+        # Log first 40 chars of initData so we can compare with expected format
+        print(f"[auth] 403: initData hash invalid. initData[:40]={x_telegram_init_data[:40]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
-@app.post("/users", response_model=schemas.User, dependencies=[Depends(require_init_data)])
-def create_or_update_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@app.post("/users", response_model=schemas.User)
+@limiter.limit("30/minute")
+def create_or_update_user(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id_telegram == user.id_telegram).first()
     if db_user:
         for key, value in user.model_dump(exclude_unset=True).items():

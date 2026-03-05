@@ -46,6 +46,8 @@ const App = () => {
     }
 
     if (user) {
+      const initData = window.Telegram?.WebApp?.initData;
+      console.log('[App] syncing user — id:', user.id, '| initData present:', !!initData);
       const userData = {
         id_telegram: user.id,
         first_name: user.first_name || 'Desconocido',
@@ -55,8 +57,8 @@ const App = () => {
       };
 
       createOrUpdateUser(userData)
-        .then(data => console.log('User synced with backend:', data))
-        .catch(err => console.error('Error syncing user:', err));
+        .then(data => console.log('[App] user synced:', data))
+        .catch(err => console.error('[App] error syncing user:', err));
     }
   }, [user, tg]);
 
