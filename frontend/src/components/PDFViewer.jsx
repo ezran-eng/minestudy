@@ -8,6 +8,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const PDFViewer = ({ isOpen, onClose, pdf }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -89,7 +91,7 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
           </div>
         ) : (
           <Document
-            file={pdf.url}
+            file={`${API_URL}/pdfs/${pdf.id}/file`}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
             loading={

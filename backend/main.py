@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -637,6 +638,23 @@ def get_pdfs(id_unidad: int, db: Session = Depends(get_db)):
         .filter(models.Pdf.id_unidad == id_unidad)
         .order_by(models.Pdf.orden)
         .all()
+    )
+
+
+@app.get("/pdfs/{id}/file")
+async def proxy_pdf(id: int, db: Session = Depends(get_db)):
+    """Proxy the PDF from R2 so the browser can fetch it via JS (avoids CORS issues)."""
+    pdf = db.query(models.Pdf).filter(models.Pdf.id == id).first()
+    if not pdf:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        r = await client.get(pdf.url)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="No se pudo obtener el PDF")
+    return StreamingResponse(
+        iter([r.content]),
+        media_type="application/pdf",
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
