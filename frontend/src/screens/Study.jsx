@@ -91,7 +91,7 @@ const Study = () => {
     });
     try {
       try {
-        await toggleSeguirMateria(materiaId, userId);
+        await toggleSeguirMateria(materiaId, userId, true); // explicit follow (idempotent)
       } catch (err) {
         // If user doesn't exist yet in DB (race between app load and first follow),
         // register them first and retry once.
@@ -107,7 +107,7 @@ const Study = () => {
               foto_url: tgUser.photo_url || null,
             });
           }
-          await toggleSeguirMateria(materiaId, userId);
+          await toggleSeguirMateria(materiaId, userId, true);
         } else {
           throw err;
         }
@@ -130,7 +130,7 @@ const Study = () => {
     });
     try {
       await deleteProgresoMateria(userId, materiaId);
-      await toggleSeguirMateria(materiaId, userId);
+      await toggleSeguirMateria(materiaId, userId, false); // explicit unfollow (idempotent)
     } catch {
       setMaterias(prev => {
         const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: true } : m);

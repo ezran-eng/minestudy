@@ -181,11 +181,14 @@ export const getProgresoUnidad = async (id_unidad, id_usuario) => {
   return response.json();
 };
 
-export const toggleSeguirMateria = async (id_materia, id_usuario) => {
+// siguiendo: true = explicit follow, false = explicit unfollow, undefined = legacy toggle
+export const toggleSeguirMateria = async (id_materia, id_usuario, siguiendo) => {
+  const payload = { id_usuario };
+  if (siguiendo !== undefined) payload.siguiendo = siguiendo;
   const response = await fetch(`${API_URL}/materias/${id_materia}/seguir`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
-    body: JSON.stringify({ id_usuario }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

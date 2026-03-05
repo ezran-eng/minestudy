@@ -86,6 +86,7 @@ class VistaCreate(BaseModel):
 
 class SeguirCreate(BaseModel):
     id_usuario: int
+    siguiendo: Optional[bool] = None  # True=follow, False=unfollow, None=legacy toggle
 
 class SeguidorUser(BaseModel):
     id_telegram: int

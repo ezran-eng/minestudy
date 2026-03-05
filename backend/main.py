@@ -656,25 +656,39 @@ def delete_pdf(request: Request, id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse, dependencies=[Depends(require_init_data)])
-def toggle_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
+def set_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
     existing = db.query(models.MateriaSeguida).filter(
         models.MateriaSeguida.id_usuario == body.id_usuario,
         models.MateriaSeguida.id_materia == id,
     ).first()
-    if existing:
-        db.delete(existing)
+
+    if body.siguiendo is True:
+        # Idempotent follow: ensure record exists regardless of current state
+        if not existing:
+            db.add(models.MateriaSeguida(id_usuario=body.id_usuario, id_materia=id))
+            try:
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="user_not_registered",
+                )
+        siguiendo = True
+    elif body.siguiendo is False:
+        # Idempotent unfollow: ensure record doesn't exist
+        if existing:
+            db.delete(existing)
         siguiendo = False
     else:
-        db.add(models.MateriaSeguida(id_usuario=body.id_usuario, id_materia=id))
-        try:
-            db.flush()  # detect FK violation before committing
-        except IntegrityError:
-            db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="user_not_registered",
-            )
-        siguiendo = True
+        # Legacy toggle (None) — kept for backwards compatibility
+        if existing:
+            db.delete(existing)
+            siguiendo = False
+        else:
+            db.add(models.MateriaSeguida(id_usuario=body.id_usuario, id_materia=id))
+            siguiendo = True
+
     db.commit()
     total = db.query(models.MateriaSeguida).filter(models.MateriaSeguida.id_materia == id).count()
     return {"siguiendo": siguiendo, "total_seguidores": total}

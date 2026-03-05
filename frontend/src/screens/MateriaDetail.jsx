@@ -171,11 +171,16 @@ const MateriaDetail = () => {
     seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     const prev = siguiendo;
     setSiguiendo(true);
-    setSeguidores([{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...seguidores]);
+    // Optimistic: add user to avatar list only if not already present (prevents duplicate display)
+    setSeguidores(prev =>
+      prev.some(s => s.id_telegram === user.id)
+        ? prev
+        : [{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...prev]
+    );
     try {
       let res;
       try {
-        res = await toggleSeguirMateria(materia.id, user.id);
+        res = await toggleSeguirMateria(materia.id, user.id, true); // explicit follow (idempotent)
       } catch (err) {
         // If user doesn't exist yet in DB (race between app load and first follow),
         // register them first and retry once.
@@ -187,7 +192,7 @@ const MateriaDetail = () => {
             username: user.username || null,
             foto_url: user.photo_url || null,
           });
-          res = await toggleSeguirMateria(materia.id, user.id);
+          res = await toggleSeguirMateria(materia.id, user.id, true);
         } else {
           throw err;
         }
@@ -208,7 +213,7 @@ const MateriaDetail = () => {
     setSeguidores(seguidores.filter(s => s.id_telegram !== user.id));
     try {
       await deleteProgresoMateria(user.id, materia.id);
-      await toggleSeguirMateria(materia.id, user.id);
+      await toggleSeguirMateria(materia.id, user.id, false); // explicit unfollow (idempotent)
       setUnidadProgresos({});
       const list = await getSeguidoresMateria(materia.id);
       setSeguidores(list);
