@@ -146,12 +146,7 @@ def get_db():
         db.close()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id == ADMIN_ID:
-        await update.message.reply_text(
-            "👋 Hola Admin. Estoy listo para gestionar el contenido. Usa /admin para el menú."
-        )
-    else:
-        await send_welcome(update, context)
+    await send_welcome(update, context)
 
 async def unknown_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Catch-all: any message or unknown command from non-admin → welcome."""
