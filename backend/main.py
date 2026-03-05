@@ -902,7 +902,7 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         item = {
             "id": materia.id, "nombre": materia.nombre,
             "emoji": materia.emoji, "color": materia.color,
-            "porcentaje": round(pct, 1),
+            "porcentaje": round(pct, 1) if user.mostrar_progreso else 0,
         }
         if unidades and round(pct, 1) >= 100.0:
             materias_completadas.append(item)
@@ -910,13 +910,13 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
             materias_cursando.append(item)
     return {
         "id_telegram": user.id_telegram,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "foto_url": user.foto_url,
+        "first_name": user.first_name if user.mostrar_nombre else "Anónimo",
+        "last_name": user.last_name if user.mostrar_nombre else None,
+        "foto_url": user.foto_url if user.mostrar_foto else None,
         "descripcion": user.descripcion,
         "racha": user.racha or 0,
-        "materias_cursando": materias_cursando,
-        "materias_completadas": materias_completadas,
+        "materias_cursando": materias_cursando if user.mostrar_cursos else [],
+        "materias_completadas": materias_completadas if user.mostrar_cursos else [],
     }
 
 
