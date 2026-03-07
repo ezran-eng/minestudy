@@ -209,6 +209,19 @@ class DeleteProgresoBody(BaseModel):
     id_usuario: int
 
 
+class NotificacionesConfigOut(BaseModel):
+    racha_activa: bool
+    recordatorio_activo: bool
+    flashcards_activa: bool
+    hora_recordatorio: str  # "HH:MM"
+
+class NotificacionesConfigUpdate(BaseModel):
+    racha_activa: Optional[bool] = None
+    recordatorio_activo: Optional[bool] = None
+    flashcards_activa: Optional[bool] = None
+    hora_recordatorio: Optional[str] = None  # "HH:MM"
+
+
 class ReviewRequest(BaseModel):
     id_usuario: int
     knew: bool

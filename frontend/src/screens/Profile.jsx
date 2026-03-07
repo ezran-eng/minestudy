@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getUserPerfil, getPrivacidad, updatePrivacidad } from '../services/api';
+import { getUserPerfil, getPrivacidad, updatePrivacidad, getNotificaciones, updateNotificaciones } from '../services/api';
 import MateriaList from '../components/MateriaList';
 
 const Toggle = ({ label, description, value, onChange, disabled }) => (
@@ -70,6 +70,7 @@ const Profile = () => {
   const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [privacy, setPrivacy] = useState(null);
+  const [notifConfig, setNotifConfig] = useState(null);
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
 
@@ -78,10 +79,12 @@ const Profile = () => {
     Promise.all([
       getUserPerfil(user.id),
       getPrivacidad(user.id).catch(() => null),
+      getNotificaciones(user.id).catch(() => null),
     ])
-      .then(([p, priv]) => {
+      .then(([p, priv, notif]) => {
         setPerfil(p);
         if (priv) setPrivacy(priv);
+        if (notif) setNotifConfig(notif);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -101,6 +104,21 @@ const Profile = () => {
       setSaving(false);
     }
   }, [saving, user?.id]);
+
+  const handleNotifChange = useCallback(async (key, val) => {
+    if (saving) return;
+    setNotifConfig(prev => ({ ...prev, [key]: val }));
+    setSaving(true);
+    try {
+      const updated = await updateNotificaciones(user.id, { [key]: val });
+      setNotifConfig(updated);
+    } catch (e) {
+      console.error(e);
+      setNotifConfig(prev => ({ ...prev, [key]: notifConfig[key] })); // revert
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, user?.id, notifConfig]);
 
   if (loading) {
     return (
@@ -185,6 +203,59 @@ const Profile = () => {
               <Toggle label="@Usuario" description="Tu arroba de Telegram en tu perfil público." value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
               <Toggle label="Materias que cursás" description="Qué materias estás siguiendo." value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
               <Toggle label="Progreso" description="Tu porcentaje de avance." value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
+            </div>
+          </div>
+        )}
+
+        {/* Notificaciones */}
+        {notifConfig && (
+          <div style={{ padding: '0 16px', marginTop: '28px' }}>
+            <div className="section-head" style={{ marginBottom: '4px' }}>
+              <div className="section-title">🔔 Notificaciones</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
+              El bot te manda un mensaje cuando aplica. Los horarios son en UTC.
+            </div>
+            <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
+              <Toggle
+                label="Recordatorio diario"
+                description="Te avisa si no estudiaste todavía a la hora que elijas."
+                value={notifConfig.recordatorio_activo}
+                onChange={v => handleNotifChange('recordatorio_activo', v)}
+                disabled={saving}
+              />
+              {notifConfig.recordatorio_activo && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '13px 0', borderBottom: '1px solid var(--border)',
+                }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text2)' }}>Hora del recordatorio</div>
+                  <input
+                    type="time"
+                    value={notifConfig.hora_recordatorio}
+                    onChange={e => handleNotifChange('hora_recordatorio', e.target.value)}
+                    style={{
+                      background: 'var(--s3)', color: 'var(--text)', border: '1px solid var(--border)',
+                      borderRadius: '8px', padding: '6px 10px', fontSize: '14px', fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  />
+                </div>
+              )}
+              <Toggle
+                label="Racha en riesgo"
+                description="Te alerta a las 21:00 UTC si tu racha está en peligro."
+                value={notifConfig.racha_activa}
+                onChange={v => handleNotifChange('racha_activa', v)}
+                disabled={saving}
+              />
+              <Toggle
+                label="Flashcards vencidas"
+                description="Te avisa a las 09:00 UTC si tenés tarjetas para repasar."
+                value={notifConfig.flashcards_activa}
+                onChange={v => handleNotifChange('flashcards_activa', v)}
+                disabled={saving}
+              />
             </div>
           </div>
         )}

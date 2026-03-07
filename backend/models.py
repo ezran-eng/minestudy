@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, ForeignKey, UniqueConstraint, Index, func
+from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, Time, ForeignKey, UniqueConstraint, Index, func
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -32,6 +32,7 @@ class User(Base):
     quiz_resultados = relationship("QuizResultado", back_populates="usuario")
     vistas = relationship("Vista", back_populates="usuario")
     materias_seguidas = relationship("MateriaSeguida", back_populates="usuario")
+    notificaciones_config = relationship("NotificacionesConfig", back_populates="usuario", uselist=False)
 
 class Materia(Base):
     __tablename__ = "materias"
@@ -221,3 +222,15 @@ class MateriaSeguida(Base):
 
     usuario = relationship("User", back_populates="materias_seguidas")
     materia = relationship("Materia", back_populates="seguidores")
+
+
+class NotificacionesConfig(Base):
+    __tablename__ = "notificaciones_config"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), primary_key=True)
+    racha_activa = Column(Boolean, default=True, nullable=False)
+    recordatorio_activo = Column(Boolean, default=True, nullable=False)
+    flashcards_activa = Column(Boolean, default=True, nullable=False)
+    hora_recordatorio = Column(Time, default=datetime.time(20, 0), nullable=False)
+
+    usuario = relationship("User", back_populates="notificaciones_config")

@@ -288,6 +288,24 @@ export const completeOnboarding = async (id_usuario, privacidad) => {
   return response.json();
 };
 
+export const getNotificaciones = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/notificaciones`, {
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to get notificaciones config');
+  return response.json();
+};
+
+export const updateNotificaciones = async (id_usuario, data) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/notificaciones`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update notificaciones config');
+  return response.json();
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',

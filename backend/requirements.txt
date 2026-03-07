@@ -1,3 +1,4 @@
+apscheduler
 boto3
 slowapi
 python-multipart

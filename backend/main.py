@@ -102,6 +102,130 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Notification scheduler ───────────────────────────────────────────────────
+_scheduler = AsyncIOScheduler()
+
+
+async def _send_telegram_notification(id_telegram: int, text: str):
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not bot_token:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": id_telegram, "text": text},
+            )
+    except Exception as e:
+        logger.error(f"[notif] sendMessage failed for {id_telegram}: {e}")
+
+
+async def _job_recordatorio():
+    """Runs every hour. Sends study reminder to users whose hora_recordatorio matches current UTC hour."""
+    from database import SessionLocal
+    now_utc = datetime.now(timezone.utc)
+    db = SessionLocal()
+    try:
+        configs = (
+            db.query(models.NotificacionesConfig)
+            .filter(
+                models.NotificacionesConfig.recordatorio_activo == True,
+                extract("hour", models.NotificacionesConfig.hora_recordatorio) == now_utc.hour,
+            )
+            .all()
+        )
+        today = now_utc.date()
+        for cfg in configs:
+            user = db.query(models.User).filter(models.User.id_telegram == cfg.id_usuario).first()
+            if not user:
+                continue
+            if user.ultima_actividad and user.ultima_actividad.date() >= today:
+                continue
+            await _send_telegram_notification(
+                user.id_telegram,
+                f"📚 Hey {user.first_name}, no estudiaste hoy. ¡Tu racha de {user.racha} días te espera!",
+            )
+    except Exception as e:
+        logger.error(f"[notif] _job_recordatorio error: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
+async def _job_racha():
+    """Runs at 21:00 UTC. Warns users at risk of losing their streak."""
+    from database import SessionLocal
+    now_utc = datetime.now(timezone.utc)
+    db = SessionLocal()
+    try:
+        configs = (
+            db.query(models.NotificacionesConfig)
+            .filter(models.NotificacionesConfig.racha_activa == True)
+            .all()
+        )
+        today = now_utc.date()
+        for cfg in configs:
+            user = db.query(models.User).filter(models.User.id_telegram == cfg.id_usuario).first()
+            if not user or user.racha == 0:
+                continue
+            if user.ultima_actividad and user.ultima_actividad.date() >= today:
+                continue
+            await _send_telegram_notification(
+                user.id_telegram,
+                f"🔥 ¡Tu racha de {user.racha} días está en riesgo! Entrá a DaathApp antes de medianoche.",
+            )
+    except Exception as e:
+        logger.error(f"[notif] _job_racha error: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
+async def _job_flashcards():
+    """Runs at 09:00 UTC. Notifies users with due flashcards per materia."""
+    from database import SessionLocal
+    now_utc = datetime.now(timezone.utc)
+    db = SessionLocal()
+    try:
+        configs = (
+            db.query(models.NotificacionesConfig)
+            .filter(models.NotificacionesConfig.flashcards_activa == True)
+            .all()
+        )
+        for cfg in configs:
+            rows = (
+                db.query(models.Materia.nombre, func.count(models.CardReview.id_flashcard).label("cnt"))
+                .join(models.Unidad, models.Unidad.id_materia == models.Materia.id)
+                .join(models.Flashcard, models.Flashcard.id_unidad == models.Unidad.id)
+                .join(models.CardReview, (models.CardReview.id_flashcard == models.Flashcard.id) &
+                      (models.CardReview.id_usuario == cfg.id_usuario))
+                .filter(models.CardReview.due_date <= now_utc)
+                .group_by(models.Materia.id, models.Materia.nombre)
+                .all()
+            )
+            for materia_nombre, cnt in rows:
+                await _send_telegram_notification(
+                    cfg.id_usuario,
+                    f"🃏 Tenés {cnt} flashcard{'s' if cnt != 1 else ''} para repasar hoy en {materia_nombre}",
+                )
+    except Exception as e:
+        logger.error(f"[notif] _job_flashcards error: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+async def start_scheduler():
+    _scheduler.add_job(_job_recordatorio, CronTrigger(minute=0))
+    _scheduler.add_job(_job_racha, CronTrigger(hour=21, minute=0))
+    _scheduler.add_job(_job_flashcards, CronTrigger(hour=9, minute=0))
+    _scheduler.start()
+    logger.info("[scheduler] started — 3 notification jobs registered")
+
+
+@app.on_event("shutdown")
+async def stop_scheduler():
+    _scheduler.shutdown(wait=False)
+
+
 # ─── Security dependencies ────────────────────────────────────────────────────
 def require_admin(x_admin_token: Optional[str] = Header(default=None)):
     secret = os.environ.get("ADMIN_SECRET", "")
@@ -343,7 +467,11 @@ def get_ranking(db: Session = Depends(get_db)):
         })
     return result
 
-from datetime import datetime, date, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone, time as time_obj
+from collections import defaultdict
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import extract
 
 @app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut, dependencies=[Depends(require_init_data)])
 @limiter.limit("60/minute")
@@ -1196,6 +1324,50 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         {"tipo": e["tipo"], "titulo": e["titulo"], "detalle": e["detalle"], "hace": _hace(e["ts"])}
         for e in events[:5]
     ]
+
+
+def _notif_defaults() -> dict:
+    return {"racha_activa": True, "recordatorio_activo": True, "flashcards_activa": True, "hora_recordatorio": "20:00"}
+
+
+def _notif_to_dict(cfg: models.NotificacionesConfig) -> dict:
+    return {
+        "racha_activa": cfg.racha_activa,
+        "recordatorio_activo": cfg.recordatorio_activo,
+        "flashcards_activa": cfg.flashcards_activa,
+        "hora_recordatorio": f"{cfg.hora_recordatorio.hour:02d}:{cfg.hora_recordatorio.minute:02d}",
+    }
+
+
+@app.get("/usuarios/{id}/notificaciones", dependencies=[Depends(require_init_data)])
+def get_notificaciones(id: int, db: Session = Depends(get_db)):
+    cfg = db.query(models.NotificacionesConfig).filter(models.NotificacionesConfig.id_usuario == id).first()
+    if not cfg:
+        return _notif_defaults()
+    return _notif_to_dict(cfg)
+
+
+@app.patch("/usuarios/{id}/notificaciones", dependencies=[Depends(require_init_data)])
+def update_notificaciones(id: int, body: schemas.NotificacionesConfigUpdate, db: Session = Depends(get_db)):
+    cfg = db.query(models.NotificacionesConfig).filter(models.NotificacionesConfig.id_usuario == id).first()
+    if not cfg:
+        cfg = models.NotificacionesConfig(
+            id_usuario=id,
+            hora_recordatorio=time_obj(20, 0),
+        )
+        db.add(cfg)
+    if body.racha_activa is not None:
+        cfg.racha_activa = body.racha_activa
+    if body.recordatorio_activo is not None:
+        cfg.recordatorio_activo = body.recordatorio_activo
+    if body.flashcards_activa is not None:
+        cfg.flashcards_activa = body.flashcards_activa
+    if body.hora_recordatorio is not None:
+        h, m = body.hora_recordatorio.split(":")
+        cfg.hora_recordatorio = time_obj(int(h), int(m))
+    db.commit()
+    db.refresh(cfg)
+    return _notif_to_dict(cfg)
 
 
 @app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
