@@ -1,4 +1,5 @@
 import logging
+import os
 import httpx
 
 from telegram import Update
@@ -10,9 +11,13 @@ from bot_menus import send_success_menu
 logger = logging.getLogger(__name__)
 
 
+def _admin_headers() -> dict:
+    return {"X-Admin-Token": os.environ.get("ADMIN_SECRET", "")}
+
+
 async def _api_delete(path: str) -> httpx.Response:
     async with httpx.AsyncClient(timeout=30) as client:
-        return await client.delete(f"{API_URL}{path}")
+        return await client.delete(f"{API_URL}{path}", headers=_admin_headers())
 
 
 async def confirm_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
