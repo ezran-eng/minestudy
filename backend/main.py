@@ -2,7 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, F
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, extract
+from collections import defaultdict
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from typing import List, Optional
 import os
 import uuid
@@ -468,10 +471,6 @@ def get_ranking(db: Session = Depends(get_db)):
     return result
 
 from datetime import datetime, date, timedelta, timezone, time as time_obj
-from collections import defaultdict
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import extract
 
 @app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut, dependencies=[Depends(require_init_data)])
 @limiter.limit("60/minute")
