@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot_config import API_URL, WAITING_INFOGRAFIA_FOTO
 from bot_menus import send_success_menu
+from handlers.confirm import _admin_headers
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ async def inf_foto_received(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 f"{API_URL}/admin/infografias/upload",
                 files={"file": ("infografia.jpg", bytes(content), "image/jpeg")},
                 data={"id_unidad": str(uni_id), "titulo": titulo},
+                headers=_admin_headers(),
             )
         logger.info(f"inf_foto_received: API response status={response.status_code}, body={response.text[:200]}")
 
