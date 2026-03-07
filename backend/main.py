@@ -129,10 +129,10 @@ async def _job_recordatorio():
     """Runs every minute. Sends study reminder when ART hour:minute matches hora_recordatorio."""
     from database import SessionLocal
     now_utc = datetime.now(timezone.utc)
-    # Argentina is UTC-3, no DST
-    art_hour = (now_utc.hour - 3) % 24
+    art_hour = (now_utc.hour - 3) % 24  # Argentina is UTC-3, no DST
     art_minute = now_utc.minute
     today_str = now_utc.date().isoformat()
+    print(f"[notif:recordatorio] tick UTC={now_utc.strftime('%H:%M')} ART={art_hour:02d}:{art_minute:02d}")
     db = SessionLocal()
     try:
         configs = (
@@ -148,21 +148,23 @@ async def _job_recordatorio():
         for cfg in configs:
             dedup_key = (cfg.id_usuario, "recordatorio", today_str)
             if dedup_key in _notified_today:
+                print(f"[notif:recordatorio] skip {cfg.id_usuario} — ya notificado hoy")
                 continue
             user = db.query(models.User).filter(models.User.id_telegram == cfg.id_usuario).first()
             if not user:
                 continue
             if user.ultima_actividad and user.ultima_actividad.date() >= today:
+                print(f"[notif:recordatorio] skip {cfg.id_usuario} — ultima_actividad={user.ultima_actividad.date()}")
                 continue
             await _send_telegram_notification(
                 user.id_telegram,
                 f"📚 Hey {user.first_name}, no estudiaste hoy. ¡Tu racha de {user.racha} días te espera!",
             )
             _notified_today.add(dedup_key)
-            print(f"[notif] recordatorio sent to {cfg.id_usuario}")
+            print(f"[notif:recordatorio] sent to {cfg.id_usuario}")
     except Exception as e:
+        print(f"[notif:recordatorio] ERROR: {e}")
         logger.error(f"[notif] _job_recordatorio error: {e}", exc_info=True)
-        print(f"[notif] _job_recordatorio error: {e}")
     finally:
         db.close()
 
