@@ -73,6 +73,7 @@ const Profile = () => {
   const [notifConfig, setNotifConfig] = useState(null);
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -144,8 +145,23 @@ const Profile = () => {
   const username = user?.username ? `@${user.username}` : null;
 
   return (
+    <>
     <div className="screen active screen-container" id="screen-profile">
       <div className="profile-body">
+
+        {/* Tuerca de configuración */}
+        <button
+          onClick={() => setShowSettings(true)}
+          style={{
+            position: 'absolute', top: '16px', right: '16px',
+            background: 'var(--s2)', border: '1px solid var(--border)',
+            borderRadius: '10px', width: '38px', height: '38px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '18px', cursor: 'pointer', zIndex: 10,
+          }}
+        >
+          ⚙️
+        </button>
 
         {/* Avatar + nombre */}
         <div className="profile-hero">
@@ -188,123 +204,148 @@ const Profile = () => {
           </>
         )}
 
-        {/* Privacidad */}
-        {privacy && (
-          <div style={{ padding: '0 16px', marginTop: '28px' }}>
-            <div className="section-head" style={{ marginBottom: '4px' }}>
-              <div className="section-title">🔒 Privacidad</div>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
-              Controlá qué información ven otros usuarios sobre vos.
-            </div>
-            <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
-              <Toggle label="Foto de perfil" description="Visible en la lista de seguidores de cada materia." value={privacy.mostrar_foto} onChange={v => handleToggle('mostrar_foto', v)} disabled={saving} />
-              <Toggle label="Nombre" description="Tu nombre visible junto a tu avatar." value={privacy.mostrar_nombre} onChange={v => handleToggle('mostrar_nombre', v)} disabled={saving} />
-              <Toggle label="@Usuario" description="Tu arroba de Telegram en tu perfil público." value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
-              <Toggle label="Materias que cursás" description="Qué materias estás siguiendo." value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
-              <Toggle label="Progreso" description="Tu porcentaje de avance." value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
-            </div>
-          </div>
-        )}
-
-        {/* Notificaciones */}
-        {notifConfig && (
-          <div style={{ padding: '0 16px', marginTop: '28px' }}>
-            <div className="section-head" style={{ marginBottom: '4px' }}>
-              <div className="section-title">🔔 Notificaciones</div>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
-              El bot te manda un mensaje cuando aplica. Los horarios son en hora Argentina (ART).
-            </div>
-            <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
-              <Toggle
-                label="Recordatorio diario"
-                description="Te avisa si no estudiaste todavía a la hora que elijas."
-                value={notifConfig.recordatorio_activo}
-                onChange={v => handleNotifChange('recordatorio_activo', v)}
-                disabled={saving}
-              />
-              {notifConfig.recordatorio_activo && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '13px 0', borderBottom: '1px solid var(--border)',
-                }}>
-                  <div style={{ fontSize: '14px', color: 'var(--text2)' }}>Hora del recordatorio</div>
-                  <input
-                    type="time"
-                    value={notifConfig.hora_recordatorio}
-                    onChange={e => handleNotifChange('hora_recordatorio', e.target.value)}
-                    style={{
-                      background: 'var(--s3)', color: 'var(--text)', border: '1px solid var(--border)',
-                      borderRadius: '8px', padding: '6px 10px', fontSize: '14px', fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  />
-                </div>
-              )}
-              <Toggle
-                label="Racha en riesgo"
-                description="Te alerta a las 21:00 ART si tu racha está en peligro."
-                value={notifConfig.racha_activa}
-                onChange={v => handleNotifChange('racha_activa', v)}
-                disabled={saving}
-              />
-              <Toggle
-                label="Flashcards vencidas"
-                description="Te avisa a las 09:00 ART si tenés tarjetas para repasar."
-                value={notifConfig.flashcards_activa}
-                onChange={v => handleNotifChange('flashcards_activa', v)}
-                disabled={saving}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Helper */}
-        <div style={{ padding: '0 16px', marginTop: '32px', marginBottom: '8px' }}>
-          <div className="section-head" style={{ marginBottom: '12px' }}>
-            <div className="section-title">❓ Ayuda</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {HELPERS.map((h, i) => (
-              <div key={i}>
-                <div
-                  onClick={() => setOpenHelper(openHelper === i ? null : i)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: 'var(--s2)', borderRadius: openHelper === i ? '12px 12px 0 0' : '12px',
-                    padding: '12px 14px', cursor: 'pointer',
-                    border: '1px solid var(--border)',
-                    borderBottom: openHelper === i ? 'none' : '1px solid var(--border)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '18px' }}>{h.icon}</span>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{h.title}</span>
-                  </div>
-                  <span style={{ color: 'var(--text2)', fontSize: '16px' }}>{openHelper === i ? '▲' : '▼'}</span>
-                </div>
-                {openHelper === i && (
-                  <div style={{
-                    background: 'var(--s2)', borderRadius: '0 0 12px 12px',
-                    padding: '12px 14px', fontSize: '13px', color: 'var(--text2)',
-                    lineHeight: 1.6, border: '1px solid var(--border)', borderTop: 'none',
-                  }}>
-                    {h.content}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Versión */}
-        <div style={{ textAlign: 'center', padding: '24px 16px 32px', color: 'var(--text2)', fontSize: '12px' }}>
+        <div style={{ textAlign: 'center', padding: '32px 16px 32px', color: 'var(--text2)', fontSize: '12px' }}>
           DaathApp v1.0
         </div>
 
       </div>
     </div>
+
+    {/* Settings sheet */}
+    {showSettings && (
+      <div
+        className="overlay show"
+        id="settings-overlay"
+        onClick={e => { if (e.target.id === 'settings-overlay') setShowSettings(false); }}
+      >
+        <div className="sheet" style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="sheet-handle" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px' }}>
+            <div className="sheet-title" style={{ margin: 0 }}>Configuración</div>
+            <button
+              onClick={() => setShowSettings(false)}
+              style={{ background: 'none', border: 'none', fontSize: '20px', color: 'var(--text2)', cursor: 'pointer', padding: '4px' }}
+            >✕</button>
+          </div>
+
+          <div style={{ overflowY: 'auto', padding: '0 16px 32px', flex: 1 }}>
+
+            {/* Privacidad */}
+            {privacy && (
+              <div style={{ marginBottom: '28px' }}>
+                <div className="section-head" style={{ marginBottom: '4px' }}>
+                  <div className="section-title">🔒 Privacidad</div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
+                  Controlá qué información ven otros usuarios sobre vos.
+                </div>
+                <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
+                  <Toggle label="Foto de perfil" description="Visible en la lista de seguidores de cada materia." value={privacy.mostrar_foto} onChange={v => handleToggle('mostrar_foto', v)} disabled={saving} />
+                  <Toggle label="Nombre" description="Tu nombre visible junto a tu avatar." value={privacy.mostrar_nombre} onChange={v => handleToggle('mostrar_nombre', v)} disabled={saving} />
+                  <Toggle label="@Usuario" description="Tu arroba de Telegram en tu perfil público." value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
+                  <Toggle label="Materias que cursás" description="Qué materias estás siguiendo." value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
+                  <Toggle label="Progreso" description="Tu porcentaje de avance." value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
+                </div>
+              </div>
+            )}
+
+            {/* Notificaciones */}
+            {notifConfig && (
+              <div style={{ marginBottom: '28px' }}>
+                <div className="section-head" style={{ marginBottom: '4px' }}>
+                  <div className="section-title">🔔 Notificaciones</div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
+                  El bot te manda un mensaje cuando aplica. Los horarios son en hora Argentina (ART).
+                </div>
+                <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
+                  <Toggle
+                    label="Recordatorio diario"
+                    description="Te avisa si no estudiaste todavía a la hora que elijas."
+                    value={notifConfig.recordatorio_activo}
+                    onChange={v => handleNotifChange('recordatorio_activo', v)}
+                    disabled={saving}
+                  />
+                  {notifConfig.recordatorio_activo && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '13px 0', borderBottom: '1px solid var(--border)',
+                    }}>
+                      <div style={{ fontSize: '14px', color: 'var(--text2)' }}>Hora del recordatorio</div>
+                      <input
+                        type="time"
+                        value={notifConfig.hora_recordatorio}
+                        onChange={e => handleNotifChange('hora_recordatorio', e.target.value)}
+                        style={{
+                          background: 'var(--s3)', color: 'var(--text)', border: '1px solid var(--border)',
+                          borderRadius: '8px', padding: '6px 10px', fontSize: '14px', fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <Toggle
+                    label="Racha en riesgo"
+                    description="Te alerta a las 21:00 ART si tu racha está en peligro."
+                    value={notifConfig.racha_activa}
+                    onChange={v => handleNotifChange('racha_activa', v)}
+                    disabled={saving}
+                  />
+                  <Toggle
+                    label="Flashcards vencidas"
+                    description="Te avisa a las 09:00 ART si tenés tarjetas para repasar."
+                    value={notifConfig.flashcards_activa}
+                    onChange={v => handleNotifChange('flashcards_activa', v)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Ayuda */}
+            <div>
+              <div className="section-head" style={{ marginBottom: '12px' }}>
+                <div className="section-title">❓ Ayuda</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {HELPERS.map((h, i) => (
+                  <div key={i}>
+                    <div
+                      onClick={() => setOpenHelper(openHelper === i ? null : i)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: 'var(--s2)', borderRadius: openHelper === i ? '12px 12px 0 0' : '12px',
+                        padding: '12px 14px', cursor: 'pointer',
+                        border: '1px solid var(--border)',
+                        borderBottom: openHelper === i ? 'none' : '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '18px' }}>{h.icon}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{h.title}</span>
+                      </div>
+                      <span style={{ color: 'var(--text2)', fontSize: '16px' }}>{openHelper === i ? '▲' : '▼'}</span>
+                    </div>
+                    {openHelper === i && (
+                      <div style={{
+                        background: 'var(--s2)', borderRadius: '0 0 12px 12px',
+                        padding: '12px 14px', fontSize: '13px', color: 'var(--text2)',
+                        lineHeight: 1.6, border: '1px solid var(--border)', borderTop: 'none',
+                      }}>
+                        {h.content}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
