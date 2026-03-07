@@ -149,20 +149,6 @@ const Profile = () => {
     <div className="screen active screen-container" id="screen-profile">
       <div className="profile-body">
 
-        {/* Tuerca de configuración */}
-        <button
-          onClick={() => setShowSettings(true)}
-          style={{
-            position: 'absolute', top: '16px', right: '16px',
-            background: 'var(--s2)', border: '1px solid var(--border)',
-            borderRadius: '10px', width: '38px', height: '38px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '18px', cursor: 'pointer', zIndex: 10,
-          }}
-        >
-          ⚙️
-        </button>
-
         {/* Avatar + nombre */}
         <div className="profile-hero">
           <div className="profile-avatar-big">
@@ -173,8 +159,21 @@ const Profile = () => {
           </div>
           <div className="profile-name">{fullName || 'Estudiante'}</div>
           {username && <div className="profile-user">{username}</div>}
-          <div className="streak-pill" style={{ margin: '8px auto 0', width: 'fit-content' }}>
-            🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '10px auto 0' }}>
+            <div className="streak-pill">
+              🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                background: 'var(--s2)', border: '1px solid var(--border)',
+                borderRadius: '10px', width: '34px', height: '34px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '16px', cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              ⚙️
+            </button>
           </div>
         </div>
 
