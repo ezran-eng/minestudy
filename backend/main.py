@@ -309,6 +309,18 @@ def get_quiz(id_unidad: int, db: Session = Depends(get_db)):
         return []
     return db_quiz
 
+@app.delete("/unidades/{id_unidad}/flashcards", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+def delete_flashcards_by_unidad(id_unidad: int, db: Session = Depends(get_db)):
+    deleted = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).delete()
+    db.commit()
+    return
+
+@app.delete("/unidades/{id_unidad}/quiz", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+def delete_quiz_by_unidad(id_unidad: int, db: Session = Depends(get_db)):
+    deleted = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id_unidad).delete()
+    db.commit()
+    return
+
 @app.get("/ranking", response_model=List[schemas.RankingUser])
 def get_ranking(db: Session = Depends(get_db)):
     # Query to calculate average percentage for each user across all their progress records
