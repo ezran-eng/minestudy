@@ -1359,7 +1359,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
 
 
 def _notif_defaults() -> dict:
-    return {"racha_activa": True, "recordatorio_activo": True, "flashcards_activa": True, "hora_recordatorio": "20:00"}
+    return {"racha_activa": True, "recordatorio_activo": True, "flashcards_activa": True, "hora_recordatorio": "08:00"}
 
 
 def _notif_to_dict(cfg: models.NotificacionesConfig) -> dict:
@@ -1385,7 +1385,7 @@ def update_notificaciones(id: int, body: schemas.NotificacionesConfigUpdate, db:
     if not cfg:
         cfg = models.NotificacionesConfig(
             id_usuario=id,
-            hora_recordatorio=time_obj(20, 0),
+            hora_recordatorio=time_obj(8, 0),
         )
         db.add(cfg)
     if body.racha_activa is not None:

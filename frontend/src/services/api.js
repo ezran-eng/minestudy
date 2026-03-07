@@ -296,15 +296,6 @@ export const getNotificaciones = async (id_usuario) => {
   return response.json();
 };
 
-export const testNotificacion = async (id_usuario) => {
-  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/notificaciones/test`, {
-    method: 'POST',
-    headers: { ...getInitDataHeader() },
-  });
-  if (!response.ok) throw new Error('Failed to send test notification');
-  return response.json();
-};
-
 export const updateNotificaciones = async (id_usuario, data) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/notificaciones`, {
     method: 'PATCH',

@@ -231,6 +231,6 @@ class NotificacionesConfig(Base):
     racha_activa = Column(Boolean, default=True, nullable=False)
     recordatorio_activo = Column(Boolean, default=True, nullable=False)
     flashcards_activa = Column(Boolean, default=True, nullable=False)
-    hora_recordatorio = Column(Time, default=datetime.time(20, 0), nullable=False)
+    hora_recordatorio = Column(Time, default=datetime.time(8, 0), nullable=False)
 
     usuario = relationship("User", back_populates="notificaciones_config")
