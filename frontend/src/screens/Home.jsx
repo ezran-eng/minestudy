@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getUserProfile, getUserStats, getActividadReciente } from '../services/api';
+import { getUserProfile, getUserStats, getActividadReciente, getMateriasSeguidas } from '../services/api';
 
 const TIPO_ICON = {
   quiz: '🎯',
@@ -16,6 +16,7 @@ const Home = () => {
   const [racha, setRacha] = useState(0);
   const [stats, setStats] = useState(null);
   const [actividad, setActividad] = useState([]);
+  const [sinMaterias, setSinMaterias] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -24,6 +25,9 @@ const Home = () => {
       .catch(err => console.error(err));
     getUserStats(user.id).then(setStats).catch(err => console.error(err));
     getActividadReciente(user.id).then(setActividad).catch(err => console.error(err));
+    getMateriasSeguidas(user.id)
+      .then(data => setSinMaterias(data.materia_ids.length === 0))
+      .catch(() => {});
   }, [user?.id]);
 
   const firstName = user?.first_name || 'Estudiante';
@@ -47,6 +51,46 @@ const Home = () => {
           <div className="streak-pill">🔥 {racha} {racha === 1 ? 'día' : 'días'}</div>
         </div>
       </div>
+
+      {/* Tutorial para usuarios sin materias */}
+      {sinMaterias && (
+        <div style={{
+          margin: '0 16px 16px',
+          padding: '16px',
+          background: 'var(--s2)',
+          borderRadius: '14px',
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
+            Para empezar a estudiar
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>📚</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Andá a <strong>Study</strong></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>🔍</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Buscá tu materia</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>➕</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Tocá <strong>Seguir</strong> para desbloquear el contenido</span>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/study')}
+            style={{
+              width: '100%', padding: '10px',
+              background: 'var(--gold)', color: '#000',
+              borderRadius: '10px', border: 'none',
+              fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+            }}
+          >
+            Ir a Study
+          </button>
+        </div>
+      )}
 
       {/* Foco del día */}
       <div className="focus-card">
