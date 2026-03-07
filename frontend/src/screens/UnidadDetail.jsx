@@ -6,7 +6,7 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getVistasUnidad } from '../services/api';
+import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getVistasUnidad, getMateriasSeguidas } from '../services/api';
 import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
@@ -90,6 +90,18 @@ const UnidadDetail = () => {
   useEffect(() => {
     const fetchUnidadData = async () => {
       try {
+        // Access guard: redirect to MateriaDetail if user doesn't follow this materia
+        try {
+          const seguidas = await getMateriasSeguidas(user.id);
+          if (!seguidas.materia_ids.includes(parseInt(id))) {
+            navigate(`/materia/${id}`, { replace: true });
+            return;
+          }
+        } catch {
+          navigate(`/materia/${id}`, { replace: true });
+          return;
+        }
+
         if (!materia || !unidad) {
           const mRes = await api.get('/materias');
           const foundM = mRes.data.find(m => m.id === parseInt(id));

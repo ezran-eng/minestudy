@@ -515,6 +515,8 @@ def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, db: Session = Depe
 
 @app.get("/unidades/{id}/progreso")
 def get_progreso_unidad(id: int, id_usuario: int, db: Session = Depends(get_db)):
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
+    id_materia = unidad.id_materia if unidad else None
     # Flashcards
     all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id).all()
     total_fc = len(all_flashcards)
@@ -587,6 +589,7 @@ def get_progreso_unidad(id: int, id_usuario: int, db: Session = Depends(get_db))
         porcentaje_total = 0
 
     return {
+        "id_materia": id_materia,
         "porcentaje_total": round(porcentaje_total, 1),
         "flashcards": {"dominadas": dominadas, "total": total_fc, "porcentaje": round(fc_pct, 1)},
         "cuestionario": {"correctas": correctas, "total": total_quiz, "porcentaje": round(qz_pct, 1)},
