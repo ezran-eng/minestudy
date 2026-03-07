@@ -92,6 +92,7 @@ const Home = () => {
         </div>
       )}
 
+      {!sinMaterias && <>
       {/* Foco del día */}
       <div className="focus-card">
         <div className="focus-inner">
@@ -143,6 +144,7 @@ const Home = () => {
           </div>
         )}
       </div>
+      </>}
     </div>
   );
 };
