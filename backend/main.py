@@ -106,7 +106,9 @@ app.add_middleware(
 )
 
 # ─── Notification scheduler ───────────────────────────────────────────────────
-_scheduler = AsyncIOScheduler()
+_scheduler = AsyncIOScheduler(timezone='UTC')
+# In-memory dedup: {(id_usuario, type, date_str)} — prevents double-sending on minute retries
+_notified_today: set = set()
 
 
 async def _send_telegram_notification(id_telegram: int, text: str):
@@ -124,10 +126,13 @@ async def _send_telegram_notification(id_telegram: int, text: str):
 
 
 async def _job_recordatorio():
-    """Runs every hour. Sends study reminder to users whose hora_recordatorio (ART=UTC-3) matches current hour."""
+    """Runs every minute. Sends study reminder when ART hour:minute matches hora_recordatorio."""
     from database import SessionLocal
     now_utc = datetime.now(timezone.utc)
-    art_hour = (now_utc.hour - 3) % 24  # Argentina is UTC-3, no DST
+    # Argentina is UTC-3, no DST
+    art_hour = (now_utc.hour - 3) % 24
+    art_minute = now_utc.minute
+    today_str = now_utc.date().isoformat()
     db = SessionLocal()
     try:
         configs = (
@@ -135,11 +140,15 @@ async def _job_recordatorio():
             .filter(
                 models.NotificacionesConfig.recordatorio_activo == True,
                 extract("hour", models.NotificacionesConfig.hora_recordatorio) == art_hour,
+                extract("minute", models.NotificacionesConfig.hora_recordatorio) == art_minute,
             )
             .all()
         )
         today = now_utc.date()
         for cfg in configs:
+            dedup_key = (cfg.id_usuario, "recordatorio", today_str)
+            if dedup_key in _notified_today:
+                continue
             user = db.query(models.User).filter(models.User.id_telegram == cfg.id_usuario).first()
             if not user:
                 continue
@@ -149,16 +158,20 @@ async def _job_recordatorio():
                 user.id_telegram,
                 f"📚 Hey {user.first_name}, no estudiaste hoy. ¡Tu racha de {user.racha} días te espera!",
             )
+            _notified_today.add(dedup_key)
+            print(f"[notif] recordatorio sent to {cfg.id_usuario}")
     except Exception as e:
         logger.error(f"[notif] _job_recordatorio error: {e}", exc_info=True)
+        print(f"[notif] _job_recordatorio error: {e}")
     finally:
         db.close()
 
 
 async def _job_racha():
-    """Runs at 21:00 UTC. Warns users at risk of losing their streak."""
+    """Runs at 00:00 UTC (21:00 ART). Warns users at risk of losing their streak."""
     from database import SessionLocal
     now_utc = datetime.now(timezone.utc)
+    today_str = now_utc.date().isoformat()
     db = SessionLocal()
     try:
         configs = (
@@ -168,6 +181,9 @@ async def _job_racha():
         )
         today = now_utc.date()
         for cfg in configs:
+            dedup_key = (cfg.id_usuario, "racha", today_str)
+            if dedup_key in _notified_today:
+                continue
             user = db.query(models.User).filter(models.User.id_telegram == cfg.id_usuario).first()
             if not user or user.racha == 0:
                 continue
@@ -177,16 +193,20 @@ async def _job_racha():
                 user.id_telegram,
                 f"🔥 ¡Tu racha de {user.racha} días está en riesgo! Entrá a DaathApp antes de medianoche.",
             )
+            _notified_today.add(dedup_key)
+            print(f"[notif] racha sent to {cfg.id_usuario}")
     except Exception as e:
         logger.error(f"[notif] _job_racha error: {e}", exc_info=True)
+        print(f"[notif] _job_racha error: {e}")
     finally:
         db.close()
 
 
 async def _job_flashcards():
-    """Runs at 09:00 UTC. Notifies users with due flashcards per materia."""
+    """Runs at 12:00 UTC (09:00 ART). Notifies users with due flashcards per materia."""
     from database import SessionLocal
     now_utc = datetime.now(timezone.utc)
+    today_str = now_utc.date().isoformat()
     db = SessionLocal()
     try:
         configs = (
@@ -195,6 +215,9 @@ async def _job_flashcards():
             .all()
         )
         for cfg in configs:
+            dedup_key = (cfg.id_usuario, "flashcards", today_str)
+            if dedup_key in _notified_today:
+                continue
             rows = (
                 db.query(models.Materia.nombre, func.count(models.CardReview.id_flashcard).label("cnt"))
                 .join(models.Unidad, models.Unidad.id_materia == models.Materia.id)
@@ -205,24 +228,31 @@ async def _job_flashcards():
                 .group_by(models.Materia.id, models.Materia.nombre)
                 .all()
             )
-            for materia_nombre, cnt in rows:
-                await _send_telegram_notification(
-                    cfg.id_usuario,
-                    f"🃏 Tenés {cnt} flashcard{'s' if cnt != 1 else ''} para repasar hoy en {materia_nombre}",
-                )
+            if rows:
+                for materia_nombre, cnt in rows:
+                    await _send_telegram_notification(
+                        cfg.id_usuario,
+                        f"🃏 Tenés {cnt} flashcard{'s' if cnt != 1 else ''} para repasar hoy en {materia_nombre}",
+                    )
+                _notified_today.add(dedup_key)
+                print(f"[notif] flashcards sent to {cfg.id_usuario}")
     except Exception as e:
         logger.error(f"[notif] _job_flashcards error: {e}", exc_info=True)
+        print(f"[notif] _job_flashcards error: {e}")
     finally:
         db.close()
 
 
 @app.on_event("startup")
 async def start_scheduler():
-    _scheduler.add_job(_job_recordatorio, CronTrigger(minute=0))
-    _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0))    # 21:00 ART = 00:00 UTC
-    _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0))  # 09:00 ART = 12:00 UTC
-    _scheduler.start()
-    logger.info("[scheduler] started — 3 notification jobs registered")
+    try:
+        _scheduler.add_job(_job_recordatorio, 'interval', minutes=1)
+        _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0, timezone='UTC'))    # 21:00 ART
+        _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC'))  # 09:00 ART
+        _scheduler.start()
+        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, flashcards 12:00 UTC")
+    except Exception as e:
+        print(f"[scheduler] ERROR during startup: {e}")
 
 
 @app.on_event("shutdown")
