@@ -63,6 +63,38 @@ const App = () => {
     }
   }, [user, tg]);
 
+  // Block if not running inside Telegram
+  if (!window.Telegram?.WebApp?.initData) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: '#0e0e0e', padding: '32px', textAlign: 'center', gap: '16px',
+      }}>
+        <div style={{ fontSize: '56px' }}>📚</div>
+        <div style={{ fontSize: '24px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>DaathApp</div>
+        <div style={{ fontSize: '16px', color: '#aaa', lineHeight: 1.5, maxWidth: '280px' }}>
+          DaathApp solo está disponible desde Telegram
+        </div>
+        <div style={{ fontSize: '14px', color: '#666' }}>
+          Abrí el bot @DaathApp_bot para acceder
+        </div>
+        <a
+          href="https://t.me/DaathApp_bot"
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            marginTop: '8px', padding: '12px 28px',
+            background: '#2AABEE', color: '#fff',
+            borderRadius: '12px', fontWeight: 700, fontSize: '15px',
+            textDecoration: 'none',
+          }}
+        >
+          Abrir en Telegram
+        </a>
+      </div>
+    );
+  }
+
   // No user from Telegram yet — just show the app normally
   if (!user) {
     return (
