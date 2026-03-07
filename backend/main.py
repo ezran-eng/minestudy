@@ -745,6 +745,7 @@ def delete_pdf(request: Request, id: int, db: Session = Depends(get_db)):
 
 @app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse, dependencies=[Depends(require_init_data)])
 def set_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
+    logger.info(f"set_seguir_materia: materia={id} usuario={body.id_usuario} siguiendo={body.siguiendo}")
     existing = db.query(models.MateriaSeguida).filter(
         models.MateriaSeguida.id_usuario == body.id_usuario,
         models.MateriaSeguida.id_materia == id,
@@ -784,6 +785,7 @@ def set_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depend
 
 @app.get("/materias/{id}/seguidores")
 def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
+    total = db.query(models.MateriaSeguida).filter(models.MateriaSeguida.id_materia == id).count()
     rows = (
         db.query(models.User)
         .join(models.MateriaSeguida, models.MateriaSeguida.id_usuario == models.User.id_telegram)
@@ -798,7 +800,8 @@ def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
             "first_name": u.first_name if u.mostrar_nombre else "Anónimo",
             "foto_url": u.foto_url if u.mostrar_foto else None,
         })
-    return result
+    logger.info(f"get_seguidores_materia: materia={id} total_in_table={total} joined={len(result)}")
+    return {"seguidores": result, "total_seguidores": total}
 
 
 @app.get("/usuarios/{id}/privacidad", response_model=schemas.PrivacidadOut, dependencies=[Depends(require_init_data)])

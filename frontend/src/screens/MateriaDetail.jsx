@@ -8,10 +8,10 @@ import ConfirmModal from '../components/ConfirmModal';
 // ─── Avatar stack shown in header ─────────────────────────────────────────────
 const MAX_AVATARS = 4;
 
-const AvatarStack = ({ seguidores, onClick }) => {
-  if (seguidores.length === 0) return null;
+const AvatarStack = ({ seguidores, total, onClick }) => {
+  if (total === 0) return null;
   const shown = seguidores.slice(0, MAX_AVATARS);
-  const extra = seguidores.length - MAX_AVATARS;
+  const extra = total - MAX_AVATARS;
   const circleStyle = {
     width: 28, height: 28, borderRadius: '50%',
     border: '2px solid var(--bg)', overflow: 'hidden',
@@ -37,7 +37,7 @@ const AvatarStack = ({ seguidores, onClick }) => {
         </div>
       )}
       <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--text2)' }}>
-        {seguidores.length} {seguidores.length === 1 ? 'seguidor' : 'seguidores'}
+        {total} {total === 1 ? 'seguidor' : 'seguidores'}
       </span>
     </div>
   );
@@ -94,6 +94,7 @@ const MateriaDetail = () => {
   const [vistasMateria, setVistasMateria] = useState(null);
   const [siguiendo, setSiguiendo] = useState(location.state?.materia?.siguiendo ?? location.state?.siguiendo ?? false);
   const [seguidores, setSeguidores] = useState([]);
+  const [totalSeguidores, setTotalSeguidores] = useState(0);
   const [showSeguidores, setShowSeguidores] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -127,10 +128,11 @@ const MateriaDetail = () => {
 
     const gen = ++seguidoresGenRef.current;
     getSeguidoresMateria(materia.id)
-      .then(list => {
+      .then(data => {
         if (seguidoresGenRef.current !== gen) return; // stale — a follow/unfollow started, ignore
-        setSeguidores(list);
-        if (user?.id) setSiguiendo(list.some(s => s.id_telegram === user.id));
+        setSeguidores(data.seguidores);
+        setTotalSeguidores(data.total_seguidores);
+        if (user?.id) setSiguiendo(data.seguidores.some(s => s.id_telegram === user.id));
       })
       .catch(() => {});
 
@@ -179,6 +181,7 @@ const MateriaDetail = () => {
         ? prev
         : [{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...prev]
     );
+    setTotalSeguidores(t => t + 1);
     try {
       let res;
       try {
@@ -205,11 +208,13 @@ const MateriaDetail = () => {
       }
       console.log('[doFollow] siguiendo después:', res.siguiendo);
       setSiguiendo(res.siguiendo);
-      const list = await getSeguidoresMateria(materia.id);
-      setSeguidores(list);
+      const data = await getSeguidoresMateria(materia.id);
+      setSeguidores(data.seguidores);
+      setTotalSeguidores(data.total_seguidores);
     } catch (err) {
       console.error('[doFollow] FATAL error — revirtiendo a', prev, '| error:', err);
       setSiguiendo(prev);
+      setTotalSeguidores(t => Math.max(0, t - 1));
     }
   };
 
@@ -219,14 +224,17 @@ const MateriaDetail = () => {
     const prev = siguiendo;
     setSiguiendo(false);
     setSeguidores(seguidores.filter(s => s.id_telegram !== user.id));
+    setTotalSeguidores(t => Math.max(0, t - 1));
     try {
       await deleteProgresoMateria(user.id, materia.id);
       await toggleSeguirMateria(materia.id, user.id, false); // explicit unfollow (idempotent)
       setUnidadProgresos({});
-      const list = await getSeguidoresMateria(materia.id);
-      setSeguidores(list);
+      const data = await getSeguidoresMateria(materia.id);
+      setSeguidores(data.seguidores);
+      setTotalSeguidores(data.total_seguidores);
     } catch {
       setSiguiendo(prev);
+      setTotalSeguidores(t => t + 1);
     }
   };
 
@@ -274,7 +282,7 @@ const MateriaDetail = () => {
             </div>
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               {vistasMateria !== null && <VistaBadge vistas={vistasMateria} />}
-              <AvatarStack seguidores={seguidores} onClick={() => setShowSeguidores(true)} />
+              <AvatarStack seguidores={seguidores} total={totalSeguidores} onClick={() => setShowSeguidores(true)} />
             </div>
           </div>
 
