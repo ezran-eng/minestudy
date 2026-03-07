@@ -1369,6 +1369,18 @@ def update_notificaciones(id: int, body: schemas.NotificacionesConfigUpdate, db:
     return _notif_to_dict(cfg)
 
 
+@app.post("/usuarios/{id}/notificaciones/test", dependencies=[Depends(require_init_data)])
+async def test_notificacion(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    await _send_telegram_notification(
+        id,
+        f"✅ DaathApp puede enviarte notificaciones. ¡Todo funciona, {user.first_name}! 🎉",
+    )
+    return {"ok": True}
+
+
 @app.delete("/admin/infografias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 @limiter.limit("20/minute")
 def delete_infografia(request: Request, id: int, db: Session = Depends(get_db)):

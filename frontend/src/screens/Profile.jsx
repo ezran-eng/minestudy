@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getUserPerfil, getPrivacidad, updatePrivacidad, getNotificaciones, updateNotificaciones } from '../services/api';
+import { getUserPerfil, getPrivacidad, updatePrivacidad, getNotificaciones, updateNotificaciones, testNotificacion } from '../services/api';
 import MateriaList from '../components/MateriaList';
 
 const Toggle = ({ label, description, value, onChange, disabled }) => (
@@ -71,6 +71,8 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [privacy, setPrivacy] = useState(null);
   const [notifConfig, setNotifConfig] = useState(null);
+  const [testingNotif, setTestingNotif] = useState(false);
+  const [testResult, setTestResult] = useState(null); // 'ok' | 'error'
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
 
@@ -104,6 +106,21 @@ const Profile = () => {
       setSaving(false);
     }
   }, [saving, user?.id]);
+
+  const handleTestNotif = async () => {
+    if (testingNotif) return;
+    setTestingNotif(true);
+    setTestResult(null);
+    try {
+      await testNotificacion(user.id);
+      setTestResult('ok');
+    } catch {
+      setTestResult('error');
+    } finally {
+      setTestingNotif(false);
+      setTimeout(() => setTestResult(null), 4000);
+    }
+  };
 
   const handleNotifChange = useCallback(async (key, val) => {
     if (saving) return;
@@ -257,6 +274,29 @@ const Profile = () => {
                 disabled={saving}
               />
             </div>
+            <button
+              onClick={handleTestNotif}
+              disabled={testingNotif}
+              style={{
+                marginTop: '12px', width: '100%', padding: '11px',
+                background: 'var(--s3)', color: 'var(--text)',
+                borderRadius: '10px', border: '1px solid var(--border)',
+                fontWeight: 600, fontSize: '14px', cursor: testingNotif ? 'default' : 'pointer',
+                opacity: testingNotif ? 0.6 : 1,
+              }}
+            >
+              {testingNotif ? 'Enviando...' : '🔔 Enviar notificación de prueba'}
+            </button>
+            {testResult === 'ok' && (
+              <div style={{ marginTop: '8px', fontSize: '13px', color: '#4caf50', textAlign: 'center' }}>
+                ✅ Mensaje enviado — revisá el bot @DaathApp_bot
+              </div>
+            )}
+            {testResult === 'error' && (
+              <div style={{ marginTop: '8px', fontSize: '13px', color: '#f44336', textAlign: 'center' }}>
+                ❌ Error al enviar. ¿Iniciaste el bot con /start?
+              </div>
+            )}
           </div>
         )}
 
