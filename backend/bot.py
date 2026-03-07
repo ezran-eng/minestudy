@@ -431,7 +431,10 @@ async def materia_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif action == 'mat_del':
         await show_confirm_action(update, "⚠️ ¿Seguro que querés borrar esta materia y todas sus dependencias?")
         return CONFIRM_ACTION
-    elif action in ['uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del', 'pdf_new', 'pdf_del']:
+    elif action == 'uni_new':
+        await query.edit_message_text("Enviá el nombre de la nueva unidad:")
+        return WAITING_UNIDAD_NOMBRE
+    elif action in ['tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del', 'pdf_new', 'pdf_del']:
         await show_unidad_selection(update, context, "¿A qué unidad pertenece?")
         return SELECT_UNIDAD
 
@@ -444,10 +447,7 @@ async def unidad_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data['selected_unidad_id'] = uni_id
     action = context.user_data.get('action')
 
-    if action == 'uni_new':
-        await query.edit_message_text("Ahora enviá el nombre de la unidad:")
-        return WAITING_UNIDAD_NOMBRE
-    elif action == 'uni_edit':
+    if action == 'uni_edit':
         await query.edit_message_text("Enviá el nuevo nombre para esta unidad:")
         return WAITING_UNIDAD_NOMBRE_EDIT
     elif action == 'uni_del':
