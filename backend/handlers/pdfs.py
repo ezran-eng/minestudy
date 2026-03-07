@@ -6,6 +6,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot_config import API_URL, WAITING_PDF_DOC
 from bot_menus import send_success_menu
+from handlers.confirm import _admin_headers
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ async def pdf_doc_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"{API_URL}/admin/pdfs/upload",
                 files={"file": (filename, bytes(content), "application/pdf")},
                 data={"id_unidad": str(uni_id), "titulo": titulo},
+                headers=_admin_headers(),
             )
         logger.info(f"pdf_doc_received: API response status={response.status_code}, body={response.text[:200]}")
 
