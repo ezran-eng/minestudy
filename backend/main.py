@@ -124,16 +124,17 @@ async def _send_telegram_notification(id_telegram: int, text: str):
 
 
 async def _job_recordatorio():
-    """Runs every hour. Sends study reminder to users whose hora_recordatorio matches current UTC hour."""
+    """Runs every hour. Sends study reminder to users whose hora_recordatorio (ART=UTC-3) matches current hour."""
     from database import SessionLocal
     now_utc = datetime.now(timezone.utc)
+    art_hour = (now_utc.hour - 3) % 24  # Argentina is UTC-3, no DST
     db = SessionLocal()
     try:
         configs = (
             db.query(models.NotificacionesConfig)
             .filter(
                 models.NotificacionesConfig.recordatorio_activo == True,
-                extract("hour", models.NotificacionesConfig.hora_recordatorio) == now_utc.hour,
+                extract("hour", models.NotificacionesConfig.hora_recordatorio) == art_hour,
             )
             .all()
         )
@@ -218,8 +219,8 @@ async def _job_flashcards():
 @app.on_event("startup")
 async def start_scheduler():
     _scheduler.add_job(_job_recordatorio, CronTrigger(minute=0))
-    _scheduler.add_job(_job_racha, CronTrigger(hour=21, minute=0))
-    _scheduler.add_job(_job_flashcards, CronTrigger(hour=9, minute=0))
+    _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0))    # 21:00 ART = 00:00 UTC
+    _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0))  # 09:00 ART = 12:00 UTC
     _scheduler.start()
     logger.info("[scheduler] started — 3 notification jobs registered")
 

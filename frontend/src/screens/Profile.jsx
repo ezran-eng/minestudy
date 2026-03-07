@@ -231,7 +231,7 @@ const Profile = () => {
               <div className="section-title">🔔 Notificaciones</div>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
-              El bot te manda un mensaje cuando aplica. Los horarios son en UTC.
+              El bot te manda un mensaje cuando aplica. Los horarios son en hora Argentina (ART).
             </div>
             <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
               <Toggle
@@ -261,14 +261,14 @@ const Profile = () => {
               )}
               <Toggle
                 label="Racha en riesgo"
-                description="Te alerta a las 21:00 UTC si tu racha está en peligro."
+                description="Te alerta a las 21:00 ART si tu racha está en peligro."
                 value={notifConfig.racha_activa}
                 onChange={v => handleNotifChange('racha_activa', v)}
                 disabled={saving}
               />
               <Toggle
                 label="Flashcards vencidas"
-                description="Te avisa a las 09:00 UTC si tenés tarjetas para repasar."
+                description="Te avisa a las 09:00 ART si tenés tarjetas para repasar."
                 value={notifConfig.flashcards_activa}
                 onChange={v => handleNotifChange('flashcards_activa', v)}
                 disabled={saving}
