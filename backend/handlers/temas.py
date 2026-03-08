@@ -14,8 +14,8 @@ async def tm_nombre_received(update: Update, context: ContextTypes.DEFAULT_TYPE)
         db.add(tema)
         db.commit()
         keyboard = [
-            [InlineKeyboardButton("➕ Agregar otro tema", callback_data="tm_new")],
-            [InlineKeyboardButton("↩️ Volver a unidades", callback_data="menu_unidades")],
+            [InlineKeyboardButton("➕ Agregar otro tema", callback_data="tm_new_same")],
+            [InlineKeyboardButton("↩️ Volver a unidades", callback_data="tm_pick_unidad")],
             [InlineKeyboardButton("🏠 Menú principal", callback_data="menu_main")],
         ]
         await update.message.reply_text(

@@ -52,7 +52,7 @@ application = Application.builder().token(TOKEN).build()
 admin_conv_handler = ConversationHandler(
     entry_points=[
         CommandHandler('admin', admin_menu),
-        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new|inf_del|pdf_new|pdf_del)$')
+        CallbackQueryHandler(conversation_entry_handler, pattern='^(mat_new|mat_edit|mat_del|uni_new|uni_edit|uni_del|tm_new|tm_new_same|tm_pick_unidad|tm_list|tm_del|fc_new|fc_del|qz_new|qz_del|inf_new|inf_del|pdf_new|pdf_del)$')
     ],
     states={
         SELECT_MATERIA: [

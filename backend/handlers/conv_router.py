@@ -30,6 +30,29 @@ async def conversation_entry_handler(update: Update, context: ContextTypes.DEFAU
     if data == 'mat_new':
         await query.edit_message_text("🟢 **Nueva Materia**\nEnviá el emoji para la materia:")
         return WAITING_MATERIA_EMOJI
+    elif data == 'tm_new_same':
+        # Continuar en la misma unidad sin preguntar nada
+        context.user_data['action'] = 'tm_new'
+        uni_id = context.user_data.get('selected_unidad_id')
+        db = SessionLocal()
+        try:
+            unidad = db.query(models.Unidad).filter(models.Unidad.id == uni_id).first()
+            temas = db.query(models.Tema).filter(models.Tema.id_unidad == uni_id).all()
+            unidad_nombre = unidad.nombre if unidad else str(uni_id)
+            if temas:
+                lista = "\n".join(f"- {t.nombre}" for t in temas)
+                msg = f"📚 *Unidad: {unidad_nombre}*\n\nTemas existentes:\n{lista}\n\nAhora enviá el nombre del nuevo tema (o /cancelar para salir):"
+            else:
+                msg = f"📚 *Unidad: {unidad_nombre}*\n\nNo hay temas cargados aún.\n\nEnviá el nombre del primer tema:"
+            await query.edit_message_text(msg, parse_mode='Markdown')
+        finally:
+            db.close()
+        return WAITING_TEMA_NOMBRE
+    elif data == 'tm_pick_unidad':
+        # Mostrar unidades de la misma materia para elegir a cuál ir
+        context.user_data['action'] = 'tm_new'
+        await show_unidad_selection(update, context, "¿A qué unidad querés agregar un tema?")
+        return SELECT_UNIDAD
     elif data in ['mat_edit', 'mat_del', 'uni_new', 'tm_new', 'tm_list', 'tm_del', 'uni_edit', 'uni_del', 'fc_new', 'fc_del', 'qz_new', 'qz_del', 'inf_new', 'inf_del', 'pdf_new', 'pdf_del']:
         await show_materia_selection(update, "¿A qué materia pertenece?")
         return SELECT_MATERIA
