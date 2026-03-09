@@ -45,6 +45,12 @@ const App = () => {
   const { user, tg } = useTelegram();
   // null = loading, false = not done, true = done
   const [onboardingDone, setOnboardingDone] = useState(null);
+  // Wait briefly for Telegram to inject initData before deciding we're outside Telegram
+  const [telegramChecked, setTelegramChecked] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTelegramChecked(true), 300);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (tg) {
@@ -73,8 +79,8 @@ const App = () => {
     }
   }, [user, tg]);
 
-  // Block if not running inside Telegram
-  if (!window.Telegram?.WebApp?.initData) {
+  // Block if not running inside Telegram (wait 300ms first to let Telegram inject initData)
+  if (telegramChecked && !window.Telegram?.WebApp?.initData) {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
