@@ -204,6 +204,38 @@ async def _job_racha():
         db.close()
 
 
+async def _job_reset_racha():
+    """Runs at 03:05 UTC (00:05 ART). Resets streak to 0 for users who missed yesterday."""
+    from database import SessionLocal
+    from zoneinfo import ZoneInfo
+    db = SessionLocal()
+    try:
+        art_now = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires"))
+        yesterday_art = (art_now - timedelta(days=1)).date()
+        # Users with racha > 0 whose last activity was before yesterday
+        affected = (
+            db.query(models.User)
+            .filter(
+                models.User.racha > 0,
+                models.User.ultima_actividad != None,
+                models.User.ultima_actividad < datetime.combine(yesterday_art, datetime.min.time()),
+            )
+            .all()
+        )
+        for user in affected:
+            user.racha = 0
+        if affected:
+            db.commit()
+            print(f"[racha-reset] reset {len(affected)} users")
+        else:
+            print("[racha-reset] no users to reset")
+    except Exception as e:
+        logger.error(f"[racha-reset] error: {e}", exc_info=True)
+        print(f"[racha-reset] error: {e}")
+    finally:
+        db.close()
+
+
 async def _job_flashcards():
     """Runs at 12:00 UTC (09:00 ART). Notifies users with due flashcards per materia."""
     from database import SessionLocal
@@ -249,10 +281,11 @@ async def _job_flashcards():
 async def start_scheduler():
     try:
         _scheduler.add_job(_job_recordatorio, 'interval', minutes=1)
-        _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0, timezone='UTC'))    # 21:00 ART
-        _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC'))  # 09:00 ART
+        _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0, timezone='UTC'))        # 21:00 ART
+        _scheduler.add_job(_job_reset_racha, CronTrigger(hour=3, minute=5, timezone='UTC')) # 00:05 ART
+        _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC')) # 09:00 ART
         _scheduler.start()
-        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, flashcards 12:00 UTC")
+        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, reset-racha 03:05 UTC, flashcards 12:00 UTC")
     except Exception as e:
         print(f"[scheduler] ERROR during startup: {e}")
 
