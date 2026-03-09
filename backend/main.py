@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, extract, desc
 from collections import defaultdict
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -74,6 +74,8 @@ with engine.connect() as conn:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_username BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_progreso BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_cursos BOOLEAN NOT NULL DEFAULT TRUE",
+        "CREATE INDEX IF NOT EXISTS ix_quiz_resultado_usuario_unidad ON quiz_resultado (id_usuario, id_unidad)",
+        "CREATE INDEX IF NOT EXISTS ix_card_reviews_usuario_repeticiones ON card_reviews (id_usuario, repeticiones)",
     ]:
         conn.execute(__import__('sqlalchemy').text(ddl))
     conn.commit()
@@ -708,63 +710,65 @@ def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, db: Session = Depe
 
 @app.get("/unidades/{id}/progreso")
 def get_progreso_unidad(id: int, id_usuario: int, db: Session = Depends(get_db)):
-    unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
-    id_materia = unidad.id_materia if unidad else None
-    # Flashcards
-    all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id).all()
-    total_fc = len(all_flashcards)
+    unidad = db.query(models.Unidad.id_materia).filter(models.Unidad.id == id).first()
+    id_materia = unidad[0] if unidad else None
+
+    # Flashcards — 2 queries: count total + count dominadas
+    total_fc = db.query(func.count(models.Flashcard.id)).filter(models.Flashcard.id_unidad == id).scalar()
     dominadas = 0
     if total_fc > 0:
-        fc_ids = [f.id for f in all_flashcards]
-        dominadas = db.query(models.CardReview).filter(
-            models.CardReview.id_usuario == id_usuario,
-            models.CardReview.id_flashcard.in_(fc_ids),
-            models.CardReview.repeticiones > 0
-        ).count()
+        dominadas = (
+            db.query(func.count(models.CardReview.id_flashcard))
+            .join(models.Flashcard, models.Flashcard.id == models.CardReview.id_flashcard)
+            .filter(
+                models.Flashcard.id_unidad == id,
+                models.CardReview.id_usuario == id_usuario,
+                models.CardReview.repeticiones > 0,
+            )
+            .scalar()
+        )
     fc_pct = (dominadas / total_fc * 100) if total_fc > 0 else 0
 
-    # Cuestionario — último resultado
-    total_quiz = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id).count()
+    # Cuestionario — 2 queries: count total + último resultado
+    total_quiz = db.query(func.count(models.QuizPregunta.id)).filter(models.QuizPregunta.id_unidad == id).scalar()
     correctas = 0
     if total_quiz > 0:
         ultimo = (
-            db.query(models.QuizResultado)
+            db.query(models.QuizResultado.correctas)
             .filter(models.QuizResultado.id_usuario == id_usuario, models.QuizResultado.id_unidad == id)
             .order_by(models.QuizResultado.fecha.desc())
             .first()
         )
         if ultimo:
-            correctas = ultimo.correctas
+            correctas = ultimo[0]
     qz_pct = (correctas / total_quiz * 100) if total_quiz > 0 else 0
 
-    # PDFs
-    all_pdfs = db.query(models.Pdf).filter(models.Pdf.id_unidad == id).all()
-    total_pdfs = len(all_pdfs)
-    pdfs_vistos = 0
+    # PDFs — 1 query con LEFT JOIN para obtener total + ids vistos
+    total_pdfs = db.query(func.count(models.Pdf.id)).filter(models.Pdf.id_unidad == id).scalar()
     ids_pdfs_vistos = []
     if total_pdfs > 0:
-        pdf_ids = [p.id for p in all_pdfs]
-        vistos = db.query(models.PdfVisto).filter(
-            models.PdfVisto.id_usuario == id_usuario,
-            models.PdfVisto.id_pdf.in_(pdf_ids)
-        ).all()
-        pdfs_vistos = len(vistos)
-        ids_pdfs_vistos = [v.id_pdf for v in vistos]
+        ids_pdfs_vistos = [
+            r[0] for r in
+            db.query(models.PdfVisto.id_pdf)
+            .join(models.Pdf, models.Pdf.id == models.PdfVisto.id_pdf)
+            .filter(models.Pdf.id_unidad == id, models.PdfVisto.id_usuario == id_usuario)
+            .all()
+        ]
+    pdfs_vistos = len(ids_pdfs_vistos)
     pdf_pct = (pdfs_vistos / total_pdfs * 100) if total_pdfs > 0 else 0
 
-    # Infografías
-    all_inf = db.query(models.Infografia).filter(models.Infografia.id_unidad == id).all()
-    total_inf = len(all_inf)
-    inf_vistas = 0
+    # Infografías — 1 query con JOIN para ids vistas
+    total_inf = db.query(func.count(models.Infografia.id)).filter(models.Infografia.id_unidad == id).scalar()
     ids_inf_vistas = []
     if total_inf > 0:
-        inf_ids = [i.id for i in all_inf]
-        vistas = db.query(models.InfografiaVista).filter(
-            models.InfografiaVista.id_usuario == id_usuario,
-            models.InfografiaVista.id_infografia.in_(inf_ids)
-        ).all()
-        inf_vistas = len(vistas)
-        ids_inf_vistas = [v.id_infografia for v in vistas]
+        ids_inf_vistas = [
+            r[0] for r in
+            db.query(models.InfografiaVista.id_infografia)
+            .join(models.Infografia, models.Infografia.id == models.InfografiaVista.id_infografia)
+            .filter(models.Infografia.id_unidad == id, models.InfografiaVista.id_usuario == id_usuario)
+            .all()
+        ]
+    inf_vistas = len(ids_inf_vistas)
 
     # Porcentaje total con redistribución de pesos
     components = {}
@@ -1076,7 +1080,7 @@ def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.Dele
     db.commit()
 
 
-@app.get("/usuarios/{id}/materias-seguidas")
+@app.get("/usuarios/{id}/materias-seguidas", dependencies=[Depends(require_init_data)])
 def get_materias_seguidas(id: int, db: Session = Depends(get_db)):
     rows = db.query(models.MateriaSeguida.id_materia).filter(
         models.MateriaSeguida.id_usuario == id
@@ -1091,17 +1095,22 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     seguidas = (
         db.query(models.Materia)
+        .options(joinedload(models.Materia.unidades))
         .join(models.MateriaSeguida, models.MateriaSeguida.id_materia == models.Materia.id)
         .filter(models.MateriaSeguida.id_usuario == id)
         .order_by(models.MateriaSeguida.fecha.desc())
         .all()
     )
+    # Collect all unit IDs across all followed materias for batch query
+    all_unidad_ids = [u.id for m in seguidas for u in m.unidades]
+    progreso_map = _compute_progreso_batch(all_unidad_ids, id, db) if all_unidad_ids else {}
+
     materias_cursando = []
     materias_completadas = []
     for materia in seguidas:
         unidades = sorted(materia.unidades, key=lambda u: (u.orden is None, u.orden))
         if unidades:
-            pct = sum(_compute_progreso_unidad(u.id, id, db) for u in unidades) / len(unidades)
+            pct = sum(progreso_map.get(u.id, 0.0) for u in unidades) / len(unidades)
         else:
             pct = 0.0
         item = {
@@ -1157,52 +1166,110 @@ def get_vistas_materia(id: int, db: Session = Depends(get_db)):
     return {"total": total}
 
 
-def _compute_progreso_unidad(id_unidad: int, id_usuario: int, db: Session) -> float:
-    """Computes porcentaje_total for a unit (reused by stats endpoint)."""
-    all_flashcards = db.query(models.Flashcard).filter(models.Flashcard.id_unidad == id_unidad).all()
-    total_fc = len(all_flashcards)
-    dominadas = 0
-    if total_fc > 0:
-        fc_ids = [f.id for f in all_flashcards]
-        dominadas = db.query(models.CardReview).filter(
+def _compute_progreso_batch(unidad_ids: list[int], id_usuario: int, db: Session) -> dict[int, float]:
+    """Computes porcentaje_total for multiple units in batch (few queries total)."""
+    if not unidad_ids:
+        return {}
+
+    # Flashcards: total per unit
+    fc_totals = dict(
+        db.query(models.Flashcard.id_unidad, func.count(models.Flashcard.id))
+        .filter(models.Flashcard.id_unidad.in_(unidad_ids))
+        .group_by(models.Flashcard.id_unidad)
+        .all()
+    )
+    # Flashcards: dominadas per unit
+    fc_dominadas = dict(
+        db.query(models.Flashcard.id_unidad, func.count(models.CardReview.id_flashcard))
+        .join(models.CardReview, models.CardReview.id_flashcard == models.Flashcard.id)
+        .filter(
+            models.Flashcard.id_unidad.in_(unidad_ids),
             models.CardReview.id_usuario == id_usuario,
-            models.CardReview.id_flashcard.in_(fc_ids),
             models.CardReview.repeticiones > 0,
-        ).count()
-    fc_pct = (dominadas / total_fc * 100) if total_fc > 0 else 0
-
-    total_quiz = db.query(models.QuizPregunta).filter(models.QuizPregunta.id_unidad == id_unidad).count()
-    correctas = 0
-    if total_quiz > 0:
-        ultimo = (
-            db.query(models.QuizResultado)
-            .filter(models.QuizResultado.id_usuario == id_usuario, models.QuizResultado.id_unidad == id_unidad)
-            .order_by(models.QuizResultado.fecha.desc())
-            .first()
         )
-        if ultimo:
-            correctas = ultimo.correctas
-    qz_pct = (correctas / total_quiz * 100) if total_quiz > 0 else 0
+        .group_by(models.Flashcard.id_unidad)
+        .all()
+    )
 
-    all_pdfs = db.query(models.Pdf).filter(models.Pdf.id_unidad == id_unidad).all()
-    total_pdfs = len(all_pdfs)
-    pdf_pct = 0
-    if total_pdfs > 0:
-        pdf_ids = [p.id for p in all_pdfs]
-        pdfs_vistos = db.query(models.PdfVisto).filter(
+    # Quiz: total preguntas per unit
+    qz_totals = dict(
+        db.query(models.QuizPregunta.id_unidad, func.count(models.QuizPregunta.id))
+        .filter(models.QuizPregunta.id_unidad.in_(unidad_ids))
+        .group_by(models.QuizPregunta.id_unidad)
+        .all()
+    )
+    # Quiz: último resultado per unit (use window function via subquery)
+    latest_quiz_sub = (
+        db.query(
+            models.QuizResultado.id_unidad,
+            models.QuizResultado.correctas,
+            func.row_number().over(
+                partition_by=models.QuizResultado.id_unidad,
+                order_by=desc(models.QuizResultado.fecha),
+            ).label("rn"),
+        )
+        .filter(
+            models.QuizResultado.id_usuario == id_usuario,
+            models.QuizResultado.id_unidad.in_(unidad_ids),
+        )
+        .subquery()
+    )
+    qz_correctas = dict(
+        db.query(latest_quiz_sub.c.id_unidad, latest_quiz_sub.c.correctas)
+        .filter(latest_quiz_sub.c.rn == 1)
+        .all()
+    )
+
+    # PDFs: total per unit
+    pdf_totals = dict(
+        db.query(models.Pdf.id_unidad, func.count(models.Pdf.id))
+        .filter(models.Pdf.id_unidad.in_(unidad_ids))
+        .group_by(models.Pdf.id_unidad)
+        .all()
+    )
+    # PDFs: vistos per unit
+    pdf_vistos = dict(
+        db.query(models.Pdf.id_unidad, func.count(models.PdfVisto.id_pdf))
+        .join(models.PdfVisto, models.PdfVisto.id_pdf == models.Pdf.id)
+        .filter(
+            models.Pdf.id_unidad.in_(unidad_ids),
             models.PdfVisto.id_usuario == id_usuario,
-            models.PdfVisto.id_pdf.in_(pdf_ids),
-        ).count()
-        pdf_pct = pdfs_vistos / total_pdfs * 100
+        )
+        .group_by(models.Pdf.id_unidad)
+        .all()
+    )
 
-    components = {}
-    if total_fc > 0: components['fc'] = (fc_pct, 0.50)
-    if total_quiz > 0: components['qz'] = (qz_pct, 0.35)
-    if total_pdfs > 0: components['pdf'] = (pdf_pct, 0.15)
-    if not components:
-        return 0.0
-    total_weight = sum(w for _, w in components.values())
-    return sum(score * (w / total_weight) for score, w in components.values())
+    # Compute percentages
+    result = {}
+    for uid in unidad_ids:
+        total_fc = fc_totals.get(uid, 0)
+        dom = fc_dominadas.get(uid, 0)
+        fc_pct = (dom / total_fc * 100) if total_fc > 0 else 0
+
+        total_qz = qz_totals.get(uid, 0)
+        corr = qz_correctas.get(uid, 0)
+        qz_pct = (corr / total_qz * 100) if total_qz > 0 else 0
+
+        total_pdf = pdf_totals.get(uid, 0)
+        vis = pdf_vistos.get(uid, 0)
+        pdf_pct = (vis / total_pdf * 100) if total_pdf > 0 else 0
+
+        components = {}
+        if total_fc > 0: components['fc'] = (fc_pct, 0.50)
+        if total_qz > 0: components['qz'] = (qz_pct, 0.35)
+        if total_pdf > 0: components['pdf'] = (pdf_pct, 0.15)
+        if not components:
+            result[uid] = 0.0
+            continue
+        total_weight = sum(w for _, w in components.values())
+        result[uid] = sum(score * (w / total_weight) for score, w in components.values())
+
+    return result
+
+
+def _compute_progreso_unidad(id_unidad: int, id_usuario: int, db: Session) -> float:
+    """Computes porcentaje_total for a single unit. Delegates to batch."""
+    return _compute_progreso_batch([id_unidad], id_usuario, db).get(id_unidad, 0.0)
 
 
 @app.get("/usuarios/{id}/stats")

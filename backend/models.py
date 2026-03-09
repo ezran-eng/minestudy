@@ -184,6 +184,10 @@ class QuizResultado(Base):
     usuario = relationship("User", back_populates="quiz_resultados")
     unidad = relationship("Unidad", back_populates="quiz_resultados")
 
+    __table_args__ = (
+        Index("ix_quiz_resultado_usuario_unidad", "id_usuario", "id_unidad"),
+    )
+
 class CardReview(Base):
     __tablename__ = "card_reviews"
 
@@ -197,6 +201,10 @@ class CardReview(Base):
 
     usuario = relationship("User", back_populates="card_reviews")
     flashcard = relationship("Flashcard", back_populates="reviews")
+
+    __table_args__ = (
+        Index("ix_card_reviews_usuario_repeticiones", "id_usuario", "repeticiones"),
+    )
 
 class Vista(Base):
     __tablename__ = "vistas"
