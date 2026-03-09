@@ -1040,12 +1040,6 @@ def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.Dele
             models.InfografiaVista.id_infografia.in_(inf_ids),
         ).delete(synchronize_session=False)
 
-    # vistas
-    db.query(models.Vista).filter(
-        models.Vista.id_usuario == id_usuario,
-        models.Vista.id_unidad.in_(unidad_ids),
-    ).delete(synchronize_session=False)
-
     db.commit()
 
 
