@@ -1,72 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getProgresoUnidad, getVistasMateria, getMateriasSeguidas, toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, getVistasMateria } from '../services/api';
+import { useMaterias, useMateriasSeguidas, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
 const Study = () => {
   const navigate = useNavigate();
-  const [materias, setMaterias] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [confirmUnfollowId, setConfirmUnfollowId] = useState(null);
-  const userIdRef = useRef(null);
+
+  const tg = window.Telegram?.WebApp;
+  const userId = tg?.initDataUnsafe?.user?.id;
+
+  const { data: rawMaterias, isLoading: loadingMaterias } = useMaterias();
+  const { data: seguidasRes, isLoading: loadingSeguidas } = useMateriasSeguidas(userId);
+  const invalidate = useInvalidate();
+
+  // Fetch progreso + vistas per materia (still parallel but with dedup)
+  const [progresoMap, setProgresoMap] = useState({});  // { materiaId: { avg, vistas } }
+  const fetchedRef = useRef(new Set());
 
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const response = await api.get('/materias');
-        const rawMaterias = response.data;
+    if (!rawMaterias || !userId) return;
+    const toFetch = rawMaterias.filter(m => !fetchedRef.current.has(m.id));
+    if (toFetch.length === 0) return;
 
-        const tg = window.Telegram?.WebApp;
-        const userId = tg?.initDataUnsafe?.user?.id;
-        userIdRef.current = userId;
+    toFetch.forEach(m => fetchedRef.current.add(m.id));
 
-        if (!userId) {
-          setMaterias(rawMaterias.map(m => ({ ...m, pct: 0, vistas: 0, siguiendo: false })));
-          return;
-        }
-
-        const [seguidasRes, ...materiaResults] = await Promise.all([
-          getMateriasSeguidas(userId).catch(() => ({ materia_ids: [] })),
-          ...rawMaterias.map(async (materia) => {
-            const [pcts, vistasRes] = await Promise.all([
-              materia.unidades.length === 0
-                ? Promise.resolve([0])
-                : Promise.all(
-                    materia.unidades.map(async (u) => {
-                      try {
-                        const res = await getProgresoUnidad(u.id, userId);
-                        return res.porcentaje_total ?? 0;
-                      } catch { return 0; }
-                    })
-                  ),
-              getVistasMateria(materia.id).catch(() => ({ total: 0 })),
-            ]);
-            const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-            return { avg, vistas: vistasRes.total ?? 0 };
-          }),
+    Promise.all(
+      toFetch.map(async (materia) => {
+        const [pcts, vistasRes] = await Promise.all([
+          materia.unidades.length === 0
+            ? Promise.resolve([0])
+            : Promise.all(
+                materia.unidades.map(async (u) => {
+                  try {
+                    const res = await getProgresoUnidad(u.id, userId);
+                    return res.porcentaje_total ?? 0;
+                  } catch { return 0; }
+                })
+              ),
+          getVistasMateria(materia.id).catch(() => ({ total: 0 })),
         ]);
+        const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+        return { id: materia.id, avg, vistas: vistasRes.total ?? 0 };
+      })
+    ).then((results) => {
+      setProgresoMap(prev => {
+        const next = { ...prev };
+        for (const r of results) next[r.id] = { avg: r.avg, vistas: r.vistas };
+        return next;
+      });
+    });
+  }, [rawMaterias, userId]);
 
-        const seguidasSet = new Set(seguidasRes.materia_ids || []);
-        const processed = rawMaterias.map((m, i) => ({
-          ...m,
-          pct: materiaResults[i].avg,
-          vistas: materiaResults[i].vistas,
-          siguiendo: seguidasSet.has(m.id),
-        }));
+  const seguidasSet = useMemo(
+    () => new Set(seguidasRes?.materia_ids || []),
+    [seguidasRes]
+  );
 
-        // Followed materias first, then rest (preserve original order within each group)
-        processed.sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
-        setMaterias(processed);
-      } catch (error) {
-        console.error('Error fetching materias:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, []);
+  const materias = useMemo(() => {
+    if (!rawMaterias) return [];
+    const processed = rawMaterias.map(m => ({
+      ...m,
+      pct: progresoMap[m.id]?.avg ?? 0,
+      vistas: progresoMap[m.id]?.vistas ?? 0,
+      siguiendo: seguidasSet.has(m.id),
+    }));
+    processed.sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
+    return processed;
+  }, [rawMaterias, progresoMap, seguidasSet]);
+
+  const loading = loadingMaterias || (userId && loadingSeguidas);
 
   const handleMateriaClick = (materia) => {
     navigate(`/materia/${materia.id}`, { state: { materia } });
@@ -74,7 +80,6 @@ const Study = () => {
 
   const handleToggleSeguir = (e, materiaId) => {
     e.stopPropagation();
-    const userId = userIdRef.current;
     if (!userId) return;
     const materia = materias.find(m => m.id === materiaId);
     if (materia?.siguiendo) {
@@ -84,19 +89,12 @@ const Study = () => {
     }
   };
 
-  const doFollow = async (materiaId, userId) => {
-    setMaterias(prev => {
-      const updated = prev.map(m => m.id === materiaId ? { ...m, siguiendo: true } : m);
-      return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
-    });
+  const doFollow = async (materiaId, uid) => {
     try {
       try {
-        await toggleSeguirMateria(materiaId, userId, true); // explicit follow (idempotent)
+        await toggleSeguirMateria(materiaId, uid, true);
       } catch (err) {
-        // If user doesn't exist yet in DB (race between app load and first follow),
-        // register them first and retry once.
         if (err.detail === 'user_not_registered') {
-          const tg = window.Telegram?.WebApp;
           const tgUser = tg?.initDataUnsafe?.user;
           if (tgUser) {
             await createOrUpdateUser({
@@ -107,35 +105,29 @@ const Study = () => {
               foto_url: tgUser.photo_url || null,
             });
           }
-          await toggleSeguirMateria(materiaId, userId, true);
+          await toggleSeguirMateria(materiaId, uid, true);
         } else {
           throw err;
         }
       }
+      invalidate.seguidas(uid);
     } catch {
-      setMaterias(prev => {
-        const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: false } : m);
-        return [...reverted].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
-      });
+      // silently fail — seguidas query stays as is
     }
   };
 
   const doUnfollow = async () => {
     const materiaId = confirmUnfollowId;
-    const userId = userIdRef.current;
     setConfirmUnfollowId(null);
-    setMaterias(prev => {
-      const updated = prev.map(m => m.id === materiaId ? { ...m, siguiendo: false, pct: 0 } : m);
-      return [...updated].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
-    });
     try {
       await deleteProgresoMateria(userId, materiaId);
-      await toggleSeguirMateria(materiaId, userId, false); // explicit unfollow (idempotent)
+      await toggleSeguirMateria(materiaId, userId, false);
+      invalidate.seguidas(userId);
+      invalidate.allProgreso();
+      // Reset local progreso for the materia
+      setProgresoMap(prev => ({ ...prev, [materiaId]: { avg: 0, vistas: prev[materiaId]?.vistas ?? 0 } }));
     } catch {
-      setMaterias(prev => {
-        const reverted = prev.map(m => m.id === materiaId ? { ...m, siguiendo: true } : m);
-        return [...reverted].sort((a, b) => (b.siguiendo ? 1 : 0) - (a.siguiendo ? 1 : 0));
-      });
+      // revert nothing — cache will refetch
     }
   };
 

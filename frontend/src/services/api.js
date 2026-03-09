@@ -27,7 +27,9 @@ export const createOrUpdateUser = async (userData) => {
 
 const api = {
   get: async (endpoint) => {
-    const response = await fetch(`${API_URL}${endpoint}`);
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      headers: { ...getInitDataHeader(), ...getAdminHeader() },
+    });
     if (!response.ok) throw new Error(`GET ${endpoint} failed`);
     const data = await response.json();
     return { data };
@@ -206,7 +208,9 @@ export const getSeguidoresMateria = async (id_materia) => {
 };
 
 export const getMateriasSeguidas = async (id_usuario) => {
-  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/materias-seguidas`);
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/materias-seguidas`, {
+    headers: { ...getInitDataHeader() },
+  });
   if (!response.ok) throw new Error('Failed to get materias seguidas');
   return response.json();
 };

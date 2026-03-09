@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Home from './screens/Home';
 import Study from './screens/Study';
@@ -30,6 +31,15 @@ const AppContent = ({ user }) => {
     </>
   );
 };
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => {
   const { user, tg } = useTelegram();
@@ -98,11 +108,13 @@ const App = () => {
   // No user from Telegram yet — just show the app normally
   if (!user) {
     return (
-      <Router>
-        <ToastProvider>
-          <AppContent user={user} />
-        </ToastProvider>
-      </Router>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <ToastProvider>
+            <AppContent user={user} />
+          </ToastProvider>
+        </Router>
+      </QueryClientProvider>
     );
   }
 
@@ -126,11 +138,13 @@ const App = () => {
   }
 
   return (
-    <Router>
-      <ToastProvider>
-        <AppContent user={user} />
-      </ToastProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <ToastProvider>
+          <AppContent user={user} />
+        </ToastProvider>
+      </Router>
+    </QueryClientProvider>
   );
 };
 

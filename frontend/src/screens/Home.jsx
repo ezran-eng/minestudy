@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getUserProfile, getUserStats, getActividadReciente, getMateriasSeguidas } from '../services/api';
+import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil } from '../hooks/useQueryHooks';
 
 const TIPO_ICON = {
   quiz: '🎯',
@@ -13,22 +13,14 @@ const TIPO_ICON = {
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useTelegram();
-  const [racha, setRacha] = useState(0);
-  const [stats, setStats] = useState(null);
-  const [actividad, setActividad] = useState([]);
-  const [sinMaterias, setSinMaterias] = useState(false);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    getUserProfile(user.id)
-      .then(profile => { if (typeof profile.racha === 'number') setRacha(profile.racha); })
-      .catch(err => console.error(err));
-    getUserStats(user.id).then(setStats).catch(err => console.error(err));
-    getActividadReciente(user.id).then(setActividad).catch(err => console.error(err));
-    getMateriasSeguidas(user.id)
-      .then(data => setSinMaterias(data.materia_ids.length === 0))
-      .catch(() => {});
-  }, [user?.id]);
+  const { data: perfilData } = useUserPerfil(user?.id);
+  const { data: stats } = useUserStats(user?.id);
+  const { data: actividad = [] } = useActividadReciente(user?.id);
+  const { data: seguidasRes } = useMateriasSeguidas(user?.id);
+
+  const racha = perfilData?.racha ?? 0;
+  const sinMaterias = seguidasRes ? seguidasRes.materia_ids.length === 0 : false;
 
   const firstName = user?.first_name || 'Estudiante';
 
@@ -97,7 +89,7 @@ const Home = () => {
       <div className="focus-card">
         <div className="focus-inner">
           <div className="focus-tag">Foco del día</div>
-          {stats === null ? (
+          {!stats ? (
             <div className="focus-title" style={{ opacity: 0.5 }}>Cargando...</div>
           ) : stats.foco ? (
             <>

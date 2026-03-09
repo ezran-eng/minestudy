@@ -11,6 +11,7 @@
     "vercel-install": "npm install --legacy-peer-deps"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "@telegram-apps/telegram-ui": "^2.1.13",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

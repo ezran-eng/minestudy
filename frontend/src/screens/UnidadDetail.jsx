@@ -6,7 +6,8 @@ import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getInfografias, getPdfs, getProgresoUnidad, registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getVistasUnidad, getMateriasSeguidas } from '../services/api';
+import api, { registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getProgresoUnidad } from '../services/api';
+import { useMaterias, useMateriasSeguidas, useInfografias, usePdfs, useVistasUnidad, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
@@ -37,33 +38,47 @@ const UnidadDetail = () => {
   const { registrarHoy } = useActividad(user?.id, showToast);
   const navigate = useNavigate();
   const location = useLocation();
+  const invalidate = useInvalidate();
 
   const [isFlashOpen, setIsFlashOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [carouselStart, setCarouselStart] = useState(0);
-  const [infografias, setInfografias] = useState([]);
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState(null);
-  const [pdfs, setPdfs] = useState([]);
   const [progreso, setProgreso] = useState(null);
-  const [vistas, setVistas] = useState(null);
-  // Local sets for immediate ✅ feedback before API refetch
+  // Local sets for immediate feedback before API refetch
   const [pdfsVistos, setPdfsVistos] = useState(new Set());
   const [infografiasVistas, setInfografiasVistas] = useState(new Set());
 
-  const [materia, setMateria] = useState(location.state?.materia || null);
-  const [unidad, setUnidad] = useState(location.state?.unidad || null);
   const [flashcards, setFlashcards] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
-  const [loading, setLoading] = useState(!materia || !unidad);
+  const [loading, setLoading] = useState(true);
 
-  // Register a view + fetch view count when user enters the unit
+  // Cached queries
+  const { data: allMaterias } = useMaterias();
+  const { data: seguidasRes } = useMateriasSeguidas(user?.id);
+  const { data: infografias = [] } = useInfografias(idx);
+  const { data: pdfs = [] } = usePdfs(idx);
+  const { data: vistasRes } = useVistasUnidad(idx);
+  const vistas = vistasRes?.total ?? null;
+
+  const materia = location.state?.materia || allMaterias?.find(m => m.id === parseInt(id)) || null;
+  const unidad = location.state?.unidad || materia?.unidades?.find(u => u.id === parseInt(idx)) || null;
+
+  // Register a view when user enters the unit
   useEffect(() => {
     if (!user?.id) return;
     registrarVista(idx, user.id).catch(err => console.error('[vista]', err));
-    getVistasUnidad(idx).then(res => setVistas(res.total ?? 0)).catch(() => setVistas(0));
   }, [idx, user?.id]);
+
+  // Access guard: redirect if user doesn't follow this materia
+  useEffect(() => {
+    if (!seguidasRes || !user?.id) return;
+    if (!seguidasRes.materia_ids.includes(parseInt(id))) {
+      navigate(`/materia/${id}`, { replace: true });
+    }
+  }, [seguidasRes, user?.id, id, navigate]);
 
   // Keep stable refs so callbacks inside child components never go stale
   const idxRef = useRef(idx);
@@ -87,56 +102,30 @@ const UnidadDetail = () => {
   const refreshProgresoRef = useRef(refreshProgreso);
   useEffect(() => { refreshProgresoRef.current = refreshProgreso; });
 
+  // Fetch flashcards + quiz (not cached — unit-specific and lightweight)
   useEffect(() => {
-    const fetchUnidadData = async () => {
+    const fetchUnitResources = async () => {
       try {
-        // Access guard: redirect to MateriaDetail if user doesn't follow this materia
-        try {
-          const seguidas = await getMateriasSeguidas(user.id);
-          if (!seguidas.materia_ids.includes(parseInt(id))) {
-            navigate(`/materia/${id}`, { replace: true });
-            return;
-          }
-        } catch {
-          navigate(`/materia/${id}`, { replace: true });
-          return;
-        }
-
-        if (!materia || !unidad) {
-          const mRes = await api.get('/materias');
-          const foundM = mRes.data.find(m => m.id === parseInt(id));
-          if (foundM) {
-            setMateria(foundM);
-            const foundU = foundM.unidades.find(u => u.id === parseInt(idx));
-            if (foundU) setUnidad(foundU);
-          }
-        }
-
         const userId = user?.id;
         const fcEndpoint = userId
           ? `/flashcards/due?id_unidad=${idx}&id_usuario=${userId}`
           : `/unidades/${idx}/flashcards`;
-        const fcRes = await api.get(fcEndpoint);
+        const [fcRes, qRes] = await Promise.all([
+          api.get(fcEndpoint),
+          api.get(`/unidades/${idx}/quiz`),
+        ]);
         setFlashcards(fcRes.data);
-
-        const qRes = await api.get(`/unidades/${idx}/quiz`);
         setQuizQuestions(qRes.data);
-
-        const infRes = await getInfografias(idx);
-        setInfografias(infRes);
-
-        const pdfRes = await getPdfs(idx);
-        setPdfs(pdfRes);
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     };
-    fetchUnidadData();
-  }, [id, idx, materia, unidad]);
+    fetchUnitResources();
+  }, [idx, user?.id]);
 
-  // Fetch progreso once after main data loads (when user is known)
+  // Fetch progreso once after main data loads
   useEffect(() => {
     if (!loading && user?.id) refreshProgreso();
   }, [loading, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps

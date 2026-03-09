@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { getProgresoUnidad, getVistasMateria, toggleSeguirMateria, getSeguidoresMateria, deleteProgresoMateria, createOrUpdateUser } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad } from '../services/api';
+import { useMaterias, useVistasMateria, useSeguidoresMateria, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -87,71 +88,43 @@ const MateriaDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useTelegram();
+  const invalidate = useInvalidate();
 
-  const [materia, setMateria] = useState(location.state?.materia || null);
-  const [loading, setLoading] = useState(!location.state?.materia);
-  const [unidadProgresos, setUnidadProgresos] = useState({});
-  const [vistasMateria, setVistasMateria] = useState(null);
+  // Cached queries
+  const { data: allMaterias } = useMaterias();
+  const { data: vistasRes } = useVistasMateria(parseInt(id));
+  const { data: seguidoresRes } = useSeguidoresMateria(parseInt(id));
+
+  const materia = location.state?.materia || allMaterias?.find(m => m.id === parseInt(id)) || null;
+  const vistasMateria = vistasRes?.total ?? null;
+  const seguidores = seguidoresRes?.seguidores || [];
+  const totalSeguidores = seguidoresRes?.total_seguidores || 0;
+
   const [siguiendo, setSiguiendo] = useState(location.state?.materia?.siguiendo ?? location.state?.siguiendo ?? false);
-  const [seguidores, setSeguidores] = useState([]);
-  const [totalSeguidores, setTotalSeguidores] = useState(0);
+  const [unidadProgresos, setUnidadProgresos] = useState({});
   const [showSeguidores, setShowSeguidores] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const toastTimerRef = useRef(null);
-  // Generation counter: incremented on every follow/unfollow action to invalidate
-  // any in-flight getSeguidoresMateria call from the useEffect (prevents stale data
-  // from overwriting the state set by the toggle response).
-  const seguidoresGenRef = useRef(0);
 
+  // Sync siguiendo from seguidores data
   useEffect(() => {
-    const fetchMateriaData = async () => {
-      if (!materia) {
+    if (seguidoresRes && user?.id) {
+      setSiguiendo(seguidoresRes.seguidores.some(s => s.id_telegram === user.id));
+    }
+  }, [seguidoresRes, user?.id]);
+
+  // Fetch progreso per unit
+  useEffect(() => {
+    if (!materia || !user?.id) return;
+    Promise.all(
+      materia.unidades.map(async (u) => {
         try {
-          const response = await api.get('/materias');
-          const found = response.data.find(m => m.id === parseInt(id));
-          if (found) setMateria(found);
-        } catch(e) { console.error(e); }
-      }
-      setLoading(false);
-    };
-    fetchMateriaData();
-  }, [id]);
-
-  // Fetch progreso, vistas, and seguidores once materia is ready
-  useEffect(() => {
-    if (!materia) return;
-
-    getVistasMateria(materia.id)
-      .then(res => setVistasMateria(res.total ?? 0))
-      .catch(() => setVistasMateria(0));
-
-    const gen = ++seguidoresGenRef.current;
-    getSeguidoresMateria(materia.id)
-      .then(data => {
-        if (seguidoresGenRef.current !== gen) return; // stale — a follow/unfollow started, ignore
-        setSeguidores(data.seguidores);
-        setTotalSeguidores(data.total_seguidores);
-        if (user?.id) setSiguiendo(data.seguidores.some(s => s.id_telegram === user.id));
+          const res = await getProgresoUnidad(u.id, user.id);
+          return [u.id, res.porcentaje_total ?? 0];
+        } catch { return [u.id, 0]; }
       })
-      .catch(() => {});
-
-    const tg = window.Telegram?.WebApp;
-    const userId = tg?.initDataUnsafe?.user?.id;
-    if (!userId) return;
-
-    const fetchProgresos = async () => {
-      const entries = await Promise.all(
-        materia.unidades.map(async (u) => {
-          try {
-            const res = await getProgresoUnidad(u.id, userId);
-            return [u.id, res.porcentaje_total ?? 0];
-          } catch { return [u.id, 0]; }
-        })
-      );
-      setUnidadProgresos(Object.fromEntries(entries));
-    };
-    fetchProgresos();
+    ).then(entries => setUnidadProgresos(Object.fromEntries(entries)));
   }, [materia, user?.id]);
 
   const handleLockedClick = () => {
@@ -170,29 +143,13 @@ const MateriaDetail = () => {
   };
 
   const doFollow = async () => {
-    seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     const prev = siguiendo;
-    console.log('[doFollow] START — siguiendo antes:', prev, '| user.id:', user?.id, '| materia:', materia?.id);
-    console.log('[doFollow] initData present:', !!window.Telegram?.WebApp?.initData);
     setSiguiendo(true);
-    // Optimistic: add user to avatar list only if not already present (prevents duplicate display)
-    setSeguidores(prev =>
-      prev.some(s => s.id_telegram === user.id)
-        ? prev
-        : [{ id_telegram: user.id, first_name: user.first_name, foto_url: user.photo_url }, ...prev]
-    );
-    setTotalSeguidores(t => t + 1);
     try {
-      let res;
       try {
-        res = await toggleSeguirMateria(materia.id, user.id, true); // explicit follow (idempotent)
-        console.log('[doFollow] toggle response (1st attempt):', res);
+        await toggleSeguirMateria(materia.id, user.id, true);
       } catch (err) {
-        console.warn('[doFollow] toggle error (1st attempt):', err.message, '| detail:', err.detail);
-        // If user doesn't exist yet in DB (race between app load and first follow),
-        // register them first and retry once.
         if (err.detail === 'user_not_registered') {
-          console.log('[doFollow] user_not_registered — registering and retrying');
           await createOrUpdateUser({
             id_telegram: user.id,
             first_name: user.first_name || 'Desconocido',
@@ -200,46 +157,35 @@ const MateriaDetail = () => {
             username: user.username || null,
             foto_url: user.photo_url || null,
           });
-          res = await toggleSeguirMateria(materia.id, user.id, true);
-          console.log('[doFollow] toggle response (retry):', res);
+          await toggleSeguirMateria(materia.id, user.id, true);
         } else {
           throw err;
         }
       }
-      console.log('[doFollow] siguiendo después:', res.siguiendo);
-      setSiguiendo(res.siguiendo);
-      const data = await getSeguidoresMateria(materia.id);
-      setSeguidores(data.seguidores);
-      setTotalSeguidores(data.total_seguidores);
-    } catch (err) {
-      console.error('[doFollow] FATAL error — revirtiendo a', prev, '| error:', err);
+      invalidate.seguidas(user.id);
+      invalidate.seguidores(materia.id);
+    } catch {
       setSiguiendo(prev);
-      setTotalSeguidores(t => Math.max(0, t - 1));
     }
   };
 
   const doUnfollow = async () => {
-    seguidoresGenRef.current++; // invalidate any pending getSeguidoresMateria from useEffect
     setShowUnfollowConfirm(false);
     const prev = siguiendo;
     setSiguiendo(false);
-    setSeguidores(seguidores.filter(s => s.id_telegram !== user.id));
-    setTotalSeguidores(t => Math.max(0, t - 1));
     try {
       await deleteProgresoMateria(user.id, materia.id);
-      await toggleSeguirMateria(materia.id, user.id, false); // explicit unfollow (idempotent)
+      await toggleSeguirMateria(materia.id, user.id, false);
       setUnidadProgresos({});
-      const data = await getSeguidoresMateria(materia.id);
-      setSeguidores(data.seguidores);
-      setTotalSeguidores(data.total_seguidores);
+      invalidate.seguidas(user.id);
+      invalidate.seguidores(materia.id);
+      invalidate.allProgreso();
     } catch {
       setSiguiendo(prev);
-      setTotalSeguidores(t => t + 1);
     }
   };
 
-  if (loading) return <div className="screen active" style={{ padding: '20px' }}>Cargando materia...</div>;
-  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
+  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Cargando materia...</div>;
 
   const totalUnits = materia.unidades.length;
   let overallPct = 0;

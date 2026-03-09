@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { getUserPerfil, getPrivacidad, updatePrivacidad, getNotificaciones, updateNotificaciones } from '../services/api';
+import { updatePrivacidad, updateNotificaciones } from '../services/api';
+import { useUserPerfil, usePrivacidad, useNotificaciones } from '../hooks/useQueryHooks';
 import MateriaList from '../components/MateriaList';
 
 const Toggle = ({ label, description, value, onChange, disabled }) => (
@@ -67,29 +68,21 @@ const HELPERS = [
 const Profile = () => {
   const { user } = useTelegram();
   const navigate = useNavigate();
-  const [perfil, setPerfil] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: perfil, isLoading: loadingPerfil } = useUserPerfil(user?.id);
+  const { data: privacyData } = usePrivacidad(user?.id);
+  const { data: notifData } = useNotificaciones(user?.id);
+
   const [privacy, setPrivacy] = useState(null);
   const [notifConfig, setNotifConfig] = useState(null);
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    Promise.all([
-      getUserPerfil(user.id),
-      getPrivacidad(user.id).catch(() => null),
-      getNotificaciones(user.id).catch(() => null),
-    ])
-      .then(([p, priv, notif]) => {
-        setPerfil(p);
-        if (priv) setPrivacy(priv);
-        if (notif) setNotifConfig(notif);
-      })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
-  }, [user?.id]);
+  // Sync React Query data into local state (for optimistic updates)
+  React.useEffect(() => { if (privacyData && !privacy) setPrivacy(privacyData); }, [privacyData]);
+  React.useEffect(() => { if (notifData && !notifConfig) setNotifConfig(notifData); }, [notifData]);
+
+  const loading = loadingPerfil;
 
   const handleToggle = useCallback(async (key, val) => {
     if (saving) return;
