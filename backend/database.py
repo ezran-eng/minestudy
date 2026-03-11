@@ -13,14 +13,18 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,          # conexiones persistentes en el pool
-    max_overflow=10,      # conexiones extra bajo pico de carga
-    pool_timeout=30,      # segundos de espera antes de error "no hay conexión libre"
-    pool_recycle=1800,    # recicla conexiones cada 30 min (evita drops silenciosos)
-    pool_pre_ping=True,   # verifica que la conexión siga viva antes de usarla
-)
+_pool_kwargs = {}
+if DATABASE_URL.startswith("postgresql"):
+    # SQLite (usado en tests) no soporta estos parámetros
+    _pool_kwargs = {
+        "pool_size": 5,       # conexiones persistentes en el pool
+        "max_overflow": 10,   # conexiones extra bajo pico de carga
+        "pool_timeout": 30,   # segundos de espera antes de error "no hay conexión libre"
+        "pool_recycle": 1800, # recicla conexiones cada 30 min (evita drops silenciosos)
+        "pool_pre_ping": True, # verifica que la conexión siga viva antes de usarla
+    }
+
+engine = create_engine(DATABASE_URL, **_pool_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
