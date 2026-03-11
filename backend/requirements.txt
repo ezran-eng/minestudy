@@ -1,5 +1,8 @@
 apscheduler
 boto3
+pytest
+pytest-asyncio
+httpx[test]
 slowapi
 python-multipart
 annotated-doc==0.0.4
