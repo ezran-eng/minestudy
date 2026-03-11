@@ -9,9 +9,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from typing import List, Optional
 import os
+import sys
 import uuid
 import hmac
 import hashlib
+import json
 import boto3
 from botocore.client import Config
 from fastapi import Header, Request
@@ -25,8 +27,51 @@ from urllib.parse import unquote
 import models
 import schemas
 from database import engine, get_db
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-logger = logging.getLogger("minestudy.auth")
+# ─── Logging estructurado ─────────────────────────────────────────────────────
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload)
+
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(_JsonFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
+logger = logging.getLogger("minestudy")
+
+# ─── Validación de variables de entorno al arrancar ───────────────────────────
+_REQUIRED_ENV = [
+    "DATABASE_URL",
+    "TELEGRAM_BOT_TOKEN",
+    "R2_ENDPOINT",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET",
+]
+_missing = [v for v in _REQUIRED_ENV if not os.environ.get(v)]
+if _missing:
+    logger.error("Variables de entorno faltantes al arrancar: %s", _missing)
+    sys.exit(1)
+
+# ─── Sentry (opcional — solo activo si SENTRY_DSN está configurado) ───────────
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate=0.2,
+        send_default_pii=False,
+    )
+    logger.info("Sentry inicializado")
 from sqlalchemy.exc import IntegrityError
 
 R2_PUBLIC_URL = "https://pub-d070e7bf4b014f54acc4915474377809.r2.dev"
@@ -71,9 +116,9 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_job_reset_racha, CronTrigger(hour=3, minute=5, timezone='UTC'))
         _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC'))
         _scheduler.start()
-        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, reset-racha 03:05 UTC, flashcards 12:00 UTC")
+        logger.info("Scheduler iniciado — recordatorio cada minuto, racha 00:00 UTC, reset-racha 03:05 UTC, flashcards 12:00 UTC")
     except Exception as e:
-        print(f"[scheduler] ERROR during startup: {e}")
+        logger.error("Error iniciando scheduler: %s", e)
     yield
     # Shutdown
     _scheduler.shutdown(wait=False)
@@ -81,15 +126,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MineStudy Hub API", lifespan=lifespan)
 
-# Startup diagnostic: confirm bot token is loaded (never log the full token)
+# Startup diagnostic: confirm bot token format (never log the full token)
 _raw_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 _token_stripped = _raw_token.strip()
-if not _token_stripped:
-    print("[startup] WARNING: TELEGRAM_BOT_TOKEN is not set — all initData validation will fail")
-elif _raw_token != _token_stripped:
-    print(f"[startup] WARNING: TELEGRAM_BOT_TOKEN has leading/trailing whitespace (len before={len(_raw_token)} after={len(_token_stripped)}) — this will break HMAC validation")
+if _raw_token != _token_stripped:
+    logger.warning("TELEGRAM_BOT_TOKEN tiene espacios al inicio/fin — esto rompe la validación HMAC")
 else:
-    print(f"[startup] TELEGRAM_BOT_TOKEN OK — len={len(_token_stripped)}, prefix={_token_stripped[:6]!r}")
+    logger.info("TELEGRAM_BOT_TOKEN OK", extra={"prefix": _token_stripped[:6]})
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -102,8 +145,8 @@ app.add_middleware(
     # send Origin: null for embedded web apps (file:// / android-app:// contexts)
     allow_origins=["https://minestudy.vercel.app", "null"],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Telegram-Init-Data", "X-Admin-Token"],
 )
 
 # ─── Notification scheduler ───────────────────────────────────────────────────

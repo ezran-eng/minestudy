@@ -1,4 +1,5 @@
 alembic
+sentry-sdk[fastapi]
 apscheduler
 boto3
 pytest

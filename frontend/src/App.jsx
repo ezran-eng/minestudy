@@ -1,6 +1,7 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const Home = lazy(() => import('./screens/Home'));
 const Study = lazy(() => import('./screens/Study'));
@@ -19,16 +20,18 @@ const AppContent = ({ user }) => {
   const location = useLocation();
   return (
     <>
-      <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}><div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div></div>}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/study" element={<Study />} />
-          <Route path="/materia/:id" element={<MateriaDetail />} />
-          <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/perfil/:id" element={<UserProfile />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}><div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div></div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/study" element={<Study />} />
+            <Route path="/materia/:id" element={<MateriaDetail />} />
+            <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/perfil/:id" element={<UserProfile />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
       <BottomNav user={user} />
     </>
   );
