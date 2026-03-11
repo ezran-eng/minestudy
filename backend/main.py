@@ -61,25 +61,6 @@ def get_r2_client():
         region_name="auto",
     )
 
-# Create the database tables
-models.Base.metadata.create_all(bind=engine)
-
-# Manual migrations for columns added after initial table creation
-# (create_all does not ALTER existing tables)
-with engine.connect() as conn:
-    for ddl in [
-        "ALTER TABLE quiz_preguntas ADD COLUMN IF NOT EXISTS justificacion VARCHAR",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completado BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_foto BOOLEAN NOT NULL DEFAULT TRUE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_nombre BOOLEAN NOT NULL DEFAULT TRUE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_username BOOLEAN NOT NULL DEFAULT TRUE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_progreso BOOLEAN NOT NULL DEFAULT TRUE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS mostrar_cursos BOOLEAN NOT NULL DEFAULT TRUE",
-        "CREATE INDEX IF NOT EXISTS ix_quiz_resultado_usuario_unidad ON quiz_resultado (id_usuario, id_unidad)",
-        "CREATE INDEX IF NOT EXISTS ix_card_reviews_usuario_repeticiones ON card_reviews (id_usuario, repeticiones)",
-    ]:
-        conn.execute(__import__('sqlalchemy').text(ddl))
-    conn.commit()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
