@@ -6,11 +6,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-pdf': ['react-pdf'],
-          'vendor-tg-ui': ['@telegram-apps/telegram-ui'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-pdf') || id.includes('node_modules/pdfjs-dist')) return 'vendor-pdf';
+          if (id.includes('node_modules/@telegram-apps/telegram-ui')) return 'vendor-tg-ui';
+          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) return 'vendor-react';
         },
       },
     },
