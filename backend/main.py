@@ -547,14 +547,18 @@ def delete_quiz_by_unidad(id_unidad: int, db: Session = Depends(get_db)):
     return
 
 @app.get("/ranking", response_model=List[schemas.RankingUser])
-def get_ranking(db: Session = Depends(get_db)):
-    # Query to calculate average percentage for each user across all their progress records
+def get_ranking(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    limit = min(limit, 100)  # máximo 100 por página
     ranking_data = db.query(
         models.User,
         func.coalesce(func.avg(models.Progreso.porcentaje), 0).label('total_progress')
     ).outerjoin(models.Progreso).group_by(models.User.id_telegram).order_by(
         func.coalesce(func.avg(models.Progreso.porcentaje), 0).desc()
-    ).all()
+    ).offset(offset).limit(limit).all()
 
     result = []
     for user, total_progress in ranking_data:
@@ -1384,7 +1388,8 @@ def get_user_stats(id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/usuarios/{id}/actividad-reciente")
-def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
+def get_actividad_reciente(id: int, limit: int = 10, db: Session = Depends(get_db)):
+    limit = min(limit, 50)  # máximo 50
     now = datetime.now(timezone.utc)
 
     def _hace(dt):
@@ -1404,13 +1409,16 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
 
     events = []
 
+    # Traemos `limit` registros de cada tipo y al final ordenamos y recortamos
+    _sub = limit
+
     # Quiz resultados
     quizzes = (
         db.query(models.QuizResultado, models.Unidad.nombre.label("u_nombre"))
         .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
         .filter(models.QuizResultado.id_usuario == id)
         .order_by(models.QuizResultado.fecha.desc())
-        .limit(5)
+        .limit(_sub)
         .all()
     )
     for q, u_nombre in quizzes:
@@ -1427,7 +1435,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .join(models.Pdf, models.PdfVisto.id_pdf == models.Pdf.id)
         .filter(models.PdfVisto.id_usuario == id)
         .order_by(models.PdfVisto.visto_at.desc())
-        .limit(5)
+        .limit(_sub)
         .all()
     )
     for pv, titulo in pdfs_v:
@@ -1444,7 +1452,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .join(models.Infografia, models.InfografiaVista.id_infografia == models.Infografia.id)
         .filter(models.InfografiaVista.id_usuario == id)
         .order_by(models.InfografiaVista.visto_at.desc())
-        .limit(5)
+        .limit(_sub)
         .all()
     )
     for iv, titulo in infs_v:
@@ -1465,7 +1473,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
         .filter(models.CardReview.id_usuario == id)
         .group_by(func.date(models.CardReview.last_reviewed))
         .order_by(func.date(models.CardReview.last_reviewed).desc())
-        .limit(5)
+        .limit(_sub)
         .all()
     )
     for row in reviews_by_day:
@@ -1476,7 +1484,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
             "ts": row.last_ts,
         })
 
-    # Sort by timestamp desc, take top 5, add "hace"
+    # Sort by timestamp desc, take top `limit`, add "hace"
     def sort_key(e):
         ts = e["ts"]
         if ts is None:
@@ -1486,7 +1494,7 @@ def get_actividad_reciente(id: int, db: Session = Depends(get_db)):
     events.sort(key=sort_key, reverse=True)
     return [
         {"tipo": e["tipo"], "titulo": e["titulo"], "detalle": e["detalle"], "hace": _hace(e["ts"])}
-        for e in events[:5]
+        for e in events[:limit]
     ]
 
 
