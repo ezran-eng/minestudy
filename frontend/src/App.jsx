@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import Home from './screens/Home';
-import Study from './screens/Study';
-import MateriaDetail from './screens/MateriaDetail';
-import UnidadDetail from './screens/UnidadDetail';
-import Profile from './screens/Profile';
-import UserProfile from './screens/UserProfile';
-import Onboarding from './screens/Onboarding';
+const Home = lazy(() => import('./screens/Home'));
+const Study = lazy(() => import('./screens/Study'));
+const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
+const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
+const Profile = lazy(() => import('./screens/Profile'));
+const UserProfile = lazy(() => import('./screens/UserProfile'));
+const Onboarding = lazy(() => import('./screens/Onboarding'));
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 
@@ -19,14 +19,16 @@ const AppContent = ({ user }) => {
   const location = useLocation();
   return (
     <>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/study" element={<Study />} />
-        <Route path="/materia/:id" element={<MateriaDetail />} />
-        <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/perfil/:id" element={<UserProfile />} />
-      </Routes>
+      <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}><div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div></div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/study" element={<Study />} />
+          <Route path="/materia/:id" element={<MateriaDetail />} />
+          <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/perfil/:id" element={<UserProfile />} />
+        </Routes>
+      </Suspense>
       <BottomNav user={user} />
     </>
   );

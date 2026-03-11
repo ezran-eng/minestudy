@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,7 +81,24 @@ with engine.connect() as conn:
         conn.execute(__import__('sqlalchemy').text(ddl))
     conn.commit()
 
-app = FastAPI(title="MineStudy Hub API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        _scheduler.add_job(_job_recordatorio, 'interval', minutes=1)
+        _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0, timezone='UTC'))
+        _scheduler.add_job(_job_reset_racha, CronTrigger(hour=3, minute=5, timezone='UTC'))
+        _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC'))
+        _scheduler.start()
+        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, reset-racha 03:05 UTC, flashcards 12:00 UTC")
+    except Exception as e:
+        print(f"[scheduler] ERROR during startup: {e}")
+    yield
+    # Shutdown
+    _scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="MineStudy Hub API", lifespan=lifespan)
 
 # Startup diagnostic: confirm bot token is loaded (never log the full token)
 _raw_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -279,23 +297,6 @@ async def _job_flashcards():
         db.close()
 
 
-@app.on_event("startup")
-async def start_scheduler():
-    try:
-        _scheduler.add_job(_job_recordatorio, 'interval', minutes=1)
-        _scheduler.add_job(_job_racha, CronTrigger(hour=0, minute=0, timezone='UTC'))        # 21:00 ART
-        _scheduler.add_job(_job_reset_racha, CronTrigger(hour=3, minute=5, timezone='UTC')) # 00:05 ART
-        _scheduler.add_job(_job_flashcards, CronTrigger(hour=12, minute=0, timezone='UTC')) # 09:00 ART
-        _scheduler.start()
-        print("[scheduler] started — recordatorio cada minuto, racha 00:00 UTC, reset-racha 03:05 UTC, flashcards 12:00 UTC")
-    except Exception as e:
-        print(f"[scheduler] ERROR during startup: {e}")
-
-
-@app.on_event("shutdown")
-async def stop_scheduler():
-    _scheduler.shutdown(wait=False)
-
 
 # ─── Security dependencies ────────────────────────────────────────────────────
 def require_admin(x_admin_token: Optional[str] = Header(default=None)):
@@ -418,13 +419,18 @@ def update_progress(progreso: schemas.ProgresoCreate, db: Session = Depends(get_
 
 @app.get("/materias", response_model=List[schemas.MateriaBase])
 def get_materias(db: Session = Depends(get_db)):
-    db_materias = db.query(models.Materia).order_by(models.Materia.orden).all()
-    # Unidades and temas will be fetched automatically due to relationship setup
-    # Make sure to sort them correctly before returning
+    db_materias = (
+        db.query(models.Materia)
+        .options(
+            joinedload(models.Materia.unidades).joinedload(models.Unidad.temas)
+        )
+        .order_by(models.Materia.orden)
+        .all()
+    )
     for materia in db_materias:
         materia.unidades.sort(key=lambda u: (u.orden is None, u.orden))
         for unidad in materia.unidades:
-            unidad.temas.sort(key=lambda t: t.id) # Sort by id for temas as they don't have orden
+            unidad.temas.sort(key=lambda t: t.id)
     return db_materias
 
 @app.put("/materias/{id}", response_model=schemas.MateriaBase, dependencies=[Depends(require_admin)])
@@ -1286,14 +1292,22 @@ def get_user_stats(id: int, db: Session = Depends(get_db)):
     ).count()
 
     # 3. Progreso general & foco del día (unit with lowest pct excluding 100%)
-    materias = db.query(models.Materia).order_by(models.Materia.orden).all()
+    materias = (
+        db.query(models.Materia)
+        .options(joinedload(models.Materia.unidades))
+        .order_by(models.Materia.orden)
+        .all()
+    )
+    all_unidad_ids = [u.id for m in materias for u in m.unidades]
+    progreso_map = _compute_progreso_batch(all_unidad_ids, id, db) if all_unidad_ids else {}
+
     all_pcts = []
     foco = None
     foco_pct = 101.0
     for materia in materias:
         unidades_sorted = sorted(materia.unidades, key=lambda u: (u.orden is None, u.orden))
         for unidad in unidades_sorted:
-            pct = _compute_progreso_unidad(unidad.id, id, db)
+            pct = progreso_map.get(unidad.id, 0.0)
             all_pcts.append(pct)
             if pct < 100.0 and pct < foco_pct:
                 foco_pct = pct
