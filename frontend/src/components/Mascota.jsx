@@ -3,22 +3,11 @@ import Lottie from 'lottie-react';
 import { useNavigate } from 'react-router-dom';
 import mascotaData from '../assets/lotties/mascota.json';
 import { useMascotaHint } from '../hooks/useQueryHooks';
+import { useMascotaContext } from '../hooks/useMascotaContext';
 
 const STORAGE_KEY = 'mascota_v1';
 const IDLE_MS = 30_000;
 const BUBBLE_MS = 4_500;
-
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-const MSGS = {
-  grab:  ['¡Ey! 😮', '¡Me agarraste!', '¡Cuidado! 😅'],
-  drag:  ['¡Wheee! 🎉', '¡Me movés!', 'Volando 🚀'],
-  drop:  ['¡Gracias! 😊', 'Nueva vista 🎯', 'Aquí me quedo 🏠'],
-  open:  ['¡Hola! 💪 A estudiar', '¡Bienvenido! 🌟', '¡Listo para aprender! 🚀'],
-  done:  ['¡Excelente! 🌟', '¡Sos una máquina! 💪', '¡Gran trabajo! 🔥'],
-  sleep: ['Zzz... 😴', '¿Seguís ahí? 👀', 'Descansando 🌙'],
-  back:  ['¡De vuelta! 👋', '¿Qué me perdí? 👀', '¡Bienvenido de vuelta! 🎉'],
-};
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -27,6 +16,11 @@ const loadStorage = () => {
 export default function Mascota({ userId }) {
   const navigate = useNavigate();
   const { data: hint } = useMascotaHint(userId);
+  const { getMascotaResponse, contexto } = useMascotaContext();
+
+  // Keep a stable ref so event handlers always call the latest version
+  const getMascotaResponseRef = useRef(getMascotaResponse);
+  getMascotaResponseRef.current = getMascotaResponse;
 
   const [visible, setVisible] = useState(() => loadStorage().visible !== false);
   const [pos, setPos] = useState(() => {
@@ -45,6 +39,7 @@ export default function Mascota({ userId }) {
   const idleTimer = useRef(null);
   const bubbleTimer = useRef(null);
   const greeted = useRef(false);
+  const prevPantalla = useRef(null);
 
   // Persist visible + pos
   useEffect(() => {
@@ -53,6 +48,7 @@ export default function Mascota({ userId }) {
   }, [visible, pos]);
 
   const showBubble = useCallback((text) => {
+    if (!text) return;
     setSleeping(false);
     clearTimeout(bubbleTimer.current);
     setBubble({ text, id: Date.now() });
@@ -64,15 +60,16 @@ export default function Mascota({ userId }) {
     setSleeping(false);
     idleTimer.current = setTimeout(() => {
       setSleeping(true);
-      setBubble({ text: pick(MSGS.sleep), id: Date.now() });
+      const msg = getMascotaResponseRef.current('idle') || 'Zzz... 😴';
+      setBubble({ text: msg, id: Date.now() });
     }, IDLE_MS);
   }, []);
 
-  // One-time greeting on first visible mount
+  // One-time greeting on first mount
   useEffect(() => {
     if (!visible || greeted.current) return;
     greeted.current = true;
-    showBubble(pick(MSGS.open));
+    showBubble(getMascotaResponseRef.current('app_open'));
     resetIdle();
     return () => {
       clearTimeout(idleTimer.current);
@@ -80,12 +77,25 @@ export default function Mascota({ userId }) {
     };
   }, [visible]); // eslint-disable-line
 
-  // Hint bubble — show flashcard reminder 5s after mount if there are due cards
+  // Contextual 'enter' bubble on screen navigation
+  useEffect(() => {
+    if (!visible) return;
+    if (prevPantalla.current !== null && prevPantalla.current !== contexto.pantalla) {
+      const msg = getMascotaResponseRef.current('enter');
+      if (msg) {
+        showBubble(msg);
+        resetIdle();
+      }
+    }
+    prevPantalla.current = contexto.pantalla;
+  }, [contexto.pantalla]); // eslint-disable-line
+
+  // Hint bubble — show flashcard reminder 5s after mount
   const hintDue = hint?.flashcards_due ?? 0;
   useEffect(() => {
     if (!visible || hintDue <= 0) return;
     const t = setTimeout(() => {
-      showBubble(`Tenés ${hintDue} flashcard${hintDue !== 1 ? 's' : ''} para repasar 🃏`);
+      showBubble(getMascotaResponseRef.current('enter', { flashcards_vencidas: hintDue }));
     }, 5000);
     return () => clearTimeout(t);
   }, [hintDue, visible]); // eslint-disable-line
@@ -94,7 +104,7 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     const handler = () => {
       if (document.visibilityState === 'visible' && visible) {
-        showBubble(pick(MSGS.back));
+        showBubble(getMascotaResponseRef.current('return_from_bg'));
         resetIdle();
       }
     };
@@ -102,18 +112,35 @@ export default function Mascota({ userId }) {
     return () => document.removeEventListener('visibilitychange', handler);
   }, [visible, showBubble, resetIdle]);
 
-  // Flashcard complete
+  // Flashcard session complete
   useEffect(() => {
-    const handler = () => { if (visible) showBubble(pick(MSGS.done)); };
+    const handler = () => {
+      if (visible) showBubble(getMascotaResponseRef.current('flashcard_complete'));
+    };
     window.addEventListener('mascota:flashcard-complete', handler);
     return () => window.removeEventListener('mascota:flashcard-complete', handler);
   }, [visible, showBubble]);
+
+  // Mid-session events from Quiz / Flashcard components
+  useEffect(() => {
+    const handler = (e) => {
+      if (!visible) return;
+      const { accion, datos = {} } = e.detail;
+      const msg = getMascotaResponseRef.current(accion, datos);
+      if (msg) {
+        showBubble(msg);
+        resetIdle();
+      }
+    };
+    window.addEventListener('mascota:event', handler);
+    return () => window.removeEventListener('mascota:event', handler);
+  }, [visible, showBubble, resetIdle]);
 
   // Show from Profile
   useEffect(() => {
     const handler = () => {
       setVisible(true);
-      showBubble(pick(MSGS.open));
+      showBubble(getMascotaResponseRef.current('app_open'));
       resetIdle();
     };
     window.addEventListener('mascota:show', handler);
@@ -132,7 +159,7 @@ export default function Mascota({ userId }) {
       ox: posRef.current.x,
       oy: posRef.current.y,
     };
-    showBubble(pick(MSGS.grab));
+    showBubble(getMascotaResponseRef.current('grab'));
     resetIdle();
 
     const onMove = (ev) => {
@@ -141,7 +168,7 @@ export default function Mascota({ userId }) {
       if (!dragging.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         dragging.current = true;
         wasDragging.current = true;
-        showBubble(pick(MSGS.drag));
+        showBubble(getMascotaResponseRef.current('drag'));
       }
       if (dragging.current) {
         setPos({
@@ -152,7 +179,7 @@ export default function Mascota({ userId }) {
     };
 
     const onUp = () => {
-      if (dragging.current) showBubble(pick(MSGS.drop));
+      if (dragging.current) showBubble(getMascotaResponseRef.current('drop'));
       dragging.current = false;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);

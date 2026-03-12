@@ -11,6 +11,7 @@ import { useMaterias, useMateriasSeguidas, useInfografias, usePdfs, useVistasUni
 import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
+import { useMascotaUpdate } from '../context/MascotaContext';
 
 const CircularProgress = ({ pct }) => {
   const r = 26;
@@ -40,6 +41,7 @@ const UnidadDetail = () => {
   const location = useLocation();
   const invalidate = useInvalidate();
 
+  const updateMascota = useMascotaUpdate();
   const [isFlashOpen, setIsFlashOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
@@ -71,6 +73,57 @@ const UnidadDetail = () => {
     if (!user?.id) return;
     registrarVista(idx, user.id).catch(err => console.error('[vista]', err));
   }, [idx, user?.id]);
+
+  // Mascota context — update on enter and on modal open/close
+  useEffect(() => {
+    if (!updateMascota || !unidad) return;
+    updateMascota({
+      pantalla: 'unidad',
+      datos: {
+        unidad_nombre: unidad.nombre,
+        unidad_progreso: progreso?.porcentaje_total ?? 0,
+        temas_count: unidad.temas?.length ?? 0,
+      },
+    });
+  }, [unidad?.id, progreso?.porcentaje_total]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!updateMascota || !unidad) return;
+    if (isFlashOpen) {
+      updateMascota({
+        pantalla: 'flashcards',
+        datos: { cards_restantes: flashcards.length, unidad_nombre: unidad.nombre },
+      });
+    } else {
+      updateMascota({
+        pantalla: 'unidad',
+        datos: {
+          unidad_nombre: unidad.nombre,
+          unidad_progreso: progreso?.porcentaje_total ?? 0,
+          temas_count: unidad.temas?.length ?? 0,
+        },
+      });
+    }
+  }, [isFlashOpen]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!updateMascota || !unidad) return;
+    if (isQuizOpen) {
+      updateMascota({
+        pantalla: 'quiz',
+        datos: { total_preguntas: quizQuestions.length, unidad_nombre: unidad.nombre },
+      });
+    } else {
+      updateMascota({
+        pantalla: 'unidad',
+        datos: {
+          unidad_nombre: unidad.nombre,
+          unidad_progreso: progreso?.porcentaje_total ?? 0,
+          temas_count: unidad.temas?.length ?? 0,
+        },
+      });
+    }
+  }, [isQuizOpen]); // eslint-disable-line
 
   // Access guard: redirect if user doesn't follow this materia
   useEffect(() => {

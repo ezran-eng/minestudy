@@ -12,13 +12,18 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
 
   const [cardIdx, setCardIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const correctStreak = React.useRef(0);
 
   useEffect(() => {
     if (isOpen) {
       setCardIdx(0);
       setFlipped(false);
+      correctStreak.current = 0;
+      window.dispatchEvent(new CustomEvent('mascota:event', {
+        detail: { accion: 'enter', datos: { cards_restantes: cards.length } },
+      }));
     }
-  }, [isOpen]);
+  }, [isOpen]); // eslint-disable-line
 
   const flipCard = () => setFlipped(f => !f);
 
@@ -46,7 +51,24 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
 
     onCardReviewed?.();
 
-    // Notify mascot when completing a full review session
+    // Mid-session mascot events
+    if (knew) {
+      correctStreak.current += 1;
+      if (correctStreak.current >= 3) {
+        window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'racha' } }));
+      }
+    } else {
+      correctStreak.current = 0;
+      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'error' } }));
+    }
+
+    const remaining = cards.length - cardIdx - 1;
+    if (remaining > 0 && remaining < 5) {
+      window.dispatchEvent(new CustomEvent('mascota:event', {
+        detail: { accion: 'pocas_cards', datos: { cards_restantes: remaining } },
+      }));
+    }
+
     if (cardIdx === cards.length - 1) {
       window.dispatchEvent(new CustomEvent('mascota:flashcard-complete'));
     }

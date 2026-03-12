@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil } from '../hooks/useQueryHooks';
+import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil, useMascotaHint } from '../hooks/useQueryHooks';
+import { useMascotaUpdate } from '../context/MascotaContext';
 
 const TIPO_ICON = {
   quiz: '🎯',
@@ -19,8 +20,23 @@ const Home = () => {
   const { data: actividad = [] } = useActividadReciente(user?.id);
   const { data: seguidasRes } = useMateriasSeguidas(user?.id);
 
+  const { data: hint } = useMascotaHint(user?.id);
+  const updateMascota = useMascotaUpdate();
+
   const racha = perfilData?.racha ?? 0;
   const sinMaterias = seguidasRes ? seguidasRes.materia_ids.length === 0 : false;
+
+  useEffect(() => {
+    if (!updateMascota) return;
+    updateMascota({
+      pantalla: 'home',
+      datos: {
+        racha,
+        flashcards_vencidas: hint?.flashcards_due ?? 0,
+        progreso_general: Math.round(stats?.progreso_general ?? 0),
+      },
+    });
+  }, [racha, hint?.flashcards_due, stats?.progreso_general]); // eslint-disable-line
 
   const firstName = user?.first_name || 'Estudiante';
 

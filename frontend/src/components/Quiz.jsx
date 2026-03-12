@@ -10,6 +10,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
   const [correctCount, setCorrectCount] = useState(0);
   // Ref to avoid stale closure in goNext and onQuizFinish
   const correctCountRef = useRef(0);
+  const correctStreakRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -18,6 +19,8 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
       setIsAnswered(false);
       setCorrectCount(0);
       correctCountRef.current = 0;
+      correctStreakRef.current = 0;
+      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'enter' } }));
     }
   }, [isOpen, customQuestions]);
 
@@ -47,8 +50,17 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
     setIsAnswered(true);
     if (isCorrect) {
       correctCountRef.current += 1;
+      correctStreakRef.current += 1;
       setCorrectCount(correctCountRef.current);
       console.log(`[Quiz] correctCount → ${correctCountRef.current}`);
+      if (currentIndex === 0) {
+        window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'primera_correcta' } }));
+      } else if (correctStreakRef.current >= 3) {
+        window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'racha' } }));
+      }
+    } else {
+      correctStreakRef.current = 0;
+      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'incorrecta' } }));
     }
     if (currentIndex === 0) onFirstAnswer?.();
   };
@@ -56,11 +68,16 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
   const goNext = () => {
     const isLast = currentIndex === customQuestions.length - 1;
     if (isLast) {
-      // Use ref to guarantee latest count (state may be stale in closure)
+      const pct = Math.round((correctCountRef.current / customQuestions.length) * 100);
+      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'completado', datos: { porcentaje_correcto: pct } } }));
       onQuizFinish?.(correctCountRef.current, customQuestions.length);
       onClose();
     } else {
-      setCurrentIndex(prev => prev + 1);
+      const nextIndex = currentIndex + 1;
+      if (nextIndex === customQuestions.length - 1) {
+        window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'ultima_pregunta' } }));
+      }
+      setCurrentIndex(nextIndex);
       setSelectedOpt(null);
       setIsAnswered(false);
     }

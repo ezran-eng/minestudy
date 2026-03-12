@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
 import { updatePrivacidad, updateNotificaciones, deleteAccount } from '../services/api';
+import { useMascotaUpdate } from '../context/MascotaContext';
 import { useUserPerfil, usePrivacidad, useNotificaciones } from '../hooks/useQueryHooks';
 import MateriaList from '../components/MateriaList';
 
@@ -91,6 +92,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const updateMascota = useMascotaUpdate();
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [deleteStep, setDeleteStep] = useState(0); // 0=hidden, 1=warning, 2=deleting
   const [devLog, setDevLog] = useState('');
@@ -122,6 +124,19 @@ const Profile = () => {
   // Sync React Query data into local state (for optimistic updates)
   React.useEffect(() => { if (privacyData && !privacy) setPrivacy(privacyData); }, [privacyData]);
   React.useEffect(() => { if (notifData && !notifConfig) setNotifConfig(notifData); }, [notifData]);
+
+  useEffect(() => {
+    if (!updateMascota || !perfil) return;
+    const materias_count = (perfil.materias_cursando?.length ?? 0) + (perfil.materias_completadas?.length ?? 0);
+    updateMascota({
+      pantalla: 'perfil',
+      datos: {
+        nombre_usuario: perfil.first_name,
+        racha: perfil.racha,
+        materias_count,
+      },
+    });
+  }, [perfil]); // eslint-disable-line
 
   const loading = loadingPerfil;
 

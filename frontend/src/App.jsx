@@ -13,6 +13,7 @@ const Onboarding = lazy(() => import('./screens/Onboarding'));
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 import Mascota from './components/Mascota';
+import { MascotaProvider } from './context/MascotaContext';
 
 import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser, getPrivacidad } from './services/api';
@@ -154,7 +155,9 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <ToastProvider>
-          <AppContent user={user} />
+          <MascotaProvider>
+            <AppContent user={user} />
+          </MascotaProvider>
         </ToastProvider>
       </Router>
     </QueryClientProvider>
