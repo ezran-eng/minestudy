@@ -1498,6 +1498,76 @@ def get_actividad_reciente(id: int, limit: int = 10, db: Session = Depends(get_d
     ]
 
 
+@app.get("/usuarios/{id}/mascota-hint")
+def get_mascota_hint(id: int, db: Session = Depends(get_db)):
+    """Returns the most relevant study hint for the mascot: most overdue flashcard or lowest-progress unidad."""
+    now = datetime.now(timezone.utc)
+
+    # Most overdue flashcard (earliest due_date <= now)
+    row = (
+        db.query(
+            models.Materia.id.label("materia_id"),
+            models.Materia.nombre.label("materia_nombre"),
+            models.Unidad.id.label("unidad_id"),
+            models.Unidad.nombre.label("unidad_nombre"),
+            models.CardReview.due_date,
+        )
+        .join(models.Flashcard, models.CardReview.id_flashcard == models.Flashcard.id)
+        .join(models.Unidad, models.Flashcard.id_unidad == models.Unidad.id)
+        .join(models.Materia, models.Unidad.id_materia == models.Materia.id)
+        .filter(models.CardReview.id_usuario == id, models.CardReview.due_date <= now)
+        .order_by(models.CardReview.due_date.asc())
+        .first()
+    )
+
+    if row:
+        total_due = (
+            db.query(func.count(models.CardReview.id_flashcard))
+            .filter(models.CardReview.id_usuario == id, models.CardReview.due_date <= now)
+            .scalar()
+        )
+        return {
+            "flashcards_due": total_due,
+            "materia_id": row.materia_id,
+            "unidad_id": row.unidad_id,
+            "materia_nombre": row.materia_nombre,
+            "unidad_nombre": row.unidad_nombre,
+        }
+
+    # No due flashcards — fall back to lowest-progress unidad
+    seguidas = db.query(models.MateriaSeguida.id_materia).filter(
+        models.MateriaSeguida.id_usuario == id
+    ).all()
+    if not seguidas:
+        return {"flashcards_due": 0, "materia_id": None, "unidad_id": None, "materia_nombre": None, "unidad_nombre": None}
+
+    materia_ids = [s.id_materia for s in seguidas]
+    unidades = (
+        db.query(models.Unidad, models.Materia)
+        .join(models.Materia, models.Unidad.id_materia == models.Materia.id)
+        .filter(models.Materia.id.in_(materia_ids))
+        .all()
+    )
+    if not unidades:
+        return {"flashcards_due": 0, "materia_id": None, "unidad_id": None, "materia_nombre": None, "unidad_nombre": None}
+
+    unidad_ids = [u.id for u, _ in unidades]
+    progresos = (
+        db.query(models.Progreso.id_unidad, models.Progreso.porcentaje)
+        .filter(models.Progreso.id_usuario == id, models.Progreso.id_unidad.in_(unidad_ids))
+        .all()
+    )
+    progreso_map = {p.id_unidad: p.porcentaje for p in progresos}
+    lowest_unidad, lowest_materia = min(unidades, key=lambda x: progreso_map.get(x[0].id, 0))
+    return {
+        "flashcards_due": 0,
+        "materia_id": lowest_materia.id,
+        "unidad_id": lowest_unidad.id,
+        "materia_nombre": lowest_materia.nombre,
+        "unidad_nombre": lowest_unidad.nombre,
+    }
+
+
 def _notif_defaults() -> dict:
     return {"racha_activa": True, "recordatorio_activo": True, "flashcards_activa": True, "hora_recordatorio": "08:00"}
 

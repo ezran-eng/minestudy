@@ -264,6 +264,12 @@ export const getActividadReciente = async (id_usuario) => {
   return response.json();
 };
 
+export const getMascotaHint = async (id_usuario) => {
+  const response = await fetch(`${API_URL}/usuarios/${id_usuario}/mascota-hint`);
+  if (!response.ok) throw new Error('Failed to get mascota hint');
+  return response.json();
+};
+
 export const getPrivacidad = async (id_usuario) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/privacidad`, {
     headers: { ...getInitDataHeader() },

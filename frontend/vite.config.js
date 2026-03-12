@@ -11,6 +11,7 @@ export default defineConfig({
           if (id.includes('node_modules/@telegram-apps/telegram-ui')) return 'vendor-tg-ui';
           if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router')) return 'vendor-react';
+          if (id.includes('node_modules/lottie-web') || id.includes('node_modules/lottie-react')) return 'vendor-lottie';
         },
       },
     },

@@ -12,6 +12,7 @@ const UserProfile = lazy(() => import('./screens/UserProfile'));
 const Onboarding = lazy(() => import('./screens/Onboarding'));
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
+import Mascota from './components/Mascota';
 
 import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser, getPrivacidad } from './services/api';
@@ -33,6 +34,7 @@ const AppContent = ({ user }) => {
         </Suspense>
       </ErrorBoundary>
       <BottomNav user={user} />
+      {user?.id && <Mascota userId={user.id} />}
     </>
   );
 };

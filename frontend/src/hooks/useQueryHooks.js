@@ -12,6 +12,7 @@ import api, {
   getPdfs,
   getPrivacidad,
   getNotificaciones,
+  getMascotaHint,
 } from '../services/api';
 
 // ── Materias (public, rarely changes) ──────────────────────────────────────
@@ -128,6 +129,15 @@ export const useNotificaciones = (userId) =>
     queryFn: () => getNotificaciones(userId),
     enabled: !!userId,
     staleTime: 60 * 1000,
+  });
+
+// ── Mascota hint ───────────────────────────────────────────────────────────
+export const useMascotaHint = (userId) =>
+  useQuery({
+    queryKey: ['mascota-hint', userId],
+    queryFn: () => getMascotaHint(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 min — not critical to be real-time
   });
 
 // ── Invalidation helpers ───────────────────────────────────────────────────

@@ -46,6 +46,11 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
 
     onCardReviewed?.();
 
+    // Notify mascot when completing a full review session
+    if (cardIdx === cards.length - 1) {
+      window.dispatchEvent(new CustomEvent('mascota:flashcard-complete'));
+    }
+
     setCardIdx((prev) => (prev + 1) % cards.length);
     setFlipped(false);
   };

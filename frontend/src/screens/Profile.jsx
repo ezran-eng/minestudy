@@ -295,6 +295,31 @@ const Profile = () => {
               </div>
             )}
 
+            {/* Mascota */}
+            <div style={{ marginBottom: '28px' }}>
+              <div className="section-head" style={{ marginBottom: '4px' }}>
+                <div className="section-title">🐾 Mascota</div>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
+                Tu guía flotante de estudio. La podés ocultar con la ✕ que aparece sobre ella.
+              </div>
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mascota:show'));
+                  setShowSettings(false);
+                }}
+                style={{
+                  width: '100%', padding: '10px 14px',
+                  background: 'var(--s2)', color: 'var(--text)',
+                  border: '1px solid var(--border)', borderRadius: '10px',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Mostrar mascota
+              </button>
+            </div>
+
             {/* Ayuda */}
             <div>
               <div className="section-head" style={{ marginBottom: '12px' }}>
