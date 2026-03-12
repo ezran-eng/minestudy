@@ -158,15 +158,14 @@ export function useMascotaContext() {
 
   /**
    * Devuelve una frase contextual para la acción dada.
-   * extraDatos se mezcla con el contexto actual (útil para eventos con datos adicionales).
-   * Retorna null si no hay frase para esa combinación pantalla+acción.
-   *
+   * overridePantalla permite ignorar el contexto actual (evita race conditions en navegación).
    * En Fase 2: reemplazar el cuerpo por una llamada async a Deepseek.
    */
-  function getMascotaResponse(accion, extraDatos = {}) {
+  function getMascotaResponse(accion, extraDatos = {}, overridePantalla = null) {
     const { pantalla, datos } = contexto;
+    const effectivePantalla = overridePantalla || pantalla;
     const merged = { ...datos, ...extraDatos };
-    const key = resolveKey(accion, pantalla, merged);
+    const key = resolveKey(accion, effectivePantalla, merged);
     if (!key) return null;
     const [section, subkey] = key.split('.');
     const phrases = FRASES[section]?.[subkey];

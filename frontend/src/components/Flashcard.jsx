@@ -20,7 +20,7 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
       setFlipped(false);
       correctStreak.current = 0;
       window.dispatchEvent(new CustomEvent('mascota:event', {
-        detail: { accion: 'enter', datos: { cards_restantes: cards.length } },
+        detail: { accion: 'enter', pantalla: 'flashcards', datos: { cards_restantes: cards.length } },
       }));
     }
   }, [isOpen]); // eslint-disable-line

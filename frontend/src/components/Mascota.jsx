@@ -39,7 +39,6 @@ export default function Mascota({ userId }) {
   const idleTimer = useRef(null);
   const bubbleTimer = useRef(null);
   const greeted = useRef(false);
-  const prevPantalla = useRef(null);
 
   // Persist visible + pos
   useEffect(() => {
@@ -77,19 +76,6 @@ export default function Mascota({ userId }) {
     };
   }, [visible]); // eslint-disable-line
 
-  // Contextual 'enter' bubble on screen navigation
-  useEffect(() => {
-    if (!visible) return;
-    if (prevPantalla.current !== null && prevPantalla.current !== contexto.pantalla) {
-      const msg = getMascotaResponseRef.current('enter');
-      if (msg) {
-        showBubble(msg);
-        resetIdle();
-      }
-    }
-    prevPantalla.current = contexto.pantalla;
-  }, [contexto.pantalla]); // eslint-disable-line
-
   // Hint bubble — show flashcard reminder 5s after mount
   const hintDue = hint?.flashcards_due ?? 0;
   useEffect(() => {
@@ -125,8 +111,8 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     const handler = (e) => {
       if (!visible) return;
-      const { accion, datos = {} } = e.detail;
-      const msg = getMascotaResponseRef.current(accion, datos);
+      const { accion, datos = {}, pantalla: eventPantalla } = e.detail;
+      const msg = getMascotaResponseRef.current(accion, datos, eventPantalla || null);
       if (msg) {
         showBubble(msg);
         resetIdle();

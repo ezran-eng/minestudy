@@ -20,7 +20,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
       setCorrectCount(0);
       correctCountRef.current = 0;
       correctStreakRef.current = 0;
-      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'enter' } }));
+      window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'enter', pantalla: 'quiz' } }));
     }
   }, [isOpen, customQuestions]);
 

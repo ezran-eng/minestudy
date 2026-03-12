@@ -28,14 +28,15 @@ const Home = () => {
 
   useEffect(() => {
     if (!updateMascota) return;
-    updateMascota({
-      pantalla: 'home',
-      datos: {
-        racha,
-        flashcards_vencidas: hint?.flashcards_due ?? 0,
-        progreso_general: Math.round(stats?.progreso_general ?? 0),
-      },
-    });
+    const datos = {
+      racha,
+      flashcards_vencidas: hint?.flashcards_due ?? 0,
+      progreso_general: Math.round(stats?.progreso_general ?? 0),
+    };
+    updateMascota({ pantalla: 'home', datos });
+    window.dispatchEvent(new CustomEvent('mascota:event', {
+      detail: { accion: 'enter', pantalla: 'home', datos },
+    }));
   }, [racha, hint?.flashcards_due, stats?.progreso_general]); // eslint-disable-line
 
   const firstName = user?.first_name || 'Estudiante';

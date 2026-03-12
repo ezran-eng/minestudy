@@ -128,14 +128,15 @@ const Profile = () => {
   useEffect(() => {
     if (!updateMascota || !perfil) return;
     const materias_count = (perfil.materias_cursando?.length ?? 0) + (perfil.materias_completadas?.length ?? 0);
-    updateMascota({
-      pantalla: 'perfil',
-      datos: {
-        nombre_usuario: perfil.first_name,
-        racha: perfil.racha,
-        materias_count,
-      },
-    });
+    const datos = {
+      nombre_usuario: perfil.first_name,
+      racha: perfil.racha,
+      materias_count,
+    };
+    updateMascota({ pantalla: 'perfil', datos });
+    window.dispatchEvent(new CustomEvent('mascota:event', {
+      detail: { accion: 'enter', pantalla: 'perfil', datos },
+    }));
   }, [perfil]); // eslint-disable-line
 
   const loading = loadingPerfil;

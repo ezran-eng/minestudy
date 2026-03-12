@@ -77,14 +77,15 @@ const UnidadDetail = () => {
   // Mascota context — update on enter and on modal open/close
   useEffect(() => {
     if (!updateMascota || !unidad) return;
-    updateMascota({
-      pantalla: 'unidad',
-      datos: {
-        unidad_nombre: unidad.nombre,
-        unidad_progreso: progreso?.porcentaje_total ?? 0,
-        temas_count: unidad.temas?.length ?? 0,
-      },
-    });
+    const datos = {
+      unidad_nombre: unidad.nombre,
+      unidad_progreso: progreso?.porcentaje_total ?? 0,
+      temas_count: unidad.temas?.length ?? 0,
+    };
+    updateMascota({ pantalla: 'unidad', datos });
+    window.dispatchEvent(new CustomEvent('mascota:event', {
+      detail: { accion: 'enter', pantalla: 'unidad', datos },
+    }));
   }, [unidad?.id, progreso?.porcentaje_total]); // eslint-disable-line
 
   useEffect(() => {
