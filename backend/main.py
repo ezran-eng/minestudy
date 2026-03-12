@@ -1072,6 +1072,27 @@ def complete_onboarding(id: int, body: schemas.PrivacidadUpdate, db: Session = D
     return {"ok": True}
 
 
+@app.delete("/usuarios/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_account(id: int, db: Session = Depends(get_db)):
+    """Permanently deletes a user and all their data. Next login shows onboarding again."""
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Delete child records in dependency order
+    db.query(models.Progreso).filter(models.Progreso.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.CardReview).filter(models.CardReview.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.PdfVisto).filter(models.PdfVisto.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.InfografiaVista).filter(models.InfografiaVista.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.QuizResultado).filter(models.QuizResultado.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.Vista).filter(models.Vista.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.MateriaSeguida).filter(models.MateriaSeguida.id_usuario == id).delete(synchronize_session=False)
+    db.query(models.NotificacionesConfig).filter(models.NotificacionesConfig.id_usuario == id).delete(synchronize_session=False)
+    db.delete(user)
+    db.commit()
+    logger.info(f"[delete_account] Usuario {id} eliminado permanentemente")
+
+
 @app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
 def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.DeleteProgresoBody, db: Session = Depends(get_db)):
     """Wipes all progress of a user for every unit in the given materia."""

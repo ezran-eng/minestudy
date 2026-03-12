@@ -215,6 +215,14 @@ export const getMateriasSeguidas = async (id_usuario) => {
   return response.json();
 };
 
+export const deleteAccount = async (id_usuario) => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/usuarios/${id_usuario}`, {
+    method: 'DELETE',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to delete account');
+};
+
 export const deleteProgresoMateria = async (id_usuario, id_materia) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/progreso-materia/${id_materia}`, {
     method: 'DELETE',

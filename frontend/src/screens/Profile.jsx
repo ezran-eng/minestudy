@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
-import { updatePrivacidad, updateNotificaciones } from '../services/api';
+import { updatePrivacidad, updateNotificaciones, deleteAccount } from '../services/api';
 import { useUserPerfil, usePrivacidad, useNotificaciones } from '../hooks/useQueryHooks';
 import MateriaList from '../components/MateriaList';
 
@@ -92,6 +92,7 @@ const Profile = () => {
   const [openHelper, setOpenHelper] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
+  const [deleteStep, setDeleteStep] = useState(0); // 0=hidden, 1=warning, 2=deleting
   const [devLog, setDevLog] = useState('');
   const versionTaps = React.useRef(0);
   const versionTimer = React.useRef(null);
@@ -399,6 +400,72 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Eliminar cuenta */}
+            <div style={{ marginTop: '8px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+              {deleteStep === 0 && (
+                <button
+                  onClick={() => setDeleteStep(1)}
+                  style={{
+                    width: '100%', padding: '11px 14px', textAlign: 'center',
+                    background: 'transparent', border: '1px solid #ff4444',
+                    borderRadius: '10px', color: '#ff4444',
+                    fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  Eliminar cuenta
+                </button>
+              )}
+              {deleteStep === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{
+                    background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.3)',
+                    borderRadius: '10px', padding: '12px 14px',
+                    fontSize: '13px', color: 'var(--text)', lineHeight: 1.5,
+                  }}>
+                    <strong style={{ color: '#ff4444' }}>⚠️ Esta acción es irreversible.</strong>
+                    {' '}Se eliminarán tu progreso, flashcards, materias seguidas y todos tus datos. La próxima vez que abras la app comenzarás desde cero.
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setDeleteStep(2);
+                      try {
+                        await deleteAccount(user.id);
+                        localStorage.clear();
+                        window.location.reload();
+                      } catch (e) {
+                        console.error(e);
+                        setDeleteStep(1);
+                      }
+                    }}
+                    style={{
+                      width: '100%', padding: '11px 14px',
+                      background: '#ff4444', border: 'none',
+                      borderRadius: '10px', color: '#fff',
+                      fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    Sí, eliminar mi cuenta
+                  </button>
+                  <button
+                    onClick={() => setDeleteStep(0)}
+                    style={{
+                      width: '100%', padding: '11px 14px',
+                      background: 'var(--s2)', border: '1px solid var(--border)',
+                      borderRadius: '10px', color: 'var(--text2)',
+                      fontSize: '14px', cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+              {deleteStep === 2 && (
+                <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '12px' }}>
+                  Eliminando datos...
+                </div>
+              )}
             </div>
 
           </div>
