@@ -389,6 +389,12 @@ def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)
         print(f"[auth] 403: initData hash invalid. initData[:60]={x_telegram_init_data[:60]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
+@app.get("/debug/sentry-test", dependencies=[Depends(require_admin)])
+def sentry_test():
+    """Temporary endpoint to verify Sentry error capture. Delete after testing."""
+    raise RuntimeError("Sentry test error — si ves esto en Sentry, funciona correctamente.")
+
+
 @app.post("/users", response_model=schemas.User)
 @limiter.limit("30/minute")
 def create_or_update_user(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
