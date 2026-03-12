@@ -37,6 +37,20 @@ const Toggle = ({ label, description, value, onChange, disabled }) => (
   </div>
 );
 
+const DevBtn = ({ label, onClick }) => (
+  <button
+    onClick={onClick}
+    style={{
+      width: '100%', padding: '11px 14px', textAlign: 'left',
+      background: 'var(--s2)', border: '1px solid var(--border)',
+      borderRadius: '10px', color: 'var(--text)', fontSize: '14px',
+      fontWeight: 600, cursor: 'pointer',
+    }}
+  >
+    {label}
+  </button>
+);
+
 const HELPERS = [
   {
     icon: '🃏',
@@ -77,6 +91,32 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [openHelper, setOpenHelper] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDevPanel, setShowDevPanel] = useState(false);
+  const [devLog, setDevLog] = useState('');
+  const versionTaps = React.useRef(0);
+  const versionTimer = React.useRef(null);
+
+  const handleVersionTap = () => {
+    versionTaps.current += 1;
+    clearTimeout(versionTimer.current);
+    if (versionTaps.current >= 5) {
+      versionTaps.current = 0;
+      setShowDevPanel(true);
+      setDevLog('');
+    } else {
+      versionTimer.current = setTimeout(() => { versionTaps.current = 0; }, 1500);
+    }
+  };
+
+  const runDevAction = async (label, fn) => {
+    setDevLog(`⏳ ${label}...`);
+    try {
+      const result = await fn();
+      setDevLog(`✅ ${label}: ${JSON.stringify(result)}`);
+    } catch (e) {
+      setDevLog(`❌ ${label}: ${e.message}`);
+    }
+  };
 
   // Sync React Query data into local state (for optimistic updates)
   React.useEffect(() => { if (privacyData && !privacy) setPrivacy(privacyData); }, [privacyData]);
@@ -196,8 +236,11 @@ const Profile = () => {
           </>
         )}
 
-        {/* Versión */}
-        <div style={{ textAlign: 'center', padding: '32px 16px 32px', color: 'var(--text2)', fontSize: '12px' }}>
+        {/* Versión — tocar 5 veces abre el panel de dev */}
+        <div
+          onClick={handleVersionTap}
+          style={{ textAlign: 'center', padding: '32px 16px 32px', color: 'var(--text2)', fontSize: '12px', userSelect: 'none' }}
+        >
           DaathApp v1.0
         </div>
 
@@ -358,6 +401,67 @@ const Profile = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Dev panel — abrí tocando 5 veces la versión */}
+    {showDevPanel && (
+      <div
+        className="overlay show"
+        id="dev-panel-overlay"
+        onClick={e => { if (e.target.id === 'dev-panel-overlay') setShowDevPanel(false); }}
+      >
+        <div className="sheet" style={{ maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="sheet-handle" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px' }}>
+            <div className="sheet-title" style={{ margin: 0 }}>🛠 Dev tools</div>
+            <button onClick={() => setShowDevPanel(false)} style={{ background: 'none', border: 'none', fontSize: '20px', color: 'var(--text2)', cursor: 'pointer', padding: '4px' }}>✕</button>
+          </div>
+
+          <div style={{ padding: '0 16px 32px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+            <DevBtn label="🔴 Test Sentry error" onClick={() => runDevAction('Sentry error', async () => {
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+              const secret = import.meta.env.VITE_ADMIN_SECRET;
+              const r = await fetch(`${API_URL}/debug/sentry-test`, { headers: { 'X-Admin-Token': secret } });
+              const data = await r.json();
+              if (!r.ok) return { status: r.status, detail: data.detail ?? data };
+              return data;
+            })} />
+
+            <DevBtn label="📡 Health check" onClick={() => runDevAction('Health', async () => {
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+              const r = await fetch(`${API_URL}/usuarios/${user?.id}/stats`);
+              return { status: r.status, ok: r.ok };
+            })} />
+
+            <DevBtn label="🐾 Test mascota: flashcard complete" onClick={() => {
+              window.dispatchEvent(new CustomEvent('mascota:flashcard-complete'));
+              setDevLog('✅ Evento mascota:flashcard-complete disparado');
+            }} />
+
+            <DevBtn label="👁 Mostrar mascota" onClick={() => {
+              window.dispatchEvent(new CustomEvent('mascota:show'));
+              setDevLog('✅ Evento mascota:show disparado');
+              setShowDevPanel(false);
+            }} />
+
+            {devLog && (
+              <div style={{
+                marginTop: '4px', padding: '10px 12px',
+                background: 'var(--s3)', borderRadius: '8px',
+                fontSize: '12px', color: 'var(--text)', fontFamily: 'monospace',
+                wordBreak: 'break-all', lineHeight: 1.5,
+              }}>
+                {devLog}
+              </div>
+            )}
+
+            <div style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center', marginTop: '4px' }}>
+              user id: {user?.id} · {import.meta.env.VITE_API_URL}
+            </div>
           </div>
         </div>
       </div>
