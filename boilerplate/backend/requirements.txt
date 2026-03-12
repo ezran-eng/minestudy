@@ -1,0 +1,17 @@
+alembic
+fastapi==0.134.0
+uvicorn==0.41.0
+SQLAlchemy==2.0.47
+psycopg2-binary
+python-dotenv==1.2.1
+python-telegram-bot==21.9
+pydantic==2.12.5
+pydantic-settings==2.13.1
+sentry-sdk[fastapi]
+sentry-sdk[sqlalchemy]
+slowapi
+httpx==0.28.1
+apscheduler
+pytest
+pytest-asyncio
+httpx[test]
