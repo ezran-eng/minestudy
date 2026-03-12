@@ -29,6 +29,7 @@ import schemas
 from database import engine, get_db
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 # ─── Logging estructurado ─────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ _sentry_dsn = os.environ.get("SENTRY_DSN")
 if _sentry_dsn:
     sentry_sdk.init(
         dsn=_sentry_dsn,
-        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        integrations=[StarletteIntegration(), FastApiIntegration(), SqlalchemyIntegration()],
         traces_sample_rate=0.2,
         send_default_pii=False,
     )
