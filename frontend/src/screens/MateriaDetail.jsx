@@ -311,7 +311,8 @@ const MateriaDetail = () => {
                   state={{ unidad: u, materia, unitProgress: userPct }}
                   key={u.id}
                   className={`unit-item ${statusClass}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  style={{ textDecoration: 'none', color: 'inherit', WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+                  onContextMenu={(e) => e.preventDefault()}
                 >
                   {cardContent}
                 </Link>
