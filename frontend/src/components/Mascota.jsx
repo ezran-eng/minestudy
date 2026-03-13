@@ -8,6 +8,7 @@ import { useMascotaContext } from '../hooks/useMascotaContext';
 const STORAGE_KEY = 'mascota_v1';
 const IDLE_MS = 30_000;
 const BUBBLE_MS = 4_500;
+const BLUR_MS = 3_000;
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -48,6 +49,7 @@ export default function Mascota({ userId }) {
   });
   const [bubble, setBubble] = useState(null);
   const [sleeping, setSleeping] = useState(false);
+  const [isBlurActive, setIsBlurActive] = useState(false);
 
   const { displayed, skip } = useTypewriter(bubble);
 
@@ -59,6 +61,7 @@ export default function Mascota({ userId }) {
   const dragStart = useRef({});
   const idleTimer = useRef(null);
   const bubbleTimer = useRef(null);
+  const blurTimer = useRef(null);
   const greeted = useRef(false);
 
   // Persist pos
@@ -71,8 +74,11 @@ export default function Mascota({ userId }) {
     if (!text) return;
     setSleeping(false);
     clearTimeout(bubbleTimer.current);
+    clearTimeout(blurTimer.current);
     setBubble({ text, id: Date.now() });
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
+    setIsBlurActive(true);
+    blurTimer.current = setTimeout(() => setIsBlurActive(false), BLUR_MS);
   }, []);
 
   const resetIdle = useCallback(() => {
@@ -190,11 +196,28 @@ export default function Mascota({ userId }) {
   const bubbleLeft = pos.x > window.innerWidth * 0.55;
 
   return (
+    <>
+    {/* Blur overlay — behind mascota, cancels on tap */}
+    {isBlurActive && (
+      <div
+        onClick={() => { clearTimeout(blurTimer.current); setIsBlurActive(false); }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          background: 'rgba(0,0,0,0.25)',
+          zIndex: 999,
+          animation: 'mascota-blur-in 0.3s ease-out',
+        }}
+      />
+    )}
+
     <div style={{
       position: 'fixed',
       left: pos.x,
       top: pos.y,
-      zIndex: 1000,
+      zIndex: 1001,
       touchAction: 'none',
       userSelect: 'none',
     }}>
@@ -213,14 +236,14 @@ export default function Mascota({ userId }) {
             border: '1px solid rgba(255, 255, 255, 0.15)',
             borderRadius: '20px',
             boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
-            padding: '8px 12px',
+            padding: '12px 16px',
             fontSize: '13px',
             fontFamily: "'Silkscreen', cursive",
             color: '#fff',
-            maxWidth: '70vw',
-            minWidth: '120px',
+            maxWidth: 'min(280px, 75vw)',
+            minWidth: '180px',
             width: 'fit-content',
-            lineHeight: 1.4,
+            lineHeight: 1.6,
             animation: 'mascota-pop 0.18s ease-out',
             cursor: 'pointer',
             whiteSpace: 'normal',
@@ -256,5 +279,6 @@ export default function Mascota({ userId }) {
         />
       </div>
     </div>
+    </>
   );
 }
