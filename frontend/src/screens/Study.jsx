@@ -212,7 +212,7 @@ const Study = () => {
                         transform: 'scale(1.01)',
                         transition: 'all 0.2s ease',
                         position: 'relative',
-                        zIndex: 2,
+                        zIndex: 1000,
                       }
                     : {
                         filter: 'blur(3px)',
