@@ -50,6 +50,7 @@ export default function Mascota({ userId }) {
   const [bubble, setBubble] = useState(null);
   const [sleeping, setSleeping] = useState(false);
   const [isBlurActive, setIsBlurActive] = useState(false);
+  const [draggingOverMateria, setDraggingOverMateria] = useState(false);
   const [resumenMateriaId, setResumenMateriaId] = useState(null);
   const hoveredMateriaIdRef = useRef(null);
   const hoveredMateriaDataRef = useRef(null);
@@ -207,11 +208,12 @@ export default function Mascota({ userId }) {
           hoveredMateriaDataRef.current = foundData;
           clearTimeout(hoverDebounceRef.current);
           if (foundId) {
+            setDraggingOverMateria(true);
             window.dispatchEvent(new CustomEvent('mascota:hover-materia', { detail: foundData }));
             showBubble(getMascotaResponseRef.current('hover_materia', foundData, 'study'));
-            setIsBlurActive(true);
             hoverDebounceRef.current = setTimeout(() => setResumenMateriaId(foundId), 200);
           } else {
+            setDraggingOverMateria(false);
             window.dispatchEvent(new CustomEvent('mascota:hover-none'));
           }
         }
@@ -225,6 +227,7 @@ export default function Mascota({ userId }) {
             ...(hoveredMateriaDataRef.current ?? {}),
             ...(resumenDataRef.current ?? {}),
           };
+          setDraggingOverMateria(false);
           showBubble(getMascotaResponseRef.current('drop_materia', datos, 'study'));
           window.dispatchEvent(new CustomEvent('mascota:hover-none'));
           hoveredMateriaIdRef.current = null;
@@ -256,8 +259,8 @@ export default function Mascota({ userId }) {
 
   return (
     <>
-    {/* Blur overlay — behind mascota, cancels on tap */}
-    {isBlurActive && (
+    {/* Blur overlay — hidden during materia drag hover (Study.jsx handles the effect) */}
+    {isBlurActive && !draggingOverMateria && (
       <div
         onClick={() => { clearTimeout(blurTimer.current); setIsBlurActive(false); }}
         style={{
