@@ -236,12 +236,12 @@ export default function Mascota({ userId }) {
             border: '1px solid rgba(255, 255, 255, 0.15)',
             borderRadius: '20px',
             boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
-            padding: '12px 16px',
+            padding: '14px 18px',
             fontSize: '13px',
             fontFamily: "'Silkscreen', cursive",
             color: '#fff',
-            maxWidth: 'min(280px, 75vw)',
-            minWidth: '180px',
+            maxWidth: 'min(320px, 80vw)',
+            minWidth: '200px',
             width: 'fit-content',
             lineHeight: 1.6,
             animation: 'mascota-pop 0.18s ease-out',
@@ -268,7 +268,12 @@ export default function Mascota({ userId }) {
           cursor: 'grab',
           opacity: sleeping ? 0.5 : 1,
           transition: 'opacity 0.5s, filter 0.5s',
-          filter: sleeping ? 'grayscale(60%)' : 'none',
+          filter: sleeping
+            ? 'grayscale(60%)'
+            : isBlurActive
+              ? undefined
+              : 'none',
+          animation: isBlurActive && !sleeping ? 'aurora-pulse 1.5s ease-in-out infinite alternate' : 'none',
         }}
       >
         <Lottie
