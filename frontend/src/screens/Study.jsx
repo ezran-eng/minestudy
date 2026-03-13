@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, getVistasMateria } from '../services/api';
 import { useMaterias, useMateriasSeguidas, useInvalidate } from '../hooks/useQueryHooks';
+import { useMascotaUpdate } from '../context/MascotaContext';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -16,6 +17,8 @@ const Study = () => {
   const { data: rawMaterias, isLoading: loadingMaterias } = useMaterias();
   const { data: seguidasRes, isLoading: loadingSeguidas } = useMateriasSeguidas(userId);
   const invalidate = useInvalidate();
+  const updateMascota = useMascotaUpdate();
+  const [hoveredMateriaId, setHoveredMateriaId] = useState(null);
 
   // Fetch progreso + vistas per materia (still parallel but with dedup)
   const [progresoMap, setProgresoMap] = useState({});  // { materiaId: { avg, vistas } }
@@ -54,6 +57,25 @@ const Study = () => {
       });
     });
   }, [rawMaterias, userId]);
+
+  useEffect(() => {
+    if (!updateMascota) return;
+    updateMascota({ pantalla: 'study', datos: {} });
+    window.dispatchEvent(new CustomEvent('mascota:event', {
+      detail: { accion: 'enter', pantalla: 'study', datos: {} },
+    }));
+  }, []); // eslint-disable-line
+
+  useEffect(() => {
+    const onHover = (e) => setHoveredMateriaId(String(e.detail.id));
+    const onNone = () => setHoveredMateriaId(null);
+    window.addEventListener('mascota:hover-materia', onHover);
+    window.addEventListener('mascota:hover-none', onNone);
+    return () => {
+      window.removeEventListener('mascota:hover-materia', onHover);
+      window.removeEventListener('mascota:hover-none', onNone);
+    };
+  }, []);
 
   const seguidasSet = useMemo(
     () => new Set(seguidasRes?.materia_ids || []),
@@ -175,7 +197,30 @@ const Study = () => {
             <div
               key={materia.id}
               className="materia-row"
-              style={{ borderLeftColor: color }}
+              data-materia-id={materia.id}
+              data-materia-nombre={materia.nombre}
+              data-materia-progreso={materia.pct}
+              data-materia-unidades={materia.unidades.length}
+              style={{
+                borderLeftColor: color,
+                ...(hoveredMateriaId
+                  ? String(materia.id) === hoveredMateriaId
+                    ? {
+                        border: '1px solid rgba(255, 200, 50, 0.8)',
+                        borderLeft: '4px solid rgba(255, 200, 50, 0.8)',
+                        boxShadow: '0 0 20px rgba(255, 200, 50, 0.3)',
+                        transform: 'scale(1.01)',
+                        transition: 'all 0.2s ease',
+                        position: 'relative',
+                        zIndex: 2,
+                      }
+                    : {
+                        filter: 'blur(3px)',
+                        opacity: 0.4,
+                        transition: 'all 0.2s ease',
+                      }
+                  : { transition: 'all 0.2s ease' }),
+              }}
               onClick={() => handleMateriaClick(materia)}
             >
               <div className="materia-emoji-big">{materia.emoji}</div>

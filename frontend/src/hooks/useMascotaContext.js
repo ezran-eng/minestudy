@@ -75,6 +75,27 @@ const FRASES = {
     sin_materias:    ['Todavía no seguís ninguna materia', 'Elegí una materia para empezar'],
     muchas_materias: ['Seguís {materias_count} materias, eso es compromiso', 'Bastante en el plato, pero podés'],
   },
+  study: {
+    idle: [
+      'Arrastrame encima de una materia, te cuento todo',
+      'Yo vivo aquí, úsame',
+      '¿Querés saber de qué trata alguna? Arrastrame',
+      'Soy tu guía, llevame donde quieras',
+      'Cada materia tiene sus secretos, yo los sé todos',
+      'No soy decoración, arrastrame 👀',
+    ],
+    hover_materia: [
+      'Esta es {nombre}...',
+      'Tenés {progreso}% de {nombre} completado',
+      '{nombre} tiene {unidades} unidades por explorar',
+    ],
+    drop_materia: [
+      '{nombre} — {temas} temas, {flashcards} tarjetas',
+      'En {nombre} tenés {vencidas} flashcards vencidas 👀',
+      'Llevás {progreso}% en {nombre}, {unidades} unidades en total',
+      '¿Arrancamos con {nombre}? Yo te acompaño',
+    ],
+  },
 };
 
 // ── Resolución de clave por pantalla + acción ─────────────────────────────────
@@ -130,6 +151,12 @@ function resolveKey(accion, pantalla, datos) {
         if ((datos.materias_count ?? 0) >= 3)  return 'perfil.muchas_materias';
         return null;
       }
+      break;
+
+    case 'study':
+      if (accion === 'idle')          return 'study.idle';
+      if (accion === 'hover_materia') return 'study.hover_materia';
+      if (accion === 'drop_materia')  return 'study.drop_materia';
       break;
   }
 

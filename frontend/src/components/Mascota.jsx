@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Lottie from 'lottie-react';
 import { useNavigate } from 'react-router-dom';
 import mascotaData from '../assets/lotties/mascota.json';
-import { useMascotaHint } from '../hooks/useQueryHooks';
+import { useMascotaHint, useMateriaResumen } from '../hooks/useQueryHooks';
 import { useMascotaContext } from '../hooks/useMascotaContext';
 
 const STORAGE_KEY = 'mascota_v1';
@@ -50,11 +50,21 @@ export default function Mascota({ userId }) {
   const [bubble, setBubble] = useState(null);
   const [sleeping, setSleeping] = useState(false);
   const [isBlurActive, setIsBlurActive] = useState(false);
+  const [resumenMateriaId, setResumenMateriaId] = useState(null);
+  const hoveredMateriaIdRef = useRef(null);
+  const hoveredMateriaDataRef = useRef(null);
+  const hoverDebounceRef = useRef(null);
+  const resumenDataRef = useRef(null);
+
+  const { data: resumenData } = useMateriaResumen(resumenMateriaId, userId);
 
   const { displayed, skip } = useTypewriter(bubble);
 
   const posRef = useRef(pos);
   posRef.current = pos;
+
+  // Keep resumenDataRef in sync for use inside drag handlers
+  useEffect(() => { resumenDataRef.current = resumenData ?? null; }, [resumenData]);
 
   const dragging = useRef(false);
   const wasDragging = useRef(false);
@@ -172,10 +182,59 @@ export default function Mascota({ userId }) {
           y: Math.max(0, Math.min(window.innerHeight - 64, dragStart.current.oy + dy)),
         });
       }
+
+      // Hit-test materia cards
+      if (dragging.current) {
+        const cards = document.querySelectorAll('[data-materia-id]');
+        let foundId = null;
+        let foundData = null;
+        for (const card of cards) {
+          const rect = card.getBoundingClientRect();
+          if (ev.clientX >= rect.left && ev.clientX <= rect.right &&
+              ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
+            foundId = card.dataset.materiaId;
+            foundData = {
+              id: card.dataset.materiaId,
+              nombre: card.dataset.materiaNombre,
+              progreso: parseInt(card.dataset.materiaProgreso || '0'),
+              unidades: parseInt(card.dataset.materiaUnidades || '0'),
+            };
+            break;
+          }
+        }
+        if (foundId !== hoveredMateriaIdRef.current) {
+          hoveredMateriaIdRef.current = foundId;
+          hoveredMateriaDataRef.current = foundData;
+          clearTimeout(hoverDebounceRef.current);
+          if (foundId) {
+            window.dispatchEvent(new CustomEvent('mascota:hover-materia', { detail: foundData }));
+            showBubble(getMascotaResponseRef.current('hover_materia', foundData, 'study'));
+            setIsBlurActive(true);
+            hoverDebounceRef.current = setTimeout(() => setResumenMateriaId(foundId), 200);
+          } else {
+            window.dispatchEvent(new CustomEvent('mascota:hover-none'));
+          }
+        }
+      }
     };
 
     const onUp = () => {
-      if (dragging.current) showBubble(getMascotaResponseRef.current('drop'));
+      if (dragging.current) {
+        if (hoveredMateriaIdRef.current) {
+          const datos = {
+            ...(hoveredMateriaDataRef.current ?? {}),
+            ...(resumenDataRef.current ?? {}),
+          };
+          showBubble(getMascotaResponseRef.current('drop_materia', datos, 'study'));
+          window.dispatchEvent(new CustomEvent('mascota:hover-none'));
+          hoveredMateriaIdRef.current = null;
+          hoveredMateriaDataRef.current = null;
+          clearTimeout(hoverDebounceRef.current);
+          setResumenMateriaId(null);
+        } else {
+          showBubble(getMascotaResponseRef.current('drop'));
+        }
+      }
       dragging.current = false;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);

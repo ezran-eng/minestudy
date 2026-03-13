@@ -1039,6 +1039,61 @@ def get_seguidores_materia(id: int, db: Session = Depends(get_db)):
     return {"seguidores": result, "total_seguidores": total}
 
 
+@app.get("/materias/{id}/resumen")
+def get_materia_resumen(id: int, id_usuario: Optional[int] = None, db: Session = Depends(get_db)):
+    from datetime import datetime, timezone
+    materia = db.query(models.Materia).filter(models.Materia.id == id).first()
+    if not materia:
+        raise HTTPException(status_code=404, detail="Materia not found")
+
+    unidad_ids = [u.id for u in materia.unidades]
+    total_unidades = len(unidad_ids)
+
+    total_temas = (
+        db.query(func.count(models.Tema.id))
+        .filter(models.Tema.id_unidad.in_(unidad_ids))
+        .scalar()
+    ) if unidad_ids else 0
+
+    total_flashcards = db.query(func.count(models.Flashcard.id)).filter(models.Flashcard.id_unidad.in_(unidad_ids)).scalar() if unidad_ids else 0
+
+    seguidores = db.query(func.count(models.MateriaSeguida.id_materia)).filter(models.MateriaSeguida.id_materia == id).scalar()
+
+    vencidas = 0
+    progreso = 0
+    if id_usuario and unidad_ids:
+        now = datetime.now(timezone.utc)
+        fc_ids = [r.id for r in db.query(models.Flashcard.id).filter(models.Flashcard.id_unidad.in_(unidad_ids)).all()]
+        if fc_ids:
+            vencidas = (
+                db.query(func.count(models.CardReview.id_flashcard))
+                .filter(
+                    models.CardReview.id_usuario == id_usuario,
+                    models.CardReview.id_flashcard.in_(fc_ids),
+                    models.CardReview.due_date <= now,
+                )
+                .scalar()
+            ) or 0
+
+        progresos = (
+            db.query(models.Progreso.porcentaje)
+            .filter(models.Progreso.id_usuario == id_usuario, models.Progreso.id_materia == id)
+            .all()
+        )
+        if progresos:
+            progreso = round(sum(p.porcentaje for p in progresos) / len(progresos))
+
+    return {
+        "nombre": materia.nombre,
+        "unidades": total_unidades,
+        "temas": total_temas,
+        "flashcards": total_flashcards,
+        "vencidas": vencidas,
+        "progreso": progreso,
+        "seguidores": seguidores,
+    }
+
+
 @app.get("/usuarios/{id}/privacidad", response_model=schemas.PrivacidadOut, dependencies=[Depends(require_init_data)])
 def get_privacidad(id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id_telegram == id).first()

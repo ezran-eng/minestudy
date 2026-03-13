@@ -278,6 +278,15 @@ export const getMascotaHint = async (id_usuario) => {
   return response.json();
 };
 
+export const getMateriaResumen = async (id, id_usuario) => {
+  const url = id_usuario
+    ? `${API_URL}/materias/${id}/resumen?id_usuario=${id_usuario}`
+    : `${API_URL}/materias/${id}/resumen`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to get materia resumen');
+  return response.json();
+};
+
 export const getPrivacidad = async (id_usuario) => {
   const response = await fetch(`${API_URL}/usuarios/${id_usuario}/privacidad`, {
     headers: { ...getInitDataHeader() },

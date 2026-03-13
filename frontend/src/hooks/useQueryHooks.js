@@ -13,6 +13,7 @@ import api, {
   getPrivacidad,
   getNotificaciones,
   getMascotaHint,
+  getMateriaResumen,
 } from '../services/api';
 
 // ── Materias (public, rarely changes) ──────────────────────────────────────
@@ -138,6 +139,15 @@ export const useMascotaHint = (userId) =>
     queryFn: () => getMascotaHint(userId),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // 5 min — not critical to be real-time
+  });
+
+// ── Materia resumen (for mascota hover) ────────────────────────────────────
+export const useMateriaResumen = (materiaId, userId) =>
+  useQuery({
+    queryKey: ['materia-resumen', materiaId, userId],
+    queryFn: () => getMateriaResumen(materiaId, userId),
+    enabled: !!materiaId,
+    staleTime: 2 * 60 * 1000,
   });
 
 // ── Invalidation helpers ───────────────────────────────────────────────────
