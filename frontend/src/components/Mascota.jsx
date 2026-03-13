@@ -13,22 +13,43 @@ const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 };
 
+function useTypewriter(bubble, speed = 40) {
+  const [displayed, setDisplayed] = useState('');
+
+  useEffect(() => {
+    const text = bubble?.text ?? '';
+    if (!text) { setDisplayed(''); return; }
+    setDisplayed('');
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, speed);
+    return () => clearInterval(interval);
+  }, [bubble?.id]); // eslint-disable-line
+
+  const skip = useCallback(() => setDisplayed(bubble?.text ?? ''), [bubble]);
+
+  return { displayed, skip };
+}
+
 export default function Mascota({ userId }) {
   const navigate = useNavigate();
   const { data: hint } = useMascotaHint(userId);
-  const { getMascotaResponse, contexto } = useMascotaContext();
+  const { getMascotaResponse } = useMascotaContext();
 
-  // Keep a stable ref so event handlers always call the latest version
   const getMascotaResponseRef = useRef(getMascotaResponse);
   getMascotaResponseRef.current = getMascotaResponse;
 
-  const [visible, setVisible] = useState(() => loadStorage().visible !== false);
   const [pos, setPos] = useState(() => {
     const p = loadStorage().pos;
     return p || { x: window.innerWidth - 84, y: window.innerHeight - 144 };
   });
   const [bubble, setBubble] = useState(null);
   const [sleeping, setSleeping] = useState(false);
+
+  const { displayed, skip } = useTypewriter(bubble);
 
   const posRef = useRef(pos);
   posRef.current = pos;
@@ -40,11 +61,11 @@ export default function Mascota({ userId }) {
   const bubbleTimer = useRef(null);
   const greeted = useRef(false);
 
-  // Persist visible + pos
+  // Persist pos
   useEffect(() => {
     const prev = loadStorage();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, visible, pos }));
-  }, [visible, pos]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, pos }));
+  }, [pos]);
 
   const showBubble = useCallback((text) => {
     if (!text) return;
@@ -66,7 +87,7 @@ export default function Mascota({ userId }) {
 
   // One-time greeting on first mount
   useEffect(() => {
-    if (!visible || greeted.current) return;
+    if (greeted.current) return;
     greeted.current = true;
     showBubble(getMascotaResponseRef.current('app_open'));
     resetIdle();
@@ -74,63 +95,46 @@ export default function Mascota({ userId }) {
       clearTimeout(idleTimer.current);
       clearTimeout(bubbleTimer.current);
     };
-  }, [visible]); // eslint-disable-line
+  }, []); // eslint-disable-line
 
   // Hint bubble — show flashcard reminder 5s after mount
   const hintDue = hint?.flashcards_due ?? 0;
   useEffect(() => {
-    if (!visible || hintDue <= 0) return;
+    if (hintDue <= 0) return;
     const t = setTimeout(() => {
       showBubble(getMascotaResponseRef.current('enter', { flashcards_vencidas: hintDue }));
     }, 5000);
     return () => clearTimeout(t);
-  }, [hintDue, visible]); // eslint-disable-line
+  }, [hintDue]); // eslint-disable-line
 
   // Return from background
   useEffect(() => {
     const handler = () => {
-      if (document.visibilityState === 'visible' && visible) {
+      if (document.visibilityState === 'visible') {
         showBubble(getMascotaResponseRef.current('return_from_bg'));
         resetIdle();
       }
     };
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
-  }, [visible, showBubble, resetIdle]);
+  }, [showBubble, resetIdle]);
 
   // Flashcard session complete
   useEffect(() => {
-    const handler = () => {
-      if (visible) showBubble(getMascotaResponseRef.current('flashcard_complete'));
-    };
+    const handler = () => showBubble(getMascotaResponseRef.current('flashcard_complete'));
     window.addEventListener('mascota:flashcard-complete', handler);
     return () => window.removeEventListener('mascota:flashcard-complete', handler);
-  }, [visible, showBubble]);
+  }, [showBubble]);
 
-  // Mid-session events from Quiz / Flashcard components
+  // Mid-session events from Quiz / Flashcard / screens
   useEffect(() => {
     const handler = (e) => {
-      if (!visible) return;
       const { accion, datos = {}, pantalla: eventPantalla } = e.detail;
       const msg = getMascotaResponseRef.current(accion, datos, eventPantalla || null);
-      if (msg) {
-        showBubble(msg);
-        resetIdle();
-      }
+      if (msg) { showBubble(msg); resetIdle(); }
     };
     window.addEventListener('mascota:event', handler);
     return () => window.removeEventListener('mascota:event', handler);
-  }, [visible, showBubble, resetIdle]);
-
-  // Show from Profile
-  useEffect(() => {
-    const handler = () => {
-      setVisible(true);
-      showBubble(getMascotaResponseRef.current('app_open'));
-      resetIdle();
-    };
-    window.addEventListener('mascota:show', handler);
-    return () => window.removeEventListener('mascota:show', handler);
   }, [showBubble, resetIdle]);
 
   // Drag with pointer events
@@ -182,8 +186,6 @@ export default function Mascota({ userId }) {
     navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
   }, [hint, navigate, resetIdle]);
 
-  if (!visible) return null;
-
   const bubbleAbove = pos.y > 120;
   const bubbleLeft = pos.x > window.innerWidth * 0.55;
 
@@ -200,6 +202,7 @@ export default function Mascota({ userId }) {
       {bubble && (
         <div
           key={bubble.id}
+          onClick={skip}
           style={{
             position: 'absolute',
             [bubbleAbove ? 'bottom' : 'top']: '72px',
@@ -212,49 +215,25 @@ export default function Mascota({ userId }) {
             boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
             padding: '8px 12px',
             fontSize: '13px',
+            fontFamily: "'Silkscreen', cursive",
             color: '#fff',
-            maxWidth: '180px',
+            maxWidth: '70vw',
+            minWidth: '120px',
+            width: 'fit-content',
             lineHeight: 1.4,
             animation: 'mascota-pop 0.18s ease-out',
-            pointerEvents: 'none',
+            cursor: 'pointer',
             whiteSpace: 'normal',
           }}
         >
-          {bubble.text}
-          {hint && hint.flashcards_due > 0 && bubble.text.includes('flashcard') && (
+          {displayed}
+          {hint && hint.flashcards_due > 0 && bubble.text.includes('flashcard') && displayed === bubble.text && (
             <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', fontWeight: 700 }}>
               Tocame →
             </div>
           )}
         </div>
       )}
-
-      {/* X button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); setVisible(false); }}
-        style={{
-          position: 'absolute',
-          top: '-8px',
-          right: '-8px',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          color: 'var(--text2)',
-          fontSize: '12px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1,
-          padding: 0,
-          lineHeight: 1,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-        }}
-      >
-        ×
-      </button>
 
       {/* Lottie mascot */}
       <div
