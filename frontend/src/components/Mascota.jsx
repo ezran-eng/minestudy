@@ -227,13 +227,14 @@ export default function Mascota({ userId }) {
             ...(hoveredMateriaDataRef.current ?? {}),
             ...(resumenDataRef.current ?? {}),
           };
-          setDraggingOverMateria(false);
           showBubble(getMascotaResponseRef.current('drop_materia', datos, 'study'));
           window.dispatchEvent(new CustomEvent('mascota:hover-none'));
           hoveredMateriaIdRef.current = null;
           hoveredMateriaDataRef.current = null;
           clearTimeout(hoverDebounceRef.current);
           setResumenMateriaId(null);
+          // Keep overlay suppressed until the drop bubble disappears
+          setTimeout(() => setDraggingOverMateria(false), BUBBLE_MS);
         } else {
           showBubble(getMascotaResponseRef.current('drop'));
         }
