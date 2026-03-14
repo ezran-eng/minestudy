@@ -401,6 +401,11 @@ export default function Mascota({ userId }) {
     return () => cancelAnimationFrame(raf);
   }, [activa]); // eslint-disable-line
 
+  // Position icon at first visible frame on mount (ip=60; frame 0 is blank)
+  const onIconDOMLoaded = useCallback(() => {
+    lottieIconRef.current?.goToAndStop(60, true);
+  }, []);
+
   const onIconTap = useCallback(() => {
     if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
@@ -449,6 +454,7 @@ export default function Mascota({ userId }) {
           animationData={tamagadgetIconData}
           loop={false}
           autoplay={false}
+          onDOMLoaded={onIconDOMLoaded}
           onComplete={onIconComplete}
           style={{ width: '100%', height: '100%' }}
         />
