@@ -85,8 +85,9 @@ export default function Mascota({ userId }) {
   const [lottieKey, setLottieKey] = useState(0);
 
   // Icon refs — declared before any callback that references them
-  const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
+  const iconModeRef = useRef('idle'); // 'idle' | 'sleeping' | 'waking'
   const lottieIconRef = useRef(null);
+  const [iconKey, setIconKey] = useState(0); // forces clean Lottie remount for icon
 
   const hoveredMateriaIdRef = useRef(null);
   const hoveredMateriaDataRef = useRef(null);
@@ -388,43 +389,43 @@ export default function Mascota({ userId }) {
     // useEffect [activa] will fire and play intro animation
   }, []);
 
-  // Icon animation — single source of truth: useEffect fires every time icon mounts
-  // (activa becomes false). A single RAF is enough since lottie loads local JSON sync.
-  useEffect(() => {
-    if (activa) return;
-    const raf = requestAnimationFrame(() => {
-      const lottie = lottieIconRef.current;
-      if (!lottie) return;
-      lottie.setSpeed(2.5);
-      if (iconModeRef.current === 'sleeping') {
-        lottie.playSegments([0, 178], true); // [0, op-ip-1] = all visible frames; onComplete always fires
-      } else {
-        lottie.goToAndStop(0, true); // just position, don't play
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [activa]); // eslint-disable-line
+  // --- Icon logic ---
+  // Strategy: use autoplay prop + key remount instead of imperative playSegments.
+  // This avoids all the lottie-web edge cases with playSegments/goToAndStop/onComplete
+  // in Telegram WebView. The icon has 3 visual states:
+  //   'idle'     → static at frame 0 (autoplay=false, no animation)
+  //   'sleeping' → plays once automatically (autoplay=true, set by outro completing)
+  //   'waking'   → plays once automatically (autoplay=true, set by user tap)
+  // After sleeping/waking animation completes, onIconComplete handles transition.
 
-  // Position icon at first visible frame on mount (ip=60; frame 0 is blank)
+  // Whether the icon Lottie should autoplay (true for sleeping & waking animations)
+  const iconShouldAutoplay = iconModeRef.current === 'sleeping' || iconModeRef.current === 'waking';
+
   const onIconDOMLoaded = useCallback(() => {
-    lottieIconRef.current?.goToAndStop(0, true);
+    const lottie = lottieIconRef.current;
+    if (!lottie) return;
+    lottie.setSpeed(2.5);
+    // If idle, freeze at first visible frame
+    if (iconModeRef.current === 'idle') {
+      lottie.goToAndStop(0, true);
+    }
   }, []);
 
   const onIconTap = useCallback(() => {
-    if (iconModeRef.current !== 'idle') return; // block during any animation (sleeping or waking)
+    if (iconModeRef.current !== 'idle') return;
     iconModeRef.current = 'waking';
-    lottieIconRef.current?.setSpeed(2.5);
-    lottieIconRef.current?.playSegments([0, 178], true);
+    setIconKey(k => k + 1); // remount Lottie with autoplay=true → plays waking animation
   }, []);
 
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
+      iconModeRef.current = 'idle';
       activar();
     } else {
-      // lottie stops rendering after playSegments completes (loop=false) — must re-seek to keep icon visible
-      lottieIconRef.current?.goToAndStop(0, true);
+      // sleeping animation finished — icon should stay visible at frame 0
+      iconModeRef.current = 'idle';
+      setIconKey(k => k + 1); // remount as idle (autoplay=false) → frozen at frame 0
     }
-    iconModeRef.current = 'idle';
   }, [activar]);
 
   // Bubble position uses posRef — current even when pos state is stale during drag
@@ -454,10 +455,11 @@ export default function Mascota({ userId }) {
         }}
       >
         <Lottie
+          key={iconKey}
           lottieRef={lottieIconRef}
           animationData={tamagadgetIconData}
           loop={false}
-          autoplay={false}
+          autoplay={iconShouldAutoplay}
           onDOMLoaded={onIconDOMLoaded}
           onComplete={onIconComplete}
           style={{ width: '100%', height: '100%' }}
