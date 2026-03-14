@@ -82,8 +82,8 @@ export default function Mascota({ userId }) {
   const idleDirectionRef = useRef(1); // ping-pong direction: 1 = forward, -1 = backward
   const isDraggingRef = useRef(false); // blocks ping-pong onComplete while dragging
 
-  // Declarative lottie config — key forces remount when switching segments
-  const [lottieProps, setLottieProps] = useState({ k: 0, segment: SEG_FULL, loop: false });
+  // Key-only counter — forces Lottie remount; mode read from mascotaModeRef in useEffect
+  const [lottieKey, setLottieKey] = useState(0);
 
   // Icon refs — declared before any callback that references them
   const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
@@ -126,18 +126,23 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     if (!activa) return;
     mascotaModeRef.current = 'intro';
-    setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
+    setLottieKey(k => k + 1);
   }, [activa]);
 
-  // After each key change: if idle-loop, set speed + start ping-pong segment
+  // Single effect handles all playback — autoplay=false so this is the only trigger
   useEffect(() => {
-    if (mascotaModeRef.current !== 'idle-loop') return;
     const raf = requestAnimationFrame(() => {
-      mascotaLottieRef.current?.setSpeed(0.22);
-      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
+      if (mascotaModeRef.current === 'idle-loop') {
+        mascotaLottieRef.current?.setSpeed(0.22);
+        mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
+      } else {
+        // intro or outro
+        mascotaLottieRef.current?.setSpeed(1);
+        mascotaLottieRef.current?.playSegments(SEG_FULL, true);
+      }
     });
     return () => cancelAnimationFrame(raf);
-  }, [lottieProps.k]); // eslint-disable-line
+  }, [lottieKey]); // eslint-disable-line
 
   // Pause/resume lottie when sleeping state changes
   useEffect(() => {
@@ -160,8 +165,7 @@ export default function Mascota({ userId }) {
     if (mascotaModeRef.current === 'intro') {
       mascotaModeRef.current = 'idle-loop';
       idleDirectionRef.current = 1;
-      // Use SEG_FULL so goToAndStop(FRAME_GRAB) works — full frame range available
-      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
+      setLottieKey(k => k + 1);
       return;
     }
     if (mascotaModeRef.current === 'idle-loop' && !isDraggingRef.current) {
@@ -342,9 +346,9 @@ export default function Mascota({ userId }) {
           showBubble(getMascotaResponseRef.current('drop'));
         }
       }
-      // Resume idle ping-pong — use playSegments to reset active segment
+      // Resume idle ping-pong only if we actually dragged
       isDraggingRef.current = false;
-      if (mascotaModeRef.current === 'idle-loop') {
+      if (dragging.current && mascotaModeRef.current === 'idle-loop') {
         idleDirectionRef.current = 1;
         mascotaLottieRef.current?.setDirection(1);
         mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
@@ -368,7 +372,7 @@ export default function Mascota({ userId }) {
     setMenuOpen(false);
     // Play full animation, then hide in onMascotaComplete
     mascotaModeRef.current = 'outro';
-    setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
+    setLottieKey(k => k + 1);
   }, []);
 
   const activar = useCallback(() => {
@@ -566,6 +570,7 @@ export default function Mascota({ userId }) {
           width: 64,
           height: 64,
           cursor: 'grab',
+          touchAction: 'none',
           opacity: sleeping ? 0.5 : 1,
           transition: 'opacity 0.5s, filter 0.5s',
           filter: sleeping
@@ -577,12 +582,12 @@ export default function Mascota({ userId }) {
         }}
       >
         <Lottie
-          key={lottieProps.k}
+          key={lottieKey}
           lottieRef={mascotaLottieRef}
           animationData={mascotaData}
-          initialSegment={lottieProps.segment}
-          loop={lottieProps.loop}
-          autoplay={true}
+          initialSegment={SEG_FULL}
+          loop={false}
+          autoplay={false}
           onComplete={onMascotaComplete}
           style={{ width: '100%', height: '100%' }}
         />
