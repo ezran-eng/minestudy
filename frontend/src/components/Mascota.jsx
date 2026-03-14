@@ -20,7 +20,7 @@ const loadStorage = () => {
 };
 
 const saveStorage = (patch) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadStorage(), ...patch }));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadStorage(), ...patch })); } catch { /* ignore */ }
 };
 
 function useTypewriter(bubble, speed = 40) {
@@ -387,49 +387,33 @@ export default function Mascota({ userId }) {
     // useEffect [activa] will fire and play intro animation
   }, []);
 
-  // Icon — fires when icon Lottie mounts
-  const onIconDOMLoaded = useCallback(() => {
-    lottieIconRef.current?.setSpeed(2.5);
-    // Always start at ip=60 (first visible frame) — frame 0 is blank for this animation
-    lottieIconRef.current?.goToAndStop(60, true);
-    if (iconModeRef.current === 'sleeping') {
-      lottieIconRef.current?.play();
-    }
-  }, []);
-
-  // Backup trigger: if onIconDOMLoaded fires before iconModeRef is set to 'sleeping'
-  // (race condition), this effect ensures the sleeping animation plays anyway.
-  // Uses a second RAF so onIconDOMLoaded has priority; we only play if still at frame 60.
+  // Icon animation — single source of truth: useEffect fires every time icon mounts
+  // (activa becomes false). A single RAF is enough since lottie loads local JSON sync.
   useEffect(() => {
     if (activa) return;
-    let raf1, raf2;
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const lottie = lottieIconRef.current;
-        if (!lottie || iconModeRef.current !== 'sleeping') return;
-        // If already past frame 61 the sleeping animation started normally — skip
-        if ((lottie.animationItem?.currentFrame ?? 0) > 61) return;
-        lottie.setSpeed(2.5);
-        lottie.goToAndStop(60, true);
-        lottie.play();
-      });
+    const raf = requestAnimationFrame(() => {
+      const lottie = lottieIconRef.current;
+      if (!lottie) return;
+      lottie.setSpeed(2.5);
+      lottie.goToAndStop(60, true); // ip=60 is first visible frame; frame 0 is blank
+      if (iconModeRef.current === 'sleeping') lottie.play();
     });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+    return () => cancelAnimationFrame(raf);
   }, [activa]); // eslint-disable-line
 
   const onIconTap = useCallback(() => {
     if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
-    lottieIconRef.current?.goToAndStop(60, true); // start at first visible frame (not 0)
+    lottieIconRef.current?.setSpeed(2.5);
+    lottieIconRef.current?.goToAndStop(60, true);
     lottieIconRef.current?.play();
   }, []);
 
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
       activar();
-    } else if (iconModeRef.current === 'sleeping') {
-      // Reset to first visible frame so icon stays visible after sleeping animation
-      lottieIconRef.current?.goToAndStop(60, true);
+    } else {
+      lottieIconRef.current?.goToAndStop(60, true); // keep icon visible after sleeping anim
     }
     iconModeRef.current = 'idle';
   }, [activar]);
@@ -465,7 +449,6 @@ export default function Mascota({ userId }) {
           animationData={tamagadgetIconData}
           loop={false}
           autoplay={false}
-          onDOMLoaded={onIconDOMLoaded}
           onComplete={onIconComplete}
           style={{ width: '100%', height: '100%' }}
         />
