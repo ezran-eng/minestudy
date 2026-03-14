@@ -11,9 +11,9 @@ const BUBBLE_MS = 4_500;
 const BLUR_MS = 3_000;
 
 // Adjust these if segments don't align perfectly with the animation
-const SEG_FULL = [60, 240];  // sit → head → wave (full)
-const SEG_IDLE = [67, 89];   // head-only loop (no wave) — first clean bob cycle
-const FRAME_GRAB = 167;      // frame where arm is raised — "grabbed by the hand"
+const SEG_FULL  = [60, 240]; // sit → head → wave (full)
+const SEG_IDLE  = [67, 89];  // head tilt 0°→12.4° — ping-pong for breathing
+const SEG_GRAB  = [130, 131]; // arm at -117.8° (fully raised) — 1-frame freeze
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -165,11 +165,12 @@ export default function Mascota({ userId }) {
       return;
     }
     if (mascotaModeRef.current === 'idle-loop' && !isDraggingRef.current) {
-      // Flip direction and replay idle segment — creates smooth ping-pong
+      // Ping-pong: flip direction, always re-specify segment explicitly
       idleDirectionRef.current *= -1;
       mascotaLottieRef.current?.setDirection(idleDirectionRef.current);
       mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
     }
+    // SEG_GRAB fires complete after 1 frame — ignore it (isDraggingRef guards above)
   }, []); // eslint-disable-line
 
   // One-time greeting on first mount
@@ -263,8 +264,10 @@ export default function Mascota({ userId }) {
         setMenuOpen(false);
         showBubble(getMascotaResponseRef.current('drag'));
         // Freeze at raised-arm frame — held by the hand during drag
+        // playSegments([130,131]) escapes the current active segment, then pause()
         if (mascotaModeRef.current === 'idle-loop') {
-          mascotaLottieRef.current?.goToAndStop(FRAME_GRAB, true);
+          mascotaLottieRef.current?.playSegments(SEG_GRAB, true);
+          mascotaLottieRef.current?.pause();
         }
       }
 
@@ -339,13 +342,12 @@ export default function Mascota({ userId }) {
           showBubble(getMascotaResponseRef.current('drop'));
         }
       }
-      // Resume idle ping-pong from segment start
+      // Resume idle ping-pong — use playSegments to reset active segment
       isDraggingRef.current = false;
       if (mascotaModeRef.current === 'idle-loop') {
         idleDirectionRef.current = 1;
         mascotaLottieRef.current?.setDirection(1);
-        mascotaLottieRef.current?.goToAndStop(SEG_IDLE[0], true);
-        mascotaLottieRef.current?.play();
+        mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
       }
       dragging.current = false;
       document.removeEventListener('pointermove', onMove);
