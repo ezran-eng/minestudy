@@ -126,6 +126,15 @@ export default function Mascota({ userId }) {
     setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
   }, [activa]);
 
+  // After each key change: apply slow speed if we're in idle-loop (breathing effect)
+  useEffect(() => {
+    if (!lottieProps.loop) return;
+    const raf = requestAnimationFrame(() => {
+      mascotaLottieRef.current?.setSpeed(0.25);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [lottieProps.k]); // eslint-disable-line
+
   // Pause/resume lottie when sleeping state changes
   useEffect(() => {
     if (sleeping) {
