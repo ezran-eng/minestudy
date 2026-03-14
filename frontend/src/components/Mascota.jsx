@@ -390,21 +390,46 @@ export default function Mascota({ userId }) {
   // Icon — fires when icon Lottie mounts
   const onIconDOMLoaded = useCallback(() => {
     lottieIconRef.current?.setSpeed(2.5);
+    // Always start at ip=60 (first visible frame) — frame 0 is blank for this animation
+    lottieIconRef.current?.goToAndStop(60, true);
     if (iconModeRef.current === 'sleeping') {
       lottieIconRef.current?.play();
     }
   }, []);
 
+  // Backup trigger: if onIconDOMLoaded fires before iconModeRef is set to 'sleeping'
+  // (race condition), this effect ensures the sleeping animation plays anyway.
+  // Uses a second RAF so onIconDOMLoaded has priority; we only play if still at frame 60.
+  useEffect(() => {
+    if (activa) return;
+    let raf1, raf2;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const lottie = lottieIconRef.current;
+        if (!lottie || iconModeRef.current !== 'sleeping') return;
+        // If already past frame 61 the sleeping animation started normally — skip
+        if ((lottie.animationItem?.currentFrame ?? 0) > 61) return;
+        lottie.setSpeed(2.5);
+        lottie.goToAndStop(60, true);
+        lottie.play();
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [activa]); // eslint-disable-line
+
   const onIconTap = useCallback(() => {
     if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
-    lottieIconRef.current?.goToAndStop(0, true);
+    lottieIconRef.current?.goToAndStop(60, true); // start at first visible frame (not 0)
     lottieIconRef.current?.play();
   }, []);
 
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
       activar();
+    } else if (iconModeRef.current === 'sleeping') {
+      // Reset to first visible frame so icon stays visible after sleeping animation
+      lottieIconRef.current?.goToAndStop(60, true);
     }
     iconModeRef.current = 'idle';
   }, [activar]);
