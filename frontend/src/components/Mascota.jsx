@@ -169,12 +169,12 @@ export default function Mascota({ userId }) {
       return;
     }
     if (mascotaModeRef.current === 'idle-loop' && !isDraggingRef.current) {
-      // Ping-pong: flip direction, always re-specify segment explicitly
+      // Ping-pong: flip direction only — DO NOT reset segment with playSegments(forceFlag)
+      // playhead is already at the end of the segment, play() continues from there
       idleDirectionRef.current *= -1;
       mascotaLottieRef.current?.setDirection(idleDirectionRef.current);
-      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
+      mascotaLottieRef.current?.play();
     }
-    // SEG_GRAB fires complete after 1 frame — ignore it (isDraggingRef guards above)
   }, []); // eslint-disable-line
 
   // One-time greeting on first mount
