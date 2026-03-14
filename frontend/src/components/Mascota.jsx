@@ -281,9 +281,14 @@ export default function Mascota({ userId }) {
     setMenuOpen(prev => !prev);
   }, [resetIdle]);
 
+  const [iconAutoplay, setIconAutoplay] = useState(false);
+  const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
+
   const apagar = useCallback(() => {
     setMenuOpen(false);
     saveStorage({ mascota_activa: false });
+    iconModeRef.current = 'sleeping';
+    setIconAutoplay(true);
     setActiva(false);
   }, []);
 
@@ -293,9 +298,22 @@ export default function Mascota({ userId }) {
   }, []);
 
   const lottieIconRef = useRef(null);
+
   const onIconTap = useCallback(() => {
+    if (iconModeRef.current === 'sleeping') return; // still animating
+    iconModeRef.current = 'waking';
     lottieIconRef.current?.play();
   }, []);
+
+  const onIconComplete = useCallback(() => {
+    if (iconModeRef.current === 'waking') {
+      activar();
+    } else {
+      // sleeping animation done — stay on last frame, stop
+      setIconAutoplay(false);
+    }
+    iconModeRef.current = 'idle';
+  }, [activar]);
 
   // Bubble position uses posRef — current even when pos state is stale during drag
   const bubbleAbove = posRef.current.y > 150;
@@ -327,8 +345,8 @@ export default function Mascota({ userId }) {
           lottieRef={lottieIconRef}
           animationData={tamagadgetIconData}
           loop={false}
-          autoplay={false}
-          onComplete={activar}
+          autoplay={iconAutoplay}
+          onComplete={onIconComplete}
           style={{ width: '100%', height: '100%' }}
         />
       </div>
