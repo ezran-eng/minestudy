@@ -12,7 +12,7 @@ const BLUR_MS = 3_000;
 
 // Adjust these if segments don't align perfectly with the animation
 const SEG_FULL = [60, 240]; // sit → head → wave (full)
-const SEG_IDLE = [90, 130]; // head-only loop (no wave)
+const SEG_IDLE = [67, 89]; // head-only loop (no wave) — first clean bob cycle
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
