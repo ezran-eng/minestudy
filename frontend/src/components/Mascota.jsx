@@ -420,9 +420,10 @@ export default function Mascota({ userId }) {
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
       activar();
+    } else {
+      // lottie stops rendering after playSegments completes (loop=false) — must re-seek to keep icon visible
+      lottieIconRef.current?.goToAndStop(0, true);
     }
-    // else: animation ended at frame 178 (visually = frame 0); no need to reposition
-    // goToAndStop right after onComplete can flash a blank frame — avoid it
     iconModeRef.current = 'idle';
   }, [activar]);
 
