@@ -292,6 +292,11 @@ export default function Mascota({ userId }) {
     setActiva(true);
   }, []);
 
+  const lottieIconRef = useRef(null);
+  const onIconTap = useCallback(() => {
+    lottieIconRef.current?.play();
+  }, []);
+
   // Bubble position uses posRef — current even when pos state is stale during drag
   const bubbleAbove = posRef.current.y > 150;
   const bubbleLeft = posRef.current.x > window.innerWidth / 2;
@@ -304,7 +309,7 @@ export default function Mascota({ userId }) {
   if (!activa) {
     return (
       <div
-        onClick={activar}
+        onClick={onIconTap}
         style={{
           position: 'fixed',
           right: 16,
@@ -319,9 +324,11 @@ export default function Mascota({ userId }) {
         }}
       >
         <Lottie
+          lottieRef={lottieIconRef}
           animationData={tamagadgetIconData}
-          loop
-          autoplay
+          loop={false}
+          autoplay={false}
+          onComplete={activar}
           style={{ width: '100%', height: '100%' }}
         />
       </div>
