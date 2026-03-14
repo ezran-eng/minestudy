@@ -129,11 +129,12 @@ export default function Mascota({ userId }) {
     setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
   }, [activa]);
 
-  // After each key change: apply slow speed for idle-loop (breathing effect)
+  // After each key change: if idle-loop, set speed + start ping-pong segment
   useEffect(() => {
     if (mascotaModeRef.current !== 'idle-loop') return;
     const raf = requestAnimationFrame(() => {
       mascotaLottieRef.current?.setSpeed(0.22);
+      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
     });
     return () => cancelAnimationFrame(raf);
   }, [lottieProps.k]); // eslint-disable-line
@@ -159,14 +160,15 @@ export default function Mascota({ userId }) {
     if (mascotaModeRef.current === 'intro') {
       mascotaModeRef.current = 'idle-loop';
       idleDirectionRef.current = 1;
-      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_IDLE, loop: false }));
+      // Use SEG_FULL so goToAndStop(FRAME_GRAB) works — full frame range available
+      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
       return;
     }
     if (mascotaModeRef.current === 'idle-loop' && !isDraggingRef.current) {
-      // Flip direction and replay the same segment — creates smooth ping-pong
+      // Flip direction and replay idle segment — creates smooth ping-pong
       idleDirectionRef.current *= -1;
       mascotaLottieRef.current?.setDirection(idleDirectionRef.current);
-      mascotaLottieRef.current?.play();
+      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
     }
   }, []); // eslint-disable-line
 
