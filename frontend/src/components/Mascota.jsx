@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Lottie from 'lottie-react';
 import mascotaData from '../assets/lotties/mascota.json';
 import tamagadgetIconData from '../assets/lotties/tamagadgetIcon.json';
@@ -152,6 +152,12 @@ export default function Mascota({ userId }) {
       mascotaLottieRef.current?.play();
     }
   }, [sleeping]);
+
+  // Sync transform after pos commits — eliminates the 1-frame window where
+  // mascota appears at the old position (transform cleared, new left/top not painted yet)
+  useLayoutEffect(() => {
+    if (mascotaRef.current) mascotaRef.current.style.transform = '';
+  }, [pos]);
 
   // When intro or outro finishes: switch to idle loop or execute apagar
   // During idle-loop: ping-pong by flipping direction each complete
@@ -325,8 +331,8 @@ export default function Mascota({ userId }) {
     const onUp = () => {
       if (dragging.current) {
         // Single state update + single localStorage write at drop
+        // transform is cleared synchronously by useLayoutEffect([pos]) after React commits
         const finalPos = posRef.current;
-        mascotaRef.current.style.transform = 'none';
         setPos(finalPos);
         saveStorage({ pos: finalPos });
 
