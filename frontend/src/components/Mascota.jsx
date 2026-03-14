@@ -66,6 +66,7 @@ export default function Mascota({ userId }) {
   posRef.current = pos;
 
   const mascotaRef = useRef(null); // DOM ref for zero-rerender drag via CSS transform
+  const bubbleRef = useRef(null);  // DOM ref for zero-rerender bubble repositioning
 
   const hoveredMateriaIdRef = useRef(null);
   const hoveredMateriaDataRef = useRef(null);
@@ -197,6 +198,16 @@ export default function Mascota({ userId }) {
       mascotaRef.current.style.transform = `translate(${newX - dragStart.current.ox}px, ${newY - dragStart.current.oy}px)`;
       posRef.current = { x: newX, y: newY };
 
+      // Reposition bubble via DOM — no re-render, stays within screen midpoints
+      if (bubbleRef.current) {
+        const above = newY > 150;
+        const toLeft = newX > window.innerWidth / 2;
+        bubbleRef.current.style.bottom = above ? '72px' : '';
+        bubbleRef.current.style.top    = above ? '' : '72px';
+        bubbleRef.current.style.right  = toLeft ? '0' : '';
+        bubbleRef.current.style.left   = toLeft ? '' : '0';
+      }
+
       // Hit-test against cached rects
       let foundId = null;
       let foundData = null;
@@ -302,6 +313,7 @@ export default function Mascota({ userId }) {
       {/* Speech bubble */}
       {bubble && (
         <div
+          ref={bubbleRef}
           key={bubble.id}
           onClick={skip}
           style={{
