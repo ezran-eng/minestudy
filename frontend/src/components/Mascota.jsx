@@ -281,14 +281,12 @@ export default function Mascota({ userId }) {
     setMenuOpen(prev => !prev);
   }, [resetIdle]);
 
-  const [iconAutoplay, setIconAutoplay] = useState(false);
   const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
 
   const apagar = useCallback(() => {
     setMenuOpen(false);
     saveStorage({ mascota_activa: false });
     iconModeRef.current = 'sleeping';
-    setIconAutoplay(true);
     setActiva(false);
   }, []);
 
@@ -299,19 +297,26 @@ export default function Mascota({ userId }) {
 
   const lottieIconRef = useRef(null);
 
+  // Fires when the icon Lottie mounts — play immediately if we just apagamos
+  const onIconDOMLoaded = useCallback(() => {
+    lottieIconRef.current?.setSpeed(2.5);
+    if (iconModeRef.current === 'sleeping') {
+      lottieIconRef.current?.play();
+    }
+  }, []);
+
   const onIconTap = useCallback(() => {
     if (iconModeRef.current === 'sleeping') return; // still animating
     iconModeRef.current = 'waking';
+    lottieIconRef.current?.goToAndStop(0, true); // reset to frame 0 before playing
     lottieIconRef.current?.play();
   }, []);
 
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
       activar();
-    } else {
-      // sleeping animation done — stay on last frame, stop
-      setIconAutoplay(false);
     }
+    // sleeping: stay on last frame — nothing to do
     iconModeRef.current = 'idle';
   }, [activar]);
 
@@ -345,7 +350,8 @@ export default function Mascota({ userId }) {
           lottieRef={lottieIconRef}
           animationData={tamagadgetIconData}
           loop={false}
-          autoplay={iconAutoplay}
+          autoplay={false}
+          onDOMLoaded={onIconDOMLoaded}
           onComplete={onIconComplete}
           style={{ width: '100%', height: '100%' }}
         />
