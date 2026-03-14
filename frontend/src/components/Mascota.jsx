@@ -79,6 +79,9 @@ export default function Mascota({ userId }) {
   // 'intro' | 'idle-loop' | 'outro'
   const mascotaModeRef = useRef('intro');
 
+  // Declarative lottie config — key forces remount when switching segments
+  const [lottieProps, setLottieProps] = useState({ k: 0, segment: SEG_FULL, loop: false });
+
   // Icon refs — declared before any callback that references them
   const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
   const lottieIconRef = useRef(null);
@@ -116,16 +119,11 @@ export default function Mascota({ userId }) {
     }, IDLE_MS);
   }, []);
 
-  // Start intro animation after mascota mounts (activa=true)
-  // RAF ensures mascotaLottieRef.current is populated after React commits
+  // Reset to intro animation whenever mascota (re)activates
   useEffect(() => {
     if (!activa) return;
     mascotaModeRef.current = 'intro';
-    const raf = requestAnimationFrame(() => {
-      mascotaLottieRef.current?.setLoop(false);
-      mascotaLottieRef.current?.playSegments(SEG_FULL, true);
-    });
-    return () => cancelAnimationFrame(raf);
+    setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
   }, [activa]);
 
   // Pause/resume lottie when sleeping state changes
@@ -147,8 +145,7 @@ export default function Mascota({ userId }) {
     }
     if (mascotaModeRef.current === 'intro') {
       mascotaModeRef.current = 'idle-loop';
-      mascotaLottieRef.current?.setLoop(true);
-      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
+      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_IDLE, loop: true }));
     }
   }, []); // eslint-disable-line
 
@@ -332,8 +329,7 @@ export default function Mascota({ userId }) {
     setMenuOpen(false);
     // Play full animation, then hide in onMascotaComplete
     mascotaModeRef.current = 'outro';
-    mascotaLottieRef.current?.setLoop(false);
-    mascotaLottieRef.current?.playSegments(SEG_FULL, true);
+    setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
   }, []);
 
   const activar = useCallback(() => {
@@ -542,10 +538,12 @@ export default function Mascota({ userId }) {
         }}
       >
         <Lottie
+          key={lottieProps.k}
           lottieRef={mascotaLottieRef}
           animationData={mascotaData}
-          loop={false}
-          autoplay={false}
+          initialSegment={lottieProps.segment}
+          loop={lottieProps.loop}
+          autoplay={true}
           onComplete={onMascotaComplete}
           style={{ width: '100%', height: '100%' }}
         />
