@@ -80,6 +80,7 @@ export default function Mascota({ userId }) {
   // 'intro' | 'idle-loop' | 'outro'
   const mascotaModeRef = useRef('intro');
   const idleDirectionRef = useRef(1); // ping-pong direction: 1 = forward, -1 = backward
+  const isDraggingRef = useRef(false); // blocks ping-pong onComplete while dragging
 
   // Declarative lottie config — key forces remount when switching segments
   const [lottieProps, setLottieProps] = useState({ k: 0, segment: SEG_FULL, loop: false });
@@ -161,7 +162,7 @@ export default function Mascota({ userId }) {
       setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_IDLE, loop: false }));
       return;
     }
-    if (mascotaModeRef.current === 'idle-loop') {
+    if (mascotaModeRef.current === 'idle-loop' && !isDraggingRef.current) {
       // Flip direction and replay the same segment — creates smooth ping-pong
       idleDirectionRef.current *= -1;
       mascotaLottieRef.current?.setDirection(idleDirectionRef.current);
@@ -235,11 +236,7 @@ export default function Mascota({ userId }) {
     };
     showBubble(getMascotaResponseRef.current('grab'));
     resetIdle();
-
-    // Freeze animation at raised-arm frame — "grabbed by the hand"
-    if (mascotaModeRef.current === 'idle-loop') {
-      mascotaLottieRef.current?.goToAndStop(FRAME_GRAB, true);
-    }
+    isDraggingRef.current = false;
 
     // Cache card rects once at drag start — no querySelectorAll/getBoundingClientRect per frame
     const cardCache = [];
@@ -260,8 +257,13 @@ export default function Mascota({ userId }) {
       if (!dragging.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         dragging.current = true;
         wasDragging.current = true;
+        isDraggingRef.current = true;
         setMenuOpen(false);
         showBubble(getMascotaResponseRef.current('drag'));
+        // Freeze at raised-arm frame — held by the hand during drag
+        if (mascotaModeRef.current === 'idle-loop') {
+          mascotaLottieRef.current?.goToAndStop(FRAME_GRAB, true);
+        }
       }
 
       if (!dragging.current) return;
@@ -336,6 +338,7 @@ export default function Mascota({ userId }) {
         }
       }
       // Resume idle ping-pong from segment start
+      isDraggingRef.current = false;
       if (mascotaModeRef.current === 'idle-loop') {
         idleDirectionRef.current = 1;
         mascotaLottieRef.current?.setDirection(1);
