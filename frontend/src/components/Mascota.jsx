@@ -72,8 +72,6 @@ export default function Mascota({ userId }) {
   resumenDataRef.current = resumenData ?? null;
 
   const posRef = useRef(pos);
-  // Only sync from state when not dragging — during drag, onMove owns posRef
-  if (!dragging.current) posRef.current = pos;
 
   const mascotaRef = useRef(null);
   const bubbleRef = useRef(null);
@@ -95,6 +93,8 @@ export default function Mascota({ userId }) {
   const hoverDebounceRef = useRef(null);
 
   const dragging = useRef(false);
+  // Only sync posRef from state when not dragging — during drag, onMove owns posRef
+  if (!dragging.current) posRef.current = pos;
   const wasDragging = useRef(false);
   const dragStart = useRef({});
   const idleTimer = useRef(null);
