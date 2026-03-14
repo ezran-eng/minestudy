@@ -267,8 +267,8 @@ export default function Mascota({ userId }) {
   }, [hint, navigate, resetIdle]);
 
   // Bubble position uses posRef — current even when pos state is stale during drag
-  const bubbleAbove = posRef.current.y > 120;
-  const bubbleLeft = posRef.current.x > window.innerWidth * 0.55;
+  const bubbleAbove = posRef.current.y > 150;
+  const bubbleLeft = posRef.current.x > window.innerWidth / 2;
 
   return (
     <>
