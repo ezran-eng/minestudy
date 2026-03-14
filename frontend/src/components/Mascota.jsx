@@ -395,7 +395,7 @@ export default function Mascota({ userId }) {
       const lottie = lottieIconRef.current;
       if (!lottie) return;
       lottie.setSpeed(2.5);
-      lottie.goToAndStop(60, true); // ip=60 is first visible frame; frame 0 is blank
+      lottie.goToAndStop(0, true); // animation frame 0 = composition frame ip=60 (first visible)
       if (iconModeRef.current === 'sleeping') lottie.play();
     });
     return () => cancelAnimationFrame(raf);
@@ -403,14 +403,14 @@ export default function Mascota({ userId }) {
 
   // Position icon at first visible frame on mount (ip=60; frame 0 is blank)
   const onIconDOMLoaded = useCallback(() => {
-    lottieIconRef.current?.goToAndStop(60, true);
+    lottieIconRef.current?.goToAndStop(0, true);
   }, []);
 
   const onIconTap = useCallback(() => {
     if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
     lottieIconRef.current?.setSpeed(2.5);
-    lottieIconRef.current?.goToAndStop(60, true);
+    lottieIconRef.current?.goToAndStop(0, true);
     lottieIconRef.current?.play();
   }, []);
 
@@ -418,7 +418,7 @@ export default function Mascota({ userId }) {
     if (iconModeRef.current === 'waking') {
       activar();
     } else {
-      lottieIconRef.current?.goToAndStop(60, true); // keep icon visible after sleeping anim
+      lottieIconRef.current?.goToAndStop(0, true); // keep icon visible after sleeping anim
     }
     iconModeRef.current = 'idle';
   }, [activar]);
