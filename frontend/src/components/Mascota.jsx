@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Lottie from 'lottie-react';
-import { useNavigate } from 'react-router-dom';
 import mascotaData from '../assets/lotties/mascota.json';
+import tamagadgetIconData from '../assets/lotties/tamagadgetIcon.json';
 import { useMascotaHint, useMateriaResumen } from '../hooks/useQueryHooks';
 import { useMascotaContext } from '../hooks/useMascotaContext';
 
@@ -12,6 +12,10 @@ const BLUR_MS = 3_000;
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+};
+
+const saveStorage = (patch) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadStorage(), ...patch }));
 };
 
 function useTypewriter(bubble, speed = 40) {
@@ -36,12 +40,14 @@ function useTypewriter(bubble, speed = 40) {
 }
 
 export default function Mascota({ userId }) {
-  const navigate = useNavigate();
   const { data: hint } = useMascotaHint(userId);
   const { getMascotaResponse } = useMascotaContext();
 
   const getMascotaResponseRef = useRef(getMascotaResponse);
   getMascotaResponseRef.current = getMascotaResponse;
+
+  const [activa, setActiva] = useState(() => loadStorage().mascota_activa !== false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [pos, setPos] = useState(() => {
     const p = loadStorage().pos;
@@ -57,16 +63,14 @@ export default function Mascota({ userId }) {
 
   const { displayed, skip } = useTypewriter(bubble);
 
-  // Assign directly — no useEffect needed to keep a ref in sync with render data
   const resumenDataRef = useRef(null);
   resumenDataRef.current = resumenData ?? null;
 
-  // posRef tracks the latest position for use inside closures and bubble positioning
   const posRef = useRef(pos);
   posRef.current = pos;
 
-  const mascotaRef = useRef(null); // DOM ref for zero-rerender drag via CSS transform
-  const bubbleRef = useRef(null);  // DOM ref for zero-rerender bubble repositioning
+  const mascotaRef = useRef(null);
+  const bubbleRef = useRef(null);
 
   const hoveredMateriaIdRef = useRef(null);
   const hoveredMateriaDataRef = useRef(null);
@@ -187,6 +191,7 @@ export default function Mascota({ userId }) {
       if (!dragging.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         dragging.current = true;
         wasDragging.current = true;
+        setMenuOpen(false);
         showBubble(getMascotaResponseRef.current('drag'));
       }
 
@@ -243,7 +248,7 @@ export default function Mascota({ userId }) {
         const finalPos = posRef.current;
         mascotaRef.current.style.transform = 'none';
         setPos(finalPos);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: finalPos }));
+        saveStorage({ pos: finalPos });
 
         if (hoveredMateriaIdRef.current) {
           const datos = {
@@ -273,13 +278,55 @@ export default function Mascota({ userId }) {
   const onTap = useCallback(() => {
     if (wasDragging.current) { wasDragging.current = false; return; }
     resetIdle();
-    if (!hint || hint.materia_id == null || hint.unidad_id == null) return;
-    navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
-  }, [hint, navigate, resetIdle]);
+    setMenuOpen(prev => !prev);
+  }, [resetIdle]);
+
+  const apagar = useCallback(() => {
+    setMenuOpen(false);
+    saveStorage({ mascota_activa: false });
+    setActiva(false);
+  }, []);
+
+  const activar = useCallback(() => {
+    saveStorage({ mascota_activa: true });
+    setActiva(true);
+  }, []);
 
   // Bubble position uses posRef — current even when pos state is stale during drag
   const bubbleAbove = posRef.current.y > 150;
   const bubbleLeft = posRef.current.x > window.innerWidth / 2;
+
+  // Menu position: same edge-detection as bubble
+  const menuAbove = posRef.current.y > window.innerHeight / 2;
+  const menuLeft = posRef.current.x > window.innerWidth / 2;
+
+  // Minimized icon — shown when mascota is off
+  if (!activa) {
+    return (
+      <div
+        onClick={activar}
+        style={{
+          position: 'fixed',
+          right: 16,
+          bottom: 80,
+          zIndex: 1001,
+          width: 48,
+          height: 48,
+          cursor: 'pointer',
+          touchAction: 'none',
+          userSelect: 'none',
+          animation: 'mascota-pop 0.2s ease-out',
+        }}
+      >
+        <Lottie
+          animationData={tamagadgetIconData}
+          loop
+          autoplay
+          style={{ width: '100%', height: '100%' }}
+        />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -296,6 +343,14 @@ export default function Mascota({ userId }) {
           zIndex: 999,
           animation: 'mascota-blur-in 0.3s ease-out',
         }}
+      />
+    )}
+
+    {/* Menu backdrop — closes menu when tapping outside */}
+    {menuOpen && (
+      <div
+        onClick={() => setMenuOpen(false)}
+        style={{ position: 'fixed', inset: 0, zIndex: 1000 }}
       />
     )}
 
@@ -345,6 +400,51 @@ export default function Mascota({ userId }) {
               Tocame →
             </div>
           )}
+        </div>
+      )}
+
+      {/* Floating menu */}
+      {menuOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            [menuAbove ? 'bottom' : 'top']: '72px',
+            [menuLeft ? 'right' : 'left']: '0',
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '16px',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
+            padding: '6px',
+            minWidth: '160px',
+            zIndex: 1002,
+            animation: 'mascota-pop 0.18s ease-out',
+          }}
+        >
+          <button
+            onClick={apagar}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              fontFamily: "'Silkscreen', cursive",
+              color: '#ff6b6b',
+              cursor: 'pointer',
+              textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,107,107,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            🔴 Apagar asistente
+          </button>
         </div>
       )}
 
