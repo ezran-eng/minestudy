@@ -79,6 +79,10 @@ export default function Mascota({ userId }) {
   // 'intro' | 'idle-loop' | 'outro'
   const mascotaModeRef = useRef('intro');
 
+  // Icon refs — declared before any callback that references them
+  const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
+  const lottieIconRef = useRef(null);
+
   const hoveredMateriaIdRef = useRef(null);
   const hoveredMateriaDataRef = useRef(null);
   const hoverDebounceRef = useRef(null);
@@ -112,6 +116,18 @@ export default function Mascota({ userId }) {
     }, IDLE_MS);
   }, []);
 
+  // Start intro animation after mascota mounts (activa=true)
+  // RAF ensures mascotaLottieRef.current is populated after React commits
+  useEffect(() => {
+    if (!activa) return;
+    mascotaModeRef.current = 'intro';
+    const raf = requestAnimationFrame(() => {
+      mascotaLottieRef.current?.setLoop(false);
+      mascotaLottieRef.current?.playSegments(SEG_FULL, true);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activa]);
+
   // Pause/resume lottie when sleeping state changes
   useEffect(() => {
     if (sleeping) {
@@ -120,6 +136,21 @@ export default function Mascota({ userId }) {
       mascotaLottieRef.current?.play();
     }
   }, [sleeping]);
+
+  // When intro or outro finishes: switch to idle loop or execute apagar
+  const onMascotaComplete = useCallback(() => {
+    if (mascotaModeRef.current === 'outro') {
+      saveStorage({ mascota_activa: false });
+      iconModeRef.current = 'sleeping';
+      setActiva(false);
+      return;
+    }
+    if (mascotaModeRef.current === 'intro') {
+      mascotaModeRef.current = 'idle-loop';
+      mascotaLottieRef.current?.setLoop(true);
+      mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
+    }
+  }, []); // eslint-disable-line
 
   // One-time greeting on first mount
   useEffect(() => {
@@ -172,27 +203,6 @@ export default function Mascota({ userId }) {
     window.addEventListener('mascota:event', handler);
     return () => window.removeEventListener('mascota:event', handler);
   }, [showBubble, resetIdle]);
-
-  // Mascota lottie — play full animation on mount, then loop head-only segment
-  const onMascotaDOMLoaded = useCallback(() => {
-    mascotaModeRef.current = 'intro';
-    mascotaLottieRef.current?.setLoop(false);
-    mascotaLottieRef.current?.playSegments(SEG_FULL, true);
-  }, []);
-
-  const onMascotaComplete = useCallback(() => {
-    if (mascotaModeRef.current === 'outro') {
-      // Animation done → actually hide mascota and show icon
-      saveStorage({ mascota_activa: false });
-      iconModeRef.current = 'sleeping';
-      setActiva(false);
-      return;
-    }
-    // intro done → start idle loop (head only)
-    mascotaModeRef.current = 'idle-loop';
-    mascotaLottieRef.current?.setLoop(true);
-    mascotaLottieRef.current?.playSegments(SEG_IDLE, true);
-  }, []); // eslint-disable-line
 
   // Drag — zero React re-renders during movement via CSS transform
   const onPointerDown = useCallback((e) => {
@@ -318,11 +328,9 @@ export default function Mascota({ userId }) {
     setMenuOpen(prev => !prev);
   }, [resetIdle]);
 
-  const iconModeRef = useRef('idle'); // 'sleeping' | 'waking'
-
   const apagar = useCallback(() => {
     setMenuOpen(false);
-    // Play full animation first, then hide in onMascotaComplete
+    // Play full animation, then hide in onMascotaComplete
     mascotaModeRef.current = 'outro';
     mascotaLottieRef.current?.setLoop(false);
     mascotaLottieRef.current?.playSegments(SEG_FULL, true);
@@ -331,12 +339,10 @@ export default function Mascota({ userId }) {
   const activar = useCallback(() => {
     saveStorage({ mascota_activa: true });
     setActiva(true);
-    // onMascotaDOMLoaded will fire and play the intro animation
+    // useEffect [activa] will fire and play intro animation
   }, []);
 
-  const lottieIconRef = useRef(null);
-
-  // Fires when the icon Lottie mounts — play immediately if we just apagamos
+  // Icon — fires when icon Lottie mounts
   const onIconDOMLoaded = useCallback(() => {
     lottieIconRef.current?.setSpeed(2.5);
     if (iconModeRef.current === 'sleeping') {
@@ -345,9 +351,9 @@ export default function Mascota({ userId }) {
   }, []);
 
   const onIconTap = useCallback(() => {
-    if (iconModeRef.current === 'sleeping') return; // still animating
+    if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
-    lottieIconRef.current?.goToAndStop(0, true); // reset to frame 0 before playing
+    lottieIconRef.current?.goToAndStop(0, true);
     lottieIconRef.current?.play();
   }, []);
 
@@ -355,7 +361,6 @@ export default function Mascota({ userId }) {
     if (iconModeRef.current === 'waking') {
       activar();
     }
-    // sleeping: stay on last frame — nothing to do
     iconModeRef.current = 'idle';
   }, [activar]);
 
@@ -541,7 +546,6 @@ export default function Mascota({ userId }) {
           animationData={mascotaData}
           loop={false}
           autoplay={false}
-          onDOMLoaded={onMascotaDOMLoaded}
           onComplete={onMascotaComplete}
           style={{ width: '100%', height: '100%' }}
         />
