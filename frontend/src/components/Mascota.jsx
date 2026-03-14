@@ -11,8 +11,9 @@ const BUBBLE_MS = 4_500;
 const BLUR_MS = 3_000;
 
 // Adjust these if segments don't align perfectly with the animation
-const SEG_FULL = [60, 240]; // sit → head → wave (full)
-const SEG_IDLE = [67, 89]; // head-only loop (no wave) — first clean bob cycle
+const SEG_FULL = [60, 240];  // sit → head → wave (full)
+const SEG_IDLE = [67, 89];   // head-only loop (no wave) — first clean bob cycle
+const FRAME_GRAB = 167;      // frame where arm is raised — "grabbed by the hand"
 
 const loadStorage = () => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -131,7 +132,7 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     if (mascotaModeRef.current !== 'idle-loop') return;
     const raf = requestAnimationFrame(() => {
-      mascotaLottieRef.current?.setSpeed(0.25);
+      mascotaLottieRef.current?.setSpeed(0.22);
     });
     return () => cancelAnimationFrame(raf);
   }, [lottieProps.k]); // eslint-disable-line
@@ -235,6 +236,11 @@ export default function Mascota({ userId }) {
     showBubble(getMascotaResponseRef.current('grab'));
     resetIdle();
 
+    // Freeze animation at raised-arm frame — "grabbed by the hand"
+    if (mascotaModeRef.current === 'idle-loop') {
+      mascotaLottieRef.current?.goToAndStop(FRAME_GRAB, true);
+    }
+
     // Cache card rects once at drag start — no querySelectorAll/getBoundingClientRect per frame
     const cardCache = [];
     document.querySelectorAll('[data-materia-id]').forEach(card => {
@@ -328,6 +334,13 @@ export default function Mascota({ userId }) {
         } else {
           showBubble(getMascotaResponseRef.current('drop'));
         }
+      }
+      // Resume idle ping-pong from segment start
+      if (mascotaModeRef.current === 'idle-loop') {
+        idleDirectionRef.current = 1;
+        mascotaLottieRef.current?.setDirection(1);
+        mascotaLottieRef.current?.goToAndStop(SEG_IDLE[0], true);
+        mascotaLottieRef.current?.play();
       }
       dragging.current = false;
       document.removeEventListener('pointermove', onMove);
