@@ -396,8 +396,11 @@ export default function Mascota({ userId }) {
       const lottie = lottieIconRef.current;
       if (!lottie) return;
       lottie.setSpeed(2.5);
-      lottie.goToAndStop(0, true); // animation frame 0 = composition frame ip=60 (first visible)
-      if (iconModeRef.current === 'sleeping') lottie.play();
+      if (iconModeRef.current === 'sleeping') {
+        lottie.playSegments([0, 179], true); // explicit bounds → onComplete always fires
+      } else {
+        lottie.goToAndStop(0, true); // just position, don't play
+      }
     });
     return () => cancelAnimationFrame(raf);
   }, [activa]); // eslint-disable-line
@@ -411,8 +414,7 @@ export default function Mascota({ userId }) {
     if (iconModeRef.current === 'sleeping') return;
     iconModeRef.current = 'waking';
     lottieIconRef.current?.setSpeed(2.5);
-    lottieIconRef.current?.goToAndStop(0, true);
-    lottieIconRef.current?.play();
+    lottieIconRef.current?.playSegments([0, 179], true);
   }, []);
 
   const onIconComplete = useCallback(() => {
