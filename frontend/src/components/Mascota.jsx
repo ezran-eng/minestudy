@@ -78,6 +78,7 @@ export default function Mascota({ userId }) {
   const mascotaLottieRef = useRef(null);
   // 'intro' | 'idle-loop' | 'outro'
   const mascotaModeRef = useRef('intro');
+  const idleDirectionRef = useRef(1); // ping-pong direction: 1 = forward, -1 = backward
 
   // Declarative lottie config — key forces remount when switching segments
   const [lottieProps, setLottieProps] = useState({ k: 0, segment: SEG_FULL, loop: false });
@@ -126,9 +127,9 @@ export default function Mascota({ userId }) {
     setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_FULL, loop: false }));
   }, [activa]);
 
-  // After each key change: apply slow speed if we're in idle-loop (breathing effect)
+  // After each key change: apply slow speed for idle-loop (breathing effect)
   useEffect(() => {
-    if (!lottieProps.loop) return;
+    if (mascotaModeRef.current !== 'idle-loop') return;
     const raf = requestAnimationFrame(() => {
       mascotaLottieRef.current?.setSpeed(0.25);
     });
@@ -145,6 +146,7 @@ export default function Mascota({ userId }) {
   }, [sleeping]);
 
   // When intro or outro finishes: switch to idle loop or execute apagar
+  // During idle-loop: ping-pong by flipping direction each complete
   const onMascotaComplete = useCallback(() => {
     if (mascotaModeRef.current === 'outro') {
       saveStorage({ mascota_activa: false });
@@ -154,7 +156,15 @@ export default function Mascota({ userId }) {
     }
     if (mascotaModeRef.current === 'intro') {
       mascotaModeRef.current = 'idle-loop';
-      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_IDLE, loop: true }));
+      idleDirectionRef.current = 1;
+      setLottieProps(prev => ({ k: prev.k + 1, segment: SEG_IDLE, loop: false }));
+      return;
+    }
+    if (mascotaModeRef.current === 'idle-loop') {
+      // Flip direction and replay the same segment — creates smooth ping-pong
+      idleDirectionRef.current *= -1;
+      mascotaLottieRef.current?.setDirection(idleDirectionRef.current);
+      mascotaLottieRef.current?.play();
     }
   }, []); // eslint-disable-line
 
