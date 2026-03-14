@@ -397,7 +397,7 @@ export default function Mascota({ userId }) {
       if (!lottie) return;
       lottie.setSpeed(2.5);
       if (iconModeRef.current === 'sleeping') {
-        lottie.playSegments([0, 179], true); // explicit bounds → onComplete always fires
+        lottie.playSegments([0, 178], true); // [0, op-ip-1] = all visible frames; onComplete always fires
       } else {
         lottie.goToAndStop(0, true); // just position, don't play
       }
@@ -411,18 +411,18 @@ export default function Mascota({ userId }) {
   }, []);
 
   const onIconTap = useCallback(() => {
-    if (iconModeRef.current === 'sleeping') return;
+    if (iconModeRef.current !== 'idle') return; // block during any animation (sleeping or waking)
     iconModeRef.current = 'waking';
     lottieIconRef.current?.setSpeed(2.5);
-    lottieIconRef.current?.playSegments([0, 179], true);
+    lottieIconRef.current?.playSegments([0, 178], true);
   }, []);
 
   const onIconComplete = useCallback(() => {
     if (iconModeRef.current === 'waking') {
       activar();
-    } else {
-      lottieIconRef.current?.goToAndStop(0, true); // keep icon visible after sleeping anim
     }
+    // else: animation ended at frame 178 (visually = frame 0); no need to reposition
+    // goToAndStop right after onComplete can flash a blank frame — avoid it
     iconModeRef.current = 'idle';
   }, [activar]);
 
