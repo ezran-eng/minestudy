@@ -52,20 +52,24 @@ export default function Mascota({ userId }) {
   const [isBlurActive, setIsBlurActive] = useState(false);
   const [draggingOverMateria, setDraggingOverMateria] = useState(false);
   const [resumenMateriaId, setResumenMateriaId] = useState(null);
-  const hoveredMateriaIdRef = useRef(null);
-  const hoveredMateriaDataRef = useRef(null);
-  const hoverDebounceRef = useRef(null);
-  const resumenDataRef = useRef(null);
 
   const { data: resumenData } = useMateriaResumen(resumenMateriaId, userId);
 
   const { displayed, skip } = useTypewriter(bubble);
 
+  // Assign directly — no useEffect needed to keep a ref in sync with render data
+  const resumenDataRef = useRef(null);
+  resumenDataRef.current = resumenData ?? null;
+
+  // posRef tracks the latest position for use inside closures and bubble positioning
   const posRef = useRef(pos);
   posRef.current = pos;
 
-  // Keep resumenDataRef in sync for use inside drag handlers
-  useEffect(() => { resumenDataRef.current = resumenData ?? null; }, [resumenData]);
+  const mascotaRef = useRef(null); // DOM ref for zero-rerender drag via CSS transform
+
+  const hoveredMateriaIdRef = useRef(null);
+  const hoveredMateriaDataRef = useRef(null);
+  const hoverDebounceRef = useRef(null);
 
   const dragging = useRef(false);
   const wasDragging = useRef(false);
@@ -74,12 +78,6 @@ export default function Mascota({ userId }) {
   const bubbleTimer = useRef(null);
   const blurTimer = useRef(null);
   const greeted = useRef(false);
-
-  // Persist pos
-  useEffect(() => {
-    const prev = loadStorage();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, pos }));
-  }, [pos]);
 
   const showBubble = useCallback((text) => {
     if (!text) return;
@@ -114,7 +112,7 @@ export default function Mascota({ userId }) {
     };
   }, []); // eslint-disable-line
 
-  // Hint bubble — show flashcard reminder 5s after mount
+  // Hint bubble — flashcard reminder 5s after mount
   const hintDue = hint?.flashcards_due ?? 0;
   useEffect(() => {
     if (hintDue <= 0) return;
@@ -154,7 +152,7 @@ export default function Mascota({ userId }) {
     return () => window.removeEventListener('mascota:event', handler);
   }, [showBubble, resetIdle]);
 
-  // Drag with pointer events
+  // Drag — zero React re-renders during movement via CSS transform
   const onPointerDown = useCallback((e) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -169,59 +167,73 @@ export default function Mascota({ userId }) {
     showBubble(getMascotaResponseRef.current('grab'));
     resetIdle();
 
+    // Cache card rects once at drag start — no querySelectorAll/getBoundingClientRect per frame
+    const cardCache = [];
+    document.querySelectorAll('[data-materia-id]').forEach(card => {
+      cardCache.push({
+        rect: card.getBoundingClientRect(),
+        id: card.dataset.materiaId,
+        nombre: card.dataset.materiaNombre,
+        progreso: parseInt(card.dataset.materiaProgreso || '0'),
+        unidades: parseInt(card.dataset.materiaUnidades || '0'),
+      });
+    });
+
     const onMove = (ev) => {
       const dx = ev.clientX - dragStart.current.px;
       const dy = ev.clientY - dragStart.current.py;
+
       if (!dragging.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         dragging.current = true;
         wasDragging.current = true;
         showBubble(getMascotaResponseRef.current('drag'));
       }
-      if (dragging.current) {
-        setPos({
-          x: Math.max(0, Math.min(window.innerWidth - 64, dragStart.current.ox + dx)),
-          y: Math.max(0, Math.min(window.innerHeight - 64, dragStart.current.oy + dy)),
-        });
+
+      if (!dragging.current) return;
+
+      // Move via CSS transform — React state never touched during drag
+      const newX = Math.max(0, Math.min(window.innerWidth - 64, dragStart.current.ox + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - 64, dragStart.current.oy + dy));
+      mascotaRef.current.style.transform = `translate(${newX - dragStart.current.ox}px, ${newY - dragStart.current.oy}px)`;
+      posRef.current = { x: newX, y: newY };
+
+      // Hit-test against cached rects
+      let foundId = null;
+      let foundData = null;
+      for (const item of cardCache) {
+        const { rect } = item;
+        if (ev.clientX >= rect.left && ev.clientX <= rect.right &&
+            ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
+          foundId = item.id;
+          foundData = { id: item.id, nombre: item.nombre, progreso: item.progreso, unidades: item.unidades };
+          break;
+        }
       }
 
-      // Hit-test materia cards
-      if (dragging.current) {
-        const cards = document.querySelectorAll('[data-materia-id]');
-        let foundId = null;
-        let foundData = null;
-        for (const card of cards) {
-          const rect = card.getBoundingClientRect();
-          if (ev.clientX >= rect.left && ev.clientX <= rect.right &&
-              ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
-            foundId = card.dataset.materiaId;
-            foundData = {
-              id: card.dataset.materiaId,
-              nombre: card.dataset.materiaNombre,
-              progreso: parseInt(card.dataset.materiaProgreso || '0'),
-              unidades: parseInt(card.dataset.materiaUnidades || '0'),
-            };
-            break;
-          }
-        }
-        if (foundId !== hoveredMateriaIdRef.current) {
-          hoveredMateriaIdRef.current = foundId;
-          hoveredMateriaDataRef.current = foundData;
-          clearTimeout(hoverDebounceRef.current);
-          if (foundId) {
-            setDraggingOverMateria(true);
-            window.dispatchEvent(new CustomEvent('mascota:hover-materia', { detail: foundData }));
-            showBubble(getMascotaResponseRef.current('hover_materia', foundData, 'study'));
-            hoverDebounceRef.current = setTimeout(() => setResumenMateriaId(foundId), 200);
-          } else {
-            setDraggingOverMateria(false);
-            window.dispatchEvent(new CustomEvent('mascota:hover-none'));
-          }
+      if (foundId !== hoveredMateriaIdRef.current) {
+        hoveredMateriaIdRef.current = foundId;
+        hoveredMateriaDataRef.current = foundData;
+        clearTimeout(hoverDebounceRef.current);
+        if (foundId) {
+          setDraggingOverMateria(true);
+          window.dispatchEvent(new CustomEvent('mascota:hover-materia', { detail: foundData }));
+          showBubble(getMascotaResponseRef.current('hover_materia', foundData, 'study'));
+          hoverDebounceRef.current = setTimeout(() => setResumenMateriaId(foundId), 200);
+        } else {
+          setDraggingOverMateria(false);
+          window.dispatchEvent(new CustomEvent('mascota:hover-none'));
         }
       }
     };
 
     const onUp = () => {
       if (dragging.current) {
+        // Single state update + single localStorage write at drop
+        const finalPos = posRef.current;
+        mascotaRef.current.style.transform = 'none';
+        setPos(finalPos);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ pos: finalPos }));
+
         if (hoveredMateriaIdRef.current) {
           const datos = {
             ...(hoveredMateriaDataRef.current ?? {}),
@@ -233,7 +245,6 @@ export default function Mascota({ userId }) {
           hoveredMateriaDataRef.current = null;
           clearTimeout(hoverDebounceRef.current);
           setResumenMateriaId(null);
-          // Keep overlay suppressed until the drop bubble disappears
           setTimeout(() => setDraggingOverMateria(false), BUBBLE_MS);
         } else {
           showBubble(getMascotaResponseRef.current('drop'));
@@ -255,12 +266,13 @@ export default function Mascota({ userId }) {
     navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
   }, [hint, navigate, resetIdle]);
 
-  const bubbleAbove = pos.y > 120;
-  const bubbleLeft = pos.x > window.innerWidth * 0.55;
+  // Bubble position uses posRef — current even when pos state is stale during drag
+  const bubbleAbove = posRef.current.y > 120;
+  const bubbleLeft = posRef.current.x > window.innerWidth * 0.55;
 
   return (
     <>
-    {/* Blur overlay — hidden during materia drag hover (Study.jsx handles the effect) */}
+    {/* Blur overlay — suppressed during materia drag (Study.jsx handles card blur) */}
     {isBlurActive && !draggingOverMateria && (
       <div
         onClick={() => { clearTimeout(blurTimer.current); setIsBlurActive(false); }}
@@ -276,14 +288,17 @@ export default function Mascota({ userId }) {
       />
     )}
 
-    <div style={{
-      position: 'fixed',
-      left: pos.x,
-      top: pos.y,
-      zIndex: 1001,
-      touchAction: 'none',
-      userSelect: 'none',
-    }}>
+    <div
+      ref={mascotaRef}
+      style={{
+        position: 'fixed',
+        left: pos.x,
+        top: pos.y,
+        zIndex: 1001,
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
+    >
       {/* Speech bubble */}
       {bubble && (
         <div
