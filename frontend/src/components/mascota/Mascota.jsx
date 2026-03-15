@@ -91,13 +91,13 @@ export default function Mascota({ userId }) {
     }, 550);
   }, []);
 
-  const showBubble = useCallback((text) => {
+  const showBubble = useCallback((text, fromAI = false) => {
     if (!text) return;
     setSleeping(false);
     clearTimeout(bubbleTimer.current);
     clearTimeout(blurTimer.current);
     setIsBlurFading(false);
-    setBubble({ text, id: Date.now() });
+    setBubble({ text, id: Date.now(), fromAI });
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
     setIsBlurActive(true);
     blurTimer.current = setTimeout(fadeOutBlur, BLUR_MS);
@@ -108,8 +108,8 @@ export default function Mascota({ userId }) {
     setSleeping(false);
     idleTimer.current = setTimeout(async () => {
       setSleeping(true);
-      const msg = await getMascotaResponseAIRef.current('idle');
-      setBubble({ text: msg || 'Zzz... 😴', id: Date.now() });
+      const { text, fromAI } = await getMascotaResponseAIRef.current('idle');
+      setBubble({ text: text || 'Zzz... 😴', id: Date.now(), fromAI });
     }, IDLE_MS);
   }, []);
 
@@ -172,7 +172,7 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     if (greeted.current) return;
     greeted.current = true;
-    getMascotaResponseAIRef.current('app_open').then(msg => showBubble(msg));
+    getMascotaResponseAIRef.current('app_open').then(({ text, fromAI }) => showBubble(text, fromAI));
     resetIdle();
     return () => {
       clearTimeout(idleTimer.current);
@@ -201,7 +201,7 @@ export default function Mascota({ userId }) {
   }, [showBubble, resetIdle]);
 
   useEffect(() => {
-    const handler = () => getMascotaResponseAIRef.current('flashcard_complete').then(msg => showBubble(msg));
+    const handler = () => getMascotaResponseAIRef.current('flashcard_complete').then(({ text, fromAI }) => showBubble(text, fromAI));
     window.addEventListener('mascota:flashcard-complete', handler);
     return () => window.removeEventListener('mascota:flashcard-complete', handler);
   }, [showBubble]);
