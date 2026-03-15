@@ -345,6 +345,7 @@ export default function Mascota({ userId }) {
 
   const activar = useCallback(() => {
     saveStorage({ mascota_activa: true });
+    setSleeping(false);
     setActiva(true);
   }, []);
 
