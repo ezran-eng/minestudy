@@ -205,20 +205,26 @@ export function useMascotaContext() {
   }
 
   /**
-   * Async version — calls the AI for meaningful actions, falls back to local phrases.
-   * Returns a string (local fallback) or a Promise<string|null>.
-   * Only fires AI for actions in AI_ACTIONS to avoid spamming the API.
+   * Async — calls LLM for meaningful actions, falls back to local phrases on failure.
+   * Only fires for actions in AI_ACTIONS to avoid wasting tokens.
    */
   const getMascotaResponseAI = useCallback(async (userId, accion, extraDatos = {}, overridePantalla = null) => {
     const fallback = getMascotaResponse(accion, extraDatos, overridePantalla);
     if (!userId || !AI_ACTIONS.has(accion)) return fallback;
     try {
-      const { mensaje } = await mascotaChat(
+      console.log('[mascota-ai] calling', accion, overridePantalla || contexto.pantalla);
+      const data = await mascotaChat(
         userId, accion, extraDatos,
         overridePantalla || contexto.pantalla
       );
-      return mensaje || fallback;
-    } catch {
+      if (data?.mensaje) {
+        console.log('[mascota-ai] OK:', data.mensaje.slice(0, 50));
+        return data.mensaje;
+      }
+      console.log('[mascota-ai] null response, using fallback');
+      return fallback;
+    } catch (err) {
+      console.warn('[mascota-ai] error, using fallback:', err.message);
       return fallback;
     }
   }, [getMascotaResponse, contexto.pantalla]);

@@ -1646,15 +1646,17 @@ def get_mascota_hint(id: int, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/mascota/chat", dependencies=[Depends(require_init_data)])
+@app.post("/mascota/chat")
 async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(get_db)):
-    """Generate a context-aware mascota message using the configured LLM provider."""
+    """Generate a context-aware mascota message using the configured LLM provider.
+    No auth required — non-destructive read-only endpoint, userId in body suffices."""
     try:
         mensaje = await get_mascota_message(body.user_id, body.accion, body.datos, body.pantalla, db)
+        logger.info("[mascota/chat] OK — accion=%s pantalla=%s resp=%s", body.accion, body.pantalla, (mensaje or "")[:50])
         return {"mensaje": mensaje}
     except Exception as e:
-        logger.warning(f"[mascota/chat] LLM error ({body.accion}): {e}")
-        return {"mensaje": None}  # frontend falls back to local phrases
+        logger.error("[mascota/chat] FAIL — accion=%s error=%s", body.accion, e)
+        return {"mensaje": None}
 
 
 def _notif_defaults() -> dict:

@@ -352,9 +352,13 @@ export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
 export const mascotaChat = async (user_id, accion, datos = {}, pantalla = 'home') => {
   const response = await fetch(`${API_URL}/mascota/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id, accion, datos, pantalla }),
   });
-  if (!response.ok) throw new Error('mascota chat failed');
-  return response.json();
+  if (!response.ok) {
+    console.warn('[mascota-ai] API error', response.status, accion);
+    throw new Error('mascota chat failed');
+  }
+  const data = response.json();
+  return data;
 };

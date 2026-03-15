@@ -1,127 +1,107 @@
 """
-Mascota AI — builds user context from DB and generates responses via LLM.
+Mascota AI — builds compact user context and generates responses via LLM.
+
+Token-saving best practices:
+1. System prompt is SHORT and FIXED → DeepSeek prefix-caches it after first call
+2. User context is JSON → ~50% fewer tokens vs prose
+3. Server-side TTL cache → same user+action = 0 tokens
+4. max_tokens=60 cap → responses never exceed 2 sentences
 """
+import json
+import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 import models
-from llm import chat_completion
+from llm import chat_completion, cache_get, cache_set
 
-SYSTEM_PROMPT = """\
-Sos la mascota-perrito de DaathApp, una app de estudio para ingeniería minera.
-Tu nombre es Daath. Personalidad:
-- Español rioplatense informal (vos, dale, che)
-- Mensajes MUY cortos: máximo 1-2 oraciones
-- Empático, motivador pero sin exagerar — nada de "¡¡Increíble!!"
-- Usás los datos reales del estudiante de forma natural cuando son relevantes
-- Máximo 1 emoji por mensaje, solo si suma
-- No usás comillas, no te presentás, no explicás que sos un bot
-Solo respondé con el mensaje, sin prefijos ni formato extra.\
-"""
+logger = logging.getLogger("uvicorn.error")
+
+# Fixed system prompt — DeepSeek prefix-caches this across ALL calls (all users)
+# Keep it SHORT: every token here is paid on the first call, cached on subsequent ones
+SYSTEM_PROMPT = (
+    "Sos Daath, perrito-mascota de DaathApp (app de estudio, ingeniería minera). "
+    "Español rioplatense informal (vos, che, dale). "
+    "Máximo 1-2 oraciones. Máximo 1 emoji. "
+    "No te presentes. No uses comillas. Solo respondé con el mensaje."
+)
 
 
 def _fetch_user_context(user_id: int, db: Session) -> dict:
-    """Collect all relevant study data for the user."""
+    """Compact user context for the LLM — only what's needed."""
     now = datetime.now(timezone.utc)
 
     user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
     if not user:
-        return {"nombre": "estudiante", "racha": 0, "flashcards_due": 0, "materias": []}
+        return {"nombre": "estudiante", "racha": 0, "due": 0, "materias": []}
 
-    flashcards_due = (
+    due = (
         db.query(func.count(models.CardReview.id_flashcard))
         .filter(models.CardReview.id_usuario == user_id, models.CardReview.due_date <= now)
         .scalar()
     ) or 0
 
     seguidas = (
-        db.query(models.MateriaSeguida)
+        db.query(models.MateriaSeguida.id_materia)
         .filter(models.MateriaSeguida.id_usuario == user_id)
         .all()
     )
 
     materias = []
-    for ms in seguidas[:5]:
-        materia = db.query(models.Materia).filter(models.Materia.id == ms.id_materia).first()
+    for (mid,) in seguidas[:4]:  # max 4 to keep prompt short
+        materia = db.query(models.Materia).filter(models.Materia.id == mid).first()
         if not materia:
             continue
-        progresos = (
+        rows = (
             db.query(models.Progreso.porcentaje)
-            .filter(models.Progreso.id_usuario == user_id, models.Progreso.id_materia == ms.id_materia)
+            .filter(models.Progreso.id_usuario == user_id, models.Progreso.id_materia == mid)
             .all()
         )
-        avg = round(sum(p.porcentaje for p in progresos) / len(progresos)) if progresos else 0
-        materias.append({"nombre": materia.nombre, "progreso": avg})
+        avg = round(sum(r.porcentaje for r in rows) / len(rows)) if rows else 0
+        materias.append({"n": materia.nombre, "p": avg})
 
     return {
         "nombre": user.first_name,
         "racha": user.racha or 0,
-        "flashcards_due": flashcards_due,
+        "due": due,
         "materias": materias,
     }
-
-
-def _build_situacion(accion: str, pantalla: str, datos: dict, ctx: dict) -> str:
-    """Describe the current student situation for the LLM prompt."""
-    nombre = ctx["nombre"]
-    racha = ctx["racha"]
-    due = ctx["flashcards_due"]
-    materias = ctx["materias"]
-
-    if accion == "app_open":
-        parts = [f"{nombre} acaba de abrir la app."]
-        if due > 0:
-            parts.append(f"Tiene {due} flashcards vencidas.")
-        if racha > 1:
-            parts.append(f"Lleva {racha} días de racha.")
-        return " ".join(parts)
-
-    if accion == "enter":
-        if pantalla == "home":
-            mat_str = ", ".join(f"{m['nombre']} ({m['progreso']}%)" for m in materias) or "ninguna"
-            return (
-                f"{nombre} está en el inicio. Racha: {racha} días. "
-                f"Flashcards vencidas: {due}. Materias: {mat_str}."
-            )
-        if pantalla == "study":
-            return f"{nombre} está explorando las materias disponibles. Sigue {len(materias)} materias."
-        if pantalla == "unidad":
-            unidad = datos.get("unidad_nombre", "una unidad")
-            progreso = datos.get("unidad_progreso", 0)
-            return f"{nombre} entró a la unidad '{unidad}' con {progreso}% de progreso."
-        if pantalla == "perfil":
-            return f"{nombre} está viendo su perfil. Racha: {racha} días. Sigue {len(materias)} materias."
-
-    if accion == "idle":
-        return f"{nombre} lleva un rato sin interactuar en la pantalla '{pantalla}'."
-
-    if accion == "flashcard_complete":
-        return f"{nombre} terminó una sesión completa de flashcards."
-
-    if accion == "drop_materia":
-        mat_nombre = datos.get("nombre", "una materia")
-        progreso = datos.get("progreso", datos.get("porcentaje_total", 0))
-        vencidas = datos.get("vencidas", 0)
-        return (
-            f"{nombre} arrastró la mascota sobre la materia '{mat_nombre}' "
-            f"(progreso: {progreso}%, flashcards vencidas: {vencidas})."
-        )
-
-    # Generic fallback
-    return f"{nombre} realizó la acción '{accion}' en '{pantalla}'."
 
 
 async def get_mascota_message(
     user_id: int, accion: str, datos: dict, pantalla: str, db: Session
 ) -> str:
-    ctx = _fetch_user_context(user_id, db)
-    situacion = _build_situacion(accion, pantalla, datos, ctx)
+    # 1. Check cache
+    cache_key = f"{user_id}:{accion}:{pantalla}"
+    cached = cache_get(cache_key, accion)
+    if cached:
+        logger.info("[mascota-ai] cache HIT for %s", cache_key)
+        return cached
 
-    return await chat_completion(
+    # 2. Fetch context
+    ctx = _fetch_user_context(user_id, db)
+
+    # 3. Build compact user message as JSON (fewer tokens than prose)
+    user_msg = json.dumps(
+        {**ctx, "accion": accion, "pantalla": pantalla, **datos},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+    logger.info("[mascota-ai] calling LLM — key=%s msg=%s", cache_key, user_msg[:120])
+
+    # 4. Call LLM
+    result = await chat_completion(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": situacion},
+            {"role": "user", "content": user_msg},
         ],
         max_tokens=60,
     )
+
+    # 5. Cache result
+    cache_set(cache_key, result)
+    logger.info("[mascota-ai] cached response for %s: %s", cache_key, result[:60])
+
+    return result
