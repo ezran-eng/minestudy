@@ -1,13 +1,22 @@
 import React from 'react';
 
-export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint, onSkip, above, left }, ref) {
+const ACTION_LABELS = {
+  repaso: 'Ir a repasar →',
+  quiz: 'Hacer quiz →',
+  explorar: 'Explorar →',
+};
+
+export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint, onSkip, onAction, above, left }, ref) {
   if (!bubble) return null;
+
+  const isComplete = displayed === bubble.text;
+  const hasAction = bubble.accion && ACTION_LABELS[bubble.accion];
 
   return (
     <div
       ref={ref}
       key={bubble.id}
-      onClick={onSkip}
+      onClick={hasAction && isComplete ? undefined : onSkip}
       style={{
         position: 'absolute',
         [above ? 'bottom' : 'top']: '72px',
@@ -37,7 +46,7 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
         position: 'absolute',
       }}
     >
-      {/* IA badge — solo en respuestas generadas por la IA */}
+      {/* IA badge */}
       {bubble.fromAI && (
         <span style={{
           position: 'absolute',
@@ -59,7 +68,34 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
 
       {displayed}
 
-      {hint && hint.flashcards_due > 0 && bubble.text.includes('flashcard') && displayed === bubble.text && (
+      {/* Action button — Redo's decision */}
+      {hasAction && isComplete && (
+        <div
+          onClick={(e) => { e.stopPropagation(); onAction?.(bubble.accion); }}
+          style={{
+            marginTop: '8px',
+            padding: '6px 14px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, rgba(167,139,250,0.25), rgba(96,165,250,0.25))',
+            border: '1px solid rgba(167,139,250,0.4)',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#c4b5fd',
+            cursor: 'pointer',
+            textAlign: 'center',
+            transition: 'transform 120ms ease, background 120ms ease',
+            animation: 'mascota-pop 0.25s ease-out',
+          }}
+          onPointerDown={(e) => { e.currentTarget.style.transform = 'scale(0.94)'; }}
+          onPointerUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          onPointerLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          {ACTION_LABELS[bubble.accion]}
+        </div>
+      )}
+
+      {/* Legacy hint (non-AI) */}
+      {!hasAction && hint && hint.flashcards_due > 0 && bubble.text.includes('flashcard') && isComplete && (
         <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '4px', fontWeight: 700 }}>
           Tocame →
         </div>

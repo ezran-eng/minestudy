@@ -208,10 +208,10 @@ export function useMascotaContext() {
    * Async — calls LLM for meaningful actions, falls back to local phrases on failure.
    * Only fires for actions in AI_ACTIONS to avoid wasting tokens.
    */
-  // Returns { text: string, fromAI: boolean }
+  // Returns { text: string, fromAI: boolean, accion: string|null }
   const getMascotaResponseAI = useCallback(async (userId, accion, extraDatos = {}, overridePantalla = null) => {
     const fallback = getMascotaResponse(accion, extraDatos, overridePantalla);
-    if (!userId || !AI_ACTIONS.has(accion)) return { text: fallback, fromAI: false };
+    if (!userId || !AI_ACTIONS.has(accion)) return { text: fallback, fromAI: false, accion: null };
     try {
       console.log('[mascota-ai] calling', accion, overridePantalla || contexto.pantalla);
       const data = await mascotaChat(
@@ -219,13 +219,13 @@ export function useMascotaContext() {
         overridePantalla || contexto.pantalla
       );
       if (data?.mensaje) {
-        console.log('[mascota-ai] OK:', data.mensaje.slice(0, 50));
-        return { text: data.mensaje, fromAI: true };
+        console.log('[mascota-ai] OK:', data.mensaje.slice(0, 50), '| decision:', data.accion);
+        return { text: data.mensaje, fromAI: true, accion: data.accion || null };
       }
-      return { text: fallback, fromAI: false };
+      return { text: fallback, fromAI: false, accion: null };
     } catch (err) {
       console.warn('[mascota-ai] error, using fallback:', err.message);
-      return { text: fallback, fromAI: false };
+      return { text: fallback, fromAI: false, accion: null };
     }
   }, [getMascotaResponse, contexto.pantalla]);
 

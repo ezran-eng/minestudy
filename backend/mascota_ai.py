@@ -1,8 +1,10 @@
 """
-Redo — Mascota AI de DaathApp.
+Redo — Mascota AI de DaathApp con sistema de decisiones.
 
-Accede a todos los datos del usuario (ignora privacidad — es su asistente personal)
-y a la estructura completa de conocimiento de la app.
+Arquitectura:
+- Context Layer: recopila TODOS los datos del usuario (ignora privacidad)
+- Decision Layer: el LLM puede sugerir acciones basadas en el contexto
+- Response Layer: parsea la respuesta y extrae acciones opcionales
 
 Token strategy:
 - System prompt FIJO y corto → prefix-cached en DeepSeek
@@ -22,18 +24,43 @@ logger = logging.getLogger("uvicorn.error")
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 # FIJO Y CORTO — DeepSeek lo prefix-cachea después de la primera llamada.
-# Cada token aquí se paga una vez por server restart, luego es gratis.
 SYSTEM_PROMPT = (
     "Sos Redo, el perrito asistente personal de DaathApp — app de estudio para ingeniería minera. "
     "Tu misión: ayudar al estudiante a aprender de verdad. "
-    "Tenés acceso completo a todos sus datos reales (progreso por unidad, flashcards pendientes, "
-    "resultados de quiz, estructura de materias) aunque tenga el perfil en privado — "
-    "sos su asistente personal, no un usuario externo. "
-    "Personalidad: cálido, honesto, motivador sin exagerar — como un tutor que lo conoce bien. "
+    "Tenés acceso completo a todos sus datos reales (progreso, flashcards, quiz, "
+    "privacidad, notificaciones) — sos su asistente personal. "
+    "Personalidad: cálido, honesto, motivador sin exagerar. "
     "Español rioplatense informal. Nunca empieces con 'Che'. Sin '!!' dobles. "
     "Máximo 2 oraciones. Máximo 1 emoji. "
-    "No te presentes. Solo respondé con el mensaje."
+    "No te presentes. Solo respondé con el mensaje.\n"
+    "Si querés sugerir una acción, agregá en la ÚLTIMA línea (sola) una de estas:\n"
+    "→repaso  →quiz  →explorar\n"
+    "Solo sugerí si tiene sentido. No siempre es necesario."
 )
+
+# Actions Redo can suggest
+VALID_ACTIONS = {"repaso", "quiz", "explorar"}
+
+
+# ── Response parser ──────────────────────────────────────────────────────────
+
+def _parse_response(raw: str) -> tuple[str, str | None]:
+    """Parse AI response, extract optional action suffix → (message, action)."""
+    lines = raw.strip().split("\n")
+    accion = None
+    clean = []
+
+    for line in lines:
+        s = line.strip()
+        if s.startswith("→"):
+            name = s[1:].strip().lower()
+            if name in VALID_ACTIONS:
+                accion = name
+            # don't add action line to message
+        else:
+            clean.append(line)
+
+    return "\n".join(clean).strip(), accion
 
 
 # ── Context builder ───────────────────────────────────────────────────────────
@@ -42,6 +69,7 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
     """
     Recopila todos los datos del usuario relevantes para Redo.
     Ignora configuración de privacidad — Redo es el asistente personal del usuario.
+    Incluye: privacidad, notificaciones, última actividad, progreso, flashcards, quiz.
     """
     now = datetime.now(timezone.utc)
 
@@ -56,8 +84,42 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
 
     dias_registrado = None
     if user.fecha_registro:
-        delta = now - user.fecha_registro.replace(tzinfo=timezone.utc) if user.fecha_registro.tzinfo is None else now - user.fecha_registro
-        dias_registrado = max(0, delta.days)
+        ts = user.fecha_registro
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        dias_registrado = max(0, (now - ts).days)
+
+    # ── Privacidad — Redo sabe qué ocultó el usuario ─────────────────────────
+    privacidad = {
+        "foto": user.mostrar_foto,
+        "nombre": user.mostrar_nombre,
+        "username": user.mostrar_username,
+        "progreso": user.mostrar_progreso,
+        "cursos": user.mostrar_cursos,
+    }
+    # Solo incluir si algo está oculto (ahorra tokens)
+    todo_publico = all(privacidad.values())
+
+    # ── Notificaciones ────────────────────────────────────────────────────────
+    notif = db.query(models.NotificacionesConfig).filter(
+        models.NotificacionesConfig.id_usuario == user_id
+    ).first()
+    notificaciones = None
+    if notif:
+        notificaciones = {
+            "racha": notif.racha_activa,
+            "recordatorio": notif.recordatorio_activo,
+            "flashcards": notif.flashcards_activa,
+            "hora": notif.hora_recordatorio.strftime("%H:%M") if notif.hora_recordatorio else None,
+        }
+
+    # ── Última actividad (minutos hace) ───────────────────────────────────────
+    mins_inactivo = None
+    if user.ultima_actividad:
+        ua = user.ultima_actividad
+        if ua.tzinfo is None:
+            ua = ua.replace(tzinfo=timezone.utc)
+        mins_inactivo = max(0, int((now - ua).total_seconds() / 60))
 
     # ── Total flashcards vencidas ────────────────────────────────────────────
     due_total = (
@@ -107,11 +169,7 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
 
     materias = []
     for (mid,) in seguidas:
-        materia = (
-            db.query(models.Materia)
-            .filter(models.Materia.id == mid)
-            .first()
-        )
+        materia = db.query(models.Materia).filter(models.Materia.id == mid).first()
         if not materia:
             continue
 
@@ -136,15 +194,11 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
             "unidades": unidades_data,
         })
 
-    # ── Catálogo completo de materias (para que Redo sepa qué existe) ────────
-    todas = (
-        db.query(models.Materia.nombre)
-        .order_by(models.Materia.orden)
-        .all()
-    )
+    # ── Catálogo completo ────────────────────────────────────────────────────
+    todas = db.query(models.Materia.nombre).order_by(models.Materia.orden).all()
     catalogo = [m.nombre for m in todas]
 
-    # ── Quiz recientes (últimos 4) ────────────────────────────────────────────
+    # ── Quiz recientes (últimos 4) ───────────────────────────────────────────
     recientes = (
         db.query(
             models.QuizResultado.correctas,
@@ -169,7 +223,8 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
         for r in recientes
     ]
 
-    return {
+    # ── Build context dict ───────────────────────────────────────────────────
+    ctx = {
         "nombre": nombre_completo,
         "racha": user.racha or 0,
         "dias_en_app": dias_registrado,
@@ -179,18 +234,33 @@ def _fetch_full_context(user_id: int, db: Session) -> dict:
         "catalogo": catalogo,
     }
 
+    # Solo incluir campos opcionales si aportan info
+    if not todo_publico:
+        ctx["privacidad"] = privacidad
+    if notificaciones:
+        ctx["notif"] = notificaciones
+    if mins_inactivo is not None:
+        ctx["inactivo_mins"] = mins_inactivo
+
+    return ctx
+
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 async def get_mascota_message(
     user_id: int, accion: str, datos: dict, pantalla: str, db: Session
-) -> str:
+) -> dict:
+    """
+    Returns: {"mensaje": str, "accion": str | None}
+    """
     # 1. Cache check
     cache_key = f"{user_id}:{accion}:{pantalla}"
     cached = cache_get(cache_key, accion)
     if cached:
         logger.info("[redo] cache HIT — %s", cache_key)
-        return cached
+        # cached is the raw response, re-parse
+        mensaje, accion_sugerida = _parse_response(cached)
+        return {"mensaje": mensaje, "accion": accion_sugerida}
 
     # 2. Fetch full context
     ctx = _fetch_full_context(user_id, db)
@@ -204,17 +274,23 @@ async def get_mascota_message(
 
     logger.info("[redo] LLM call — key=%s payload=%d chars", cache_key, len(user_msg))
 
-    # 4. Call LLM
-    result = await chat_completion(
+    # 4. Call LLM (max_tokens=80 for action suffix)
+    raw = await chat_completion(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
         ],
-        max_tokens=60,
+        max_tokens=80,
     )
 
-    # 5. Cache
-    cache_set(cache_key, result)
-    logger.info("[redo] cached — %s: %s", cache_key, result[:70])
+    # 5. Parse response + optional action
+    mensaje, accion_sugerida = _parse_response(raw)
 
-    return result
+    # 6. Cache raw response
+    cache_set(cache_key, raw)
+    logger.info(
+        "[redo] cached — %s: %s | accion=%s",
+        cache_key, mensaje[:70], accion_sugerida
+    )
+
+    return {"mensaje": mensaje, "accion": accion_sugerida}

@@ -1651,12 +1651,17 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
     """Generate a context-aware mascota message using the configured LLM provider.
     No auth required — non-destructive read-only endpoint, userId in body suffices."""
     try:
-        mensaje = await get_mascota_message(body.user_id, body.accion, body.datos, body.pantalla, db)
-        logger.info("[mascota/chat] OK — accion=%s pantalla=%s resp=%s", body.accion, body.pantalla, (mensaje or "")[:50])
-        return {"mensaje": mensaje}
+        result = await get_mascota_message(body.user_id, body.accion, body.datos, body.pantalla, db)
+        logger.info(
+            "[mascota/chat] OK — accion=%s pantalla=%s msg=%s decision=%s",
+            body.accion, body.pantalla,
+            (result.get("mensaje") or "")[:50],
+            result.get("accion"),
+        )
+        return result
     except Exception as e:
         logger.error("[mascota/chat] FAIL — accion=%s error=%s", body.accion, e)
-        return {"mensaje": None}
+        return {"mensaje": None, "accion": None}
 
 
 def _notif_defaults() -> dict:

@@ -243,3 +243,8 @@ class MascotaChatRequest(BaseModel):
     accion: str
     datos: dict = {}
     pantalla: str = "home"
+
+
+class MascotaChatResponse(BaseModel):
+    mensaje: str
+    accion: str | None = None

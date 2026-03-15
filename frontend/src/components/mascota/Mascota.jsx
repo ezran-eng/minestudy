@@ -36,7 +36,7 @@ export default function Mascota({ userId }) {
     const p = loadStorage().pos;
     return p || { x: window.innerWidth - 84, y: window.innerHeight - 144 };
   });
-  const [bubble, setBubble] = useState(null);
+  const [bubble, setBubble] = useState(null); // { text, id, fromAI, accion? }
   const [sleeping, setSleeping] = useState(false);
   const [isBlurActive, setIsBlurActive] = useState(false);
   const [isBlurFading, setIsBlurFading] = useState(false);
@@ -91,16 +91,18 @@ export default function Mascota({ userId }) {
     }, 550);
   }, []);
 
-  const showBubble = useCallback((text, fromAI = false) => {
+  const showBubble = useCallback((text, fromAI = false, accion = null) => {
     if (!text) return;
     setSleeping(false);
     clearTimeout(bubbleTimer.current);
     clearTimeout(blurTimer.current);
     setIsBlurFading(false);
-    setBubble({ text, id: Date.now(), fromAI });
-    bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
+    setBubble({ text, id: Date.now(), fromAI, accion });
+    // Keep bubble longer if there's an action to tap
+    const duration = accion ? BUBBLE_MS * 2 : BUBBLE_MS;
+    bubbleTimer.current = setTimeout(() => setBubble(null), duration);
     setIsBlurActive(true);
-    blurTimer.current = setTimeout(fadeOutBlur, BLUR_MS);
+    blurTimer.current = setTimeout(fadeOutBlur, accion ? BLUR_MS * 2 : BLUR_MS);
   }, [fadeOutBlur]);
 
   const resetIdle = useCallback(() => {
@@ -108,8 +110,8 @@ export default function Mascota({ userId }) {
     setSleeping(false);
     idleTimer.current = setTimeout(async () => {
       setSleeping(true);
-      const { text, fromAI } = await getMascotaResponseAIRef.current('idle');
-      setBubble({ text: text || 'Zzz... 😴', id: Date.now(), fromAI });
+      const { text, fromAI, accion } = await getMascotaResponseAIRef.current('idle');
+      setBubble({ text: text || 'Zzz... 😴', id: Date.now(), fromAI, accion });
     }, IDLE_MS);
   }, []);
 
@@ -172,7 +174,7 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     if (greeted.current) return;
     greeted.current = true;
-    getMascotaResponseAIRef.current('app_open').then(({ text, fromAI }) => showBubble(text, fromAI));
+    getMascotaResponseAIRef.current('app_open').then(({ text, fromAI, accion }) => showBubble(text, fromAI, accion));
     resetIdle();
     return () => {
       clearTimeout(idleTimer.current);
@@ -201,7 +203,7 @@ export default function Mascota({ userId }) {
   }, [showBubble, resetIdle]);
 
   useEffect(() => {
-    const handler = () => getMascotaResponseAIRef.current('flashcard_complete').then(({ text, fromAI }) => showBubble(text, fromAI));
+    const handler = () => getMascotaResponseAIRef.current('flashcard_complete').then(({ text, fromAI, accion }) => showBubble(text, fromAI, accion));
     window.addEventListener('mascota:flashcard-complete', handler);
     return () => window.removeEventListener('mascota:flashcard-complete', handler);
   }, [showBubble]);
@@ -361,6 +363,31 @@ export default function Mascota({ userId }) {
 
   const clearTransition = useCallback(() => setTransition(null), []);
 
+  // ── Action handler — executes Redo's decisions ──────────────────────
+  const handleAction = useCallback((accion) => {
+    if (!accion) return;
+    setBubble(null);
+    switch (accion) {
+      case 'repaso':
+        if (hint?.materia_id && hint?.unidad_id) {
+          navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
+        } else {
+          navigate('/');
+        }
+        break;
+      case 'quiz':
+        if (hint?.materia_id && hint?.unidad_id) {
+          navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
+        }
+        break;
+      case 'explorar':
+        navigate('/');
+        break;
+      default:
+        break;
+    }
+  }, [hint, navigate]);
+
   // ── Icon logic (key remount + autoplay) ───────────────────────────────
 
   const iconShouldAutoplay = iconModeRef.current === 'sleeping' || iconModeRef.current === 'waking';
@@ -447,6 +474,7 @@ export default function Mascota({ userId }) {
           displayed={displayed}
           hint={hint}
           onSkip={skip}
+          onAction={handleAction}
           above={bubbleAbove}
           left={bubbleLeft}
         />
