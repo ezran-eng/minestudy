@@ -1019,6 +1019,10 @@ body {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes mascota-blur-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
 @keyframes aurora-pulse {
   from {
     filter: drop-shadow(0 0 8px rgba(120, 180, 255, 0.6))

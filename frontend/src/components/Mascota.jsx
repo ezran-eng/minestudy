@@ -268,6 +268,7 @@ export default function Mascota({ userId }) {
   const [bubble, setBubble] = useState(null);
   const [sleeping, setSleeping] = useState(false);
   const [isBlurActive, setIsBlurActive] = useState(false);
+  const [isBlurFading, setIsBlurFading] = useState(false);
   const [draggingOverMateria, setDraggingOverMateria] = useState(false);
   const [resumenMateriaId, setResumenMateriaId] = useState(null);
   const [transition, setTransition] = useState(null);
@@ -311,16 +312,27 @@ export default function Mascota({ userId }) {
   const blurTimer = useRef(null);
   const greeted = useRef(false);
 
+  // Smooth blur fade-out: keeps element mounted, plays exit animation, then unmounts
+  const fadeOutBlur = useCallback(() => {
+    clearTimeout(blurTimer.current);
+    setIsBlurFading(true);
+    blurTimer.current = setTimeout(() => {
+      setIsBlurActive(false);
+      setIsBlurFading(false);
+    }, 550); // matches mascota-blur-out duration
+  }, []);
+
   const showBubble = useCallback((text) => {
     if (!text) return;
     setSleeping(false);
     clearTimeout(bubbleTimer.current);
     clearTimeout(blurTimer.current);
+    setIsBlurFading(false);
     setBubble({ text, id: Date.now() });
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
     setIsBlurActive(true);
-    blurTimer.current = setTimeout(() => setIsBlurActive(false), BLUR_MS);
-  }, []);
+    blurTimer.current = setTimeout(fadeOutBlur, BLUR_MS);
+  }, [fadeOutBlur]);
 
   const resetIdle = useCallback(() => {
     clearTimeout(idleTimer.current);
@@ -688,9 +700,9 @@ export default function Mascota({ userId }) {
     {activa && (
       <>
       {/* Blur overlay — suppressed during materia drag (Study.jsx handles card blur) */}
-      {isBlurActive && !draggingOverMateria && (
+      {(isBlurActive || isBlurFading) && !draggingOverMateria && (
         <div
-          onClick={() => { clearTimeout(blurTimer.current); setIsBlurActive(false); }}
+          onClick={fadeOutBlur}
           style={{
             position: 'fixed',
             inset: 0,
@@ -698,7 +710,9 @@ export default function Mascota({ userId }) {
             WebkitBackdropFilter: 'blur(6px)',
             background: 'rgba(0,0,0,0.25)',
             zIndex: 999,
-            animation: 'mascota-blur-in 0.3s ease-out',
+            animation: isBlurFading
+              ? 'mascota-blur-out 0.55s ease-out forwards'
+              : 'mascota-blur-in 0.3s ease-out',
           }}
         />
       )}
