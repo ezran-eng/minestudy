@@ -5,7 +5,7 @@ import tamagadgetIconData from '../../assets/lotties/tamagadgetIcon.json';
 const OUTER_STARS = [0, 60, 120, 180, 240, 300];
 const INNER_DOTS = [45, 135, 225, 315];
 
-export default function MascotaIcon({ iconKey, lottieIconRef, autoplay, onDOMLoaded, onComplete, onTap }) {
+export default function MascotaIcon({ iconKey, lottieIconRef, autoplay, onDOMLoaded, onComplete, onTap, zIndex = 1001 }) {
   return (
     <div
       onClick={onTap}
@@ -13,7 +13,7 @@ export default function MascotaIcon({ iconKey, lottieIconRef, autoplay, onDOMLoa
         position: 'fixed',
         right: 16,
         bottom: 80,
-        zIndex: 1001,
+        zIndex,
         width: 58,
         height: 58,
         cursor: 'pointer',

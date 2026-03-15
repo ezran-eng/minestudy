@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Lottie from 'lottie-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import mascotaData from '../../assets/lotties/mascota.json';
 import { useMascotaHint, useMateriaResumen } from '../../hooks/useQueryHooks';
 import { useMascotaContext } from '../../hooks/useMascotaContext';
@@ -15,6 +15,9 @@ import BlurOverlay from './BlurOverlay';
 
 export default function Mascota({ userId }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // En pantallas de estudio activo (quiz/flashcard) el ícono queda detrás del contenido
+  const iconZIndex = /\/materia\/.+\/unidad\//.test(pathname) ? 0 : 1001;
   const { data: hint } = useMascotaHint(userId);
   const { getMascotaResponse } = useMascotaContext();
 
@@ -404,6 +407,7 @@ export default function Mascota({ userId }) {
         onDOMLoaded={onIconDOMLoaded}
         onComplete={onIconComplete}
         onTap={onIconTap}
+        zIndex={iconZIndex}
       />
     )}
 
