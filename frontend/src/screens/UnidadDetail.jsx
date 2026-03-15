@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
-import Timer from '../components/Timer';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
@@ -404,7 +403,6 @@ const UnidadDetail = () => {
         onFirstAnswer={registrarHoy}
         onQuizFinish={handleQuizFinish}
       />
-      <Timer />
     </>
   );
 };

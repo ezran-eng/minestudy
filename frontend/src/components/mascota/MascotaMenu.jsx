@@ -53,7 +53,7 @@ function NavButton({ dir, onPress }) {
   );
 }
 
-export default function MascotaMenu({ onApagar, onProximamente, onNotificaciones, above, left }) {
+export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, onProximamente, above, left }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideClass, setSlideClass] = useState('');
   const [animKey, setAnimKey] = useState(0);
@@ -72,8 +72,9 @@ export default function MascotaMenu({ onApagar, onProximamente, onNotificaciones
   const handleSelect = () => {
     const { id } = OPCIONES[activeIndex];
     if (id === 'apagar') onApagar();
+    else if (id === 'pomodoro') onPomodoro?.();
     else if (id === 'notificaciones') onNotificaciones();
-    else onProximamente();
+    else onProximamente?.();
   };
 
   const opcion = OPCIONES[activeIndex];

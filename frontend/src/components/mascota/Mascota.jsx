@@ -5,6 +5,7 @@ import mascotaData from '../../assets/lotties/mascota.json';
 import { useMascotaHint, useMateriaResumen } from '../../hooks/useQueryHooks';
 import { useMascotaContext } from '../../hooks/useMascotaContext';
 
+import Timer from '../Timer';
 import { IDLE_MS, BUBBLE_MS, BLUR_MS, SEG_FULL, SEG_IDLE, SEG_GRAB, loadStorage, saveStorage } from './constants';
 import { pickRandomEffect, TransitionEffect } from './effects.jsx';
 import { useTypewriter } from './useTypewriter';
@@ -31,6 +32,7 @@ export default function Mascota({ userId }) {
 
   const [activa, setActiva] = useState(() => loadStorage().mascota_activa !== false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pomodoroOpen, setPomodoroOpen] = useState(false);
 
   const [pos, setPos] = useState(() => {
     const p = loadStorage().pos;
@@ -482,8 +484,9 @@ export default function Mascota({ userId }) {
         {menuOpen && (
           <MascotaMenu
             onApagar={apagar}
-            onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
+            onPomodoro={() => { setMenuOpen(false); setPomodoroOpen(true); }}
             onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
+            onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
             above={menuAbove}
             left={menuLeft}
           />
@@ -522,6 +525,9 @@ export default function Mascota({ userId }) {
       </div>
       </>
     )}
+
+    {/* Pomodoro — accessible desde el menú */}
+    <Timer open={pomodoroOpen} onClose={() => setPomodoroOpen(false)} />
 
     {/* Transition effect — persists across activa changes */}
     {transition && (
