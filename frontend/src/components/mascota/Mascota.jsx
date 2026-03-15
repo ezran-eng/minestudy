@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Lottie from 'lottie-react';
+import { useNavigate } from 'react-router-dom';
 import mascotaData from '../../assets/lotties/mascota.json';
 import { useMascotaHint, useMateriaResumen } from '../../hooks/useQueryHooks';
 import { useMascotaContext } from '../../hooks/useMascotaContext';
@@ -13,6 +14,7 @@ import MascotaMenu from './MascotaMenu';
 import BlurOverlay from './BlurOverlay';
 
 export default function Mascota({ userId }) {
+  const navigate = useNavigate();
   const { data: hint } = useMascotaHint(userId);
   const { getMascotaResponse } = useMascotaContext();
 
@@ -441,7 +443,13 @@ export default function Mascota({ userId }) {
         />
 
         {menuOpen && (
-          <MascotaMenu onApagar={apagar} above={menuAbove} left={menuLeft} />
+          <MascotaMenu
+            onApagar={apagar}
+            onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
+            onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
+            above={menuAbove}
+            left={menuLeft}
+          />
         )}
 
         {/* Lottie mascot */}

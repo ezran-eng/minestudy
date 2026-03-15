@@ -1041,3 +1041,13 @@ body {
             drop-shadow(0 0 32px rgba(120, 160, 255, 0.5));
   }
 }
+@keyframes mascota-menu-slide-up {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes mascota-menu-slide-down {
+  from { transform: translateY(-40px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+.mascota-slide-up   { animation: mascota-menu-slide-up   180ms ease-in-out; }
+.mascota-slide-down { animation: mascota-menu-slide-down 180ms ease-in-out; }
