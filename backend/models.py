@@ -242,3 +242,19 @@ class NotificacionesConfig(Base):
     hora_recordatorio = Column(Time, default=datetime.time(8, 0), nullable=False)
 
     usuario = relationship("User", back_populates="notificaciones_config")
+
+
+class RedoMemoria(Base):
+    """
+    Memoria persistente de Redo por usuario.
+    Redo observa patrones del estudiante y los recuerda entre sesiones.
+    Max 5 memorias por usuario (FIFO), cada una ≤ 100 chars.
+    """
+    __tablename__ = "redo_memoria"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, index=True)
+    contenido = Column(String(100), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    usuario = relationship("User")
