@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useMascotaCtx } from '../context/MascotaContext';
+import { mascotaChat } from '../services/api';
 
 // ── Todas las frases ──────────────────────────────────────────────────────────
 const FRASES = {
@@ -166,6 +167,9 @@ function resolveKey(accion, pantalla, datos) {
   return FRASES[s]?.[k] ? universalKey : null;
 }
 
+// Acciones que justifican llamar a la IA (tienen contexto real significativo)
+const AI_ACTIONS = new Set(['app_open', 'enter', 'idle', 'flashcard_complete', 'drop_materia']);
+
 // ── Hook principal ─────────────────────────────────────────────────────────────
 export function useMascotaContext() {
   const contexto = useMascotaCtx();
@@ -200,5 +204,24 @@ export function useMascotaContext() {
     return interpolate(pickNoRepeat(key, phrases), merged);
   }
 
-  return { getMascotaResponse, contexto };
+  /**
+   * Async version — calls the AI for meaningful actions, falls back to local phrases.
+   * Returns a string (local fallback) or a Promise<string|null>.
+   * Only fires AI for actions in AI_ACTIONS to avoid spamming the API.
+   */
+  const getMascotaResponseAI = useCallback(async (userId, accion, extraDatos = {}, overridePantalla = null) => {
+    const fallback = getMascotaResponse(accion, extraDatos, overridePantalla);
+    if (!userId || !AI_ACTIONS.has(accion)) return fallback;
+    try {
+      const { mensaje } = await mascotaChat(
+        userId, accion, extraDatos,
+        overridePantalla || contexto.pantalla
+      );
+      return mensaje || fallback;
+    } catch {
+      return fallback;
+    }
+  }, [getMascotaResponse, contexto.pantalla]);
+
+  return { getMascotaResponse, getMascotaResponseAI, contexto };
 }

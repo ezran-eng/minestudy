@@ -236,3 +236,10 @@ class CardReviewOut(BaseModel):
     repeticiones: int
 
     model_config = {"from_attributes": True}
+
+
+class MascotaChatRequest(BaseModel):
+    user_id: int
+    accion: str
+    datos: dict = {}
+    pantalla: str = "home"

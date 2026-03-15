@@ -19,10 +19,15 @@ export default function Mascota({ userId }) {
   // En pantallas de estudio activo (quiz/flashcard) el ícono queda detrás del contenido
   const iconZIndex = /\/materia\/.+\/unidad\//.test(pathname) ? 0 : 1001;
   const { data: hint } = useMascotaHint(userId);
-  const { getMascotaResponse } = useMascotaContext();
+  const { getMascotaResponse, getMascotaResponseAI } = useMascotaContext();
 
   const getMascotaResponseRef = useRef(getMascotaResponse);
   getMascotaResponseRef.current = getMascotaResponse;
+
+  // Stable ref for AI version — avoids stale closure in timers
+  const getMascotaResponseAIRef = useRef(null);
+  getMascotaResponseAIRef.current = (accion, extraDatos = {}, pantalla = null) =>
+    getMascotaResponseAI(userId, accion, extraDatos, pantalla);
 
   const [activa, setActiva] = useState(() => loadStorage().mascota_activa !== false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -101,10 +106,10 @@ export default function Mascota({ userId }) {
   const resetIdle = useCallback(() => {
     clearTimeout(idleTimer.current);
     setSleeping(false);
-    idleTimer.current = setTimeout(() => {
+    idleTimer.current = setTimeout(async () => {
       setSleeping(true);
-      const msg = getMascotaResponseRef.current('idle') || 'Zzz... 😴';
-      setBubble({ text: msg, id: Date.now() });
+      const msg = await getMascotaResponseAIRef.current('idle');
+      setBubble({ text: msg || 'Zzz... 😴', id: Date.now() });
     }, IDLE_MS);
   }, []);
 
@@ -167,7 +172,7 @@ export default function Mascota({ userId }) {
   useEffect(() => {
     if (greeted.current) return;
     greeted.current = true;
-    showBubble(getMascotaResponseRef.current('app_open'));
+    getMascotaResponseAIRef.current('app_open').then(msg => showBubble(msg));
     resetIdle();
     return () => {
       clearTimeout(idleTimer.current);
@@ -196,7 +201,7 @@ export default function Mascota({ userId }) {
   }, [showBubble, resetIdle]);
 
   useEffect(() => {
-    const handler = () => showBubble(getMascotaResponseRef.current('flashcard_complete'));
+    const handler = () => getMascotaResponseAIRef.current('flashcard_complete').then(msg => showBubble(msg));
     window.addEventListener('mascota:flashcard-complete', handler);
     return () => window.removeEventListener('mascota:flashcard-complete', handler);
   }, [showBubble]);

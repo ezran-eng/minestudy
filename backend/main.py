@@ -27,6 +27,7 @@ from urllib.parse import unquote
 import models
 import schemas
 from database import engine, get_db
+from mascota_ai import get_mascota_message
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -1643,6 +1644,17 @@ def get_mascota_hint(id: int, db: Session = Depends(get_db)):
         "materia_nombre": lowest_materia.nombre,
         "unidad_nombre": lowest_unidad.nombre,
     }
+
+
+@app.post("/mascota/chat", dependencies=[Depends(require_init_data)])
+async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(get_db)):
+    """Generate a context-aware mascota message using the configured LLM provider."""
+    try:
+        mensaje = await get_mascota_message(body.user_id, body.accion, body.datos, body.pantalla, db)
+        return {"mensaje": mensaje}
+    except Exception as e:
+        logger.warning(f"[mascota/chat] LLM error ({body.accion}): {e}")
+        return {"mensaje": None}  # frontend falls back to local phrases
 
 
 def _notif_defaults() -> dict:
