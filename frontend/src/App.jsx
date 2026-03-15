@@ -12,7 +12,7 @@ const UserProfile = lazy(() => import('./screens/UserProfile'));
 const Onboarding = lazy(() => import('./screens/Onboarding'));
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
-import Mascota from './components/Mascota';
+import Mascota from './components/mascota';
 import { MascotaProvider } from './context/MascotaContext';
 
 import { useTelegram } from './hooks/useTelegram';
