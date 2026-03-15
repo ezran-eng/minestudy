@@ -1060,3 +1060,7 @@ body {
   50%  { box-shadow: 0 0 18px rgba(255,255,255,0.08); }
   100% { box-shadow: 0 0 0px rgba(255,255,255,0); }
 }
+@keyframes pomodoro-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}

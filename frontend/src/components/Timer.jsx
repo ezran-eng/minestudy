@@ -1,61 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { usePomodoro } from '../context/PomodoroContext';
 
 const STUDY_TIME = 25 * 60;
 const BREAK_TIME = 5 * 60;
 
 /**
- * Pomodoro timer — controlled modal.
- * Triggered from the mascota menu, not a floating button.
+ * Pomodoro panel — reads all state from PomodoroContext.
+ * Timer keeps running even when this panel is closed.
  */
-export default function Timer({ open, onClose }) {
-  const [timeLeft, setTimeLeft] = useState(STUDY_TIME);
-  const [isActive, setIsActive] = useState(false);
-  const [isBreak, setIsBreak] = useState(false);
+export default function Timer() {
+  const {
+    secondsLeft, isRunning, mode, totalTime,
+    pomodorosCompletados, panelOpen,
+    toggle, reset, toggleMode, closePanel,
+  } = usePomodoro();
 
-  // Pause when closed
-  useEffect(() => {
-    if (!open) setIsActive(false);
-  }, [open]);
+  const isBreak = mode === 'break';
 
-  useEffect(() => {
-    if (!isActive || timeLeft <= 0) return;
-    const id = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearInterval(id);
-  }, [isActive, timeLeft]);
-
-  useEffect(() => {
-    if (timeLeft === 0) setIsActive(false);
-  }, [timeLeft]);
-
-  const toggle = () => setIsActive(a => !a);
-
-  const reset = () => {
-    setIsActive(false);
-    setTimeLeft(isBreak ? BREAK_TIME : STUDY_TIME);
+  const fmt = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  const toggleMode = () => {
-    const next = !isBreak;
-    setIsBreak(next);
-    setIsActive(false);
-    setTimeLeft(next ? BREAK_TIME : STUDY_TIME);
-  };
-
-  const fmt = (s) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  };
-
-  const pct = timeLeft / (isBreak ? BREAK_TIME : STUDY_TIME);
+  const pct = secondsLeft / totalTime;
   const r = 54;
   const circ = 2 * Math.PI * r;
 
-  if (!open) return null;
+  if (!panelOpen) return null;
 
   return (
     <div
-      onClick={onClose}
+      onClick={closePanel}
       style={{
         position: 'fixed',
         inset: 0,
@@ -86,7 +62,7 @@ export default function Timer({ open, onClose }) {
       >
         {/* Close */}
         <button
-          onClick={onClose}
+          onClick={closePanel}
           style={{
             position: 'absolute',
             top: '14px',
@@ -113,19 +89,22 @@ export default function Timer({ open, onClose }) {
           textTransform: 'uppercase',
         }}>
           🍅 {isBreak ? 'Descanso' : 'Pomodoro'}
+          {pomodorosCompletados > 0 && (
+            <span style={{ marginLeft: '8px', color: 'rgba(255,255,255,0.3)' }}>
+              ×{pomodorosCompletados}
+            </span>
+          )}
         </div>
 
         {/* SVG ring + time */}
         <div style={{ position: 'relative', display: 'inline-block', marginBottom: '28px' }}>
           <svg width="128" height="128" style={{ transform: 'rotate(-90deg)' }}>
-            {/* Track */}
             <circle
               cx="64" cy="64" r={r}
               fill="none"
               stroke="rgba(255,255,255,0.06)"
               strokeWidth="8"
             />
-            {/* Progress */}
             <circle
               cx="64" cy="64" r={r}
               fill="none"
@@ -150,12 +129,12 @@ export default function Timer({ open, onClose }) {
               fontFamily: "'Silkscreen', cursive",
               fontSize: '26px',
               fontWeight: 700,
-              color: timeLeft === 0 ? '#f87171' : '#fff',
+              color: secondsLeft === 0 ? '#f87171' : '#fff',
               letterSpacing: '0.04em',
             }}>
-              {fmt(timeLeft)}
+              {fmt(secondsLeft)}
             </span>
-            {isActive && (
+            {isRunning && (
               <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', fontFamily: "'Silkscreen', cursive" }}>
                 EN CURSO
               </span>
@@ -171,18 +150,18 @@ export default function Timer({ open, onClose }) {
               flex: 1,
               padding: '12px',
               borderRadius: '14px',
-              background: isActive
+              background: isRunning
                 ? 'rgba(248,113,113,0.2)'
                 : 'rgba(167,139,250,0.2)',
-              border: `1px solid ${isActive ? 'rgba(248,113,113,0.4)' : 'rgba(167,139,250,0.4)'}`,
-              color: isActive ? '#fca5a5' : '#c4b5fd',
+              border: `1px solid ${isRunning ? 'rgba(248,113,113,0.4)' : 'rgba(167,139,250,0.4)'}`,
+              color: isRunning ? '#fca5a5' : '#c4b5fd',
               fontFamily: "'Silkscreen', cursive",
               fontSize: '11px',
               cursor: 'pointer',
               letterSpacing: '0.06em',
             }}
           >
-            {isActive ? '⏸ PAUSAR' : timeLeft < (isBreak ? BREAK_TIME : STUDY_TIME) ? '▶ SEGUIR' : '▶ INICIAR'}
+            {isRunning ? '⏸ PAUSAR' : secondsLeft < totalTime ? '▶ SEGUIR' : '▶ INICIAR'}
           </button>
           <button
             onClick={reset}

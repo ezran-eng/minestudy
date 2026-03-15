@@ -13,7 +13,10 @@ const Onboarding = lazy(() => import('./screens/Onboarding'));
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 import Mascota from './components/mascota';
+import Timer from './components/Timer';
+import PomodoroFloating from './components/PomodoroFloating';
 import { MascotaProvider } from './context/MascotaContext';
+import { PomodoroProvider } from './context/PomodoroContext';
 
 import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser, getPrivacidad } from './services/api';
@@ -36,6 +39,8 @@ const AppContent = ({ user }) => {
       </ErrorBoundary>
       <BottomNav user={user} />
       {user?.id && <Mascota userId={user.id} />}
+      <Timer />
+      <PomodoroFloating />
     </>
   );
 };
@@ -155,9 +160,11 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <ToastProvider>
-          <MascotaProvider>
-            <AppContent user={user} />
-          </MascotaProvider>
+          <PomodoroProvider>
+            <MascotaProvider>
+              <AppContent user={user} />
+            </MascotaProvider>
+          </PomodoroProvider>
         </ToastProvider>
       </Router>
     </QueryClientProvider>

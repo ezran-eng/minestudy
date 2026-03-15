@@ -4,8 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import mascotaData from '../../assets/lotties/mascota.json';
 import { useMascotaHint, useMateriaResumen } from '../../hooks/useQueryHooks';
 import { useMascotaContext } from '../../hooks/useMascotaContext';
+import { usePomodoro } from '../../context/PomodoroContext';
 
-import Timer from '../Timer';
 import { IDLE_MS, BUBBLE_MS, BLUR_MS, SEG_FULL, SEG_IDLE, SEG_GRAB, loadStorage, saveStorage } from './constants';
 import { pickRandomEffect, TransitionEffect } from './effects.jsx';
 import { useTypewriter } from './useTypewriter';
@@ -21,6 +21,7 @@ export default function Mascota({ userId }) {
   const iconZIndex = /\/materia\/.+\/unidad\//.test(pathname) ? 0 : 1001;
   const { data: hint } = useMascotaHint(userId);
   const { getMascotaResponse, getMascotaResponseAI } = useMascotaContext();
+  const { openPanel: openPomodoro } = usePomodoro();
 
   const getMascotaResponseRef = useRef(getMascotaResponse);
   getMascotaResponseRef.current = getMascotaResponse;
@@ -32,7 +33,6 @@ export default function Mascota({ userId }) {
 
   const [activa, setActiva] = useState(() => loadStorage().mascota_activa !== false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pomodoroOpen, setPomodoroOpen] = useState(false);
 
   const [pos, setPos] = useState(() => {
     const p = loadStorage().pos;
@@ -484,7 +484,7 @@ export default function Mascota({ userId }) {
         {menuOpen && (
           <MascotaMenu
             onApagar={apagar}
-            onPomodoro={() => { setMenuOpen(false); setPomodoroOpen(true); }}
+            onPomodoro={() => { setMenuOpen(false); openPomodoro(); }}
             onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
             onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
             above={menuAbove}
@@ -525,9 +525,6 @@ export default function Mascota({ userId }) {
       </div>
       </>
     )}
-
-    {/* Pomodoro — accessible desde el menú */}
-    <Timer open={pomodoroOpen} onClose={() => setPomodoroOpen(false)} />
 
     {/* Transition effect — persists across activa changes */}
     {transition && (
