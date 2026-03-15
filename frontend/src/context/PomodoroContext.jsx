@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 const STUDY_TIME = 25 * 60;
 const BREAK_TIME = 5 * 60;
 const STORAGE_KEY = 'pomodoro_state';
+const INTERVENCION_INTERVAL = 10 * 60; // every 10 minutes
+const DESCANSO_INTERVAL = 2.5 * 60;    // every 2.5 minutes during break
 
 // ── Persistence helpers ──────────────────────────────────────────────────────
 
@@ -13,7 +15,6 @@ function loadState() {
     const s = JSON.parse(raw);
     if (!s.savedAt) return null;
 
-    // If it was running, subtract elapsed time
     if (s.isRunning) {
       const elapsed = Math.floor((Date.now() - s.savedAt) / 1000);
       s.secondsLeft = Math.max(0, s.secondsLeft - elapsed);
@@ -35,6 +36,7 @@ function saveState(state) {
       mode: state.mode,
       isRunning: state.isRunning,
       pomodorosCompletados: state.pomodorosCompletados,
+      objetivo: state.objetivo,
       savedAt: Date.now(),
     }));
   } catch { /* ignore */ }
@@ -59,11 +61,17 @@ export function PomodoroProvider({ children }) {
   const [pomodorosCompletados, setPomodorosCompletados] = useState(
     () => restored.current?.pomodorosCompletados ?? 0
   );
+  const [objetivo, setObjetivo] = useState(
+    () => restored.current?.objetivo ?? null
+  );
   const [panelOpen, setPanelOpen] = useState(false);
 
   const totalTime = mode === 'study' ? STUDY_TIME : BREAK_TIME;
 
-  // ── Ticker — lives here, runs even when panel is closed ────────────────
+  // Track last intervention time to fire every 10 min
+  const lastIntervencionRef = useRef(null);
+
+  // ── Ticker ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isRunning || secondsLeft <= 0) return;
     const id = setInterval(() => {
@@ -81,24 +89,66 @@ export function PomodoroProvider({ children }) {
     return () => clearInterval(id);
   }, [isRunning, secondsLeft, mode]);
 
-  // ── Persist to localStorage every 5 seconds while running ──────────────
-  useEffect(() => {
-    saveState({ secondsLeft, mode, isRunning, pomodorosCompletados });
-  }, [secondsLeft, mode, isRunning, pomodorosCompletados]);
+  // ── Mascota events ─────────────────────────────────────────────────────
 
-  // Also save periodically while running (in case tab crashes)
+  // Interventions every 10 min (study) or 2.5 min (break)
+  useEffect(() => {
+    if (!isRunning) {
+      lastIntervencionRef.current = null;
+      return;
+    }
+
+    const interval = mode === 'study' ? INTERVENCION_INTERVAL : DESCANSO_INTERVAL;
+    const elapsed = totalTime - secondsLeft;
+
+    // Initialize tracking
+    if (lastIntervencionRef.current === null) {
+      lastIntervencionRef.current = Math.floor(elapsed / interval);
+    }
+
+    const currentSlot = Math.floor(elapsed / interval);
+    if (currentSlot > lastIntervencionRef.current && currentSlot > 0) {
+      lastIntervencionRef.current = currentSlot;
+      const eventName = mode === 'study'
+        ? 'mascota:pomodoro-intervencion'
+        : 'mascota:pomodoro-descanso';
+      window.dispatchEvent(new CustomEvent(eventName, {
+        detail: { objetivo, elapsed, secondsLeft },
+      }));
+    }
+  }, [secondsLeft, isRunning, mode, totalTime, objetivo]);
+
+  // Timer complete
+  useEffect(() => {
+    if (secondsLeft === 0 && !isRunning) {
+      const eventName = mode === 'study'
+        ? 'mascota:pomodoro-completo'
+        : 'mascota:pomodoro-vuelta';
+      // Small delay to let state settle
+      const t = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent(eventName, {
+          detail: { objetivo, pomodorosCompletados },
+        }));
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [secondsLeft, isRunning]); // eslint-disable-line
+
+  // ── Persist ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    saveState({ secondsLeft, mode, isRunning, pomodorosCompletados, objetivo });
+  }, [secondsLeft, mode, isRunning, pomodorosCompletados, objetivo]);
+
   useEffect(() => {
     if (!isRunning) return;
     const id = setInterval(() => {
-      saveState({ secondsLeft, mode, isRunning, pomodorosCompletados });
+      saveState({ secondsLeft, mode, isRunning, pomodorosCompletados, objetivo });
     }, 5000);
     return () => clearInterval(id);
-  }, [isRunning, secondsLeft, mode, pomodorosCompletados]);
+  }, [isRunning, secondsLeft, mode, pomodorosCompletados, objetivo]);
 
   // ── Actions ────────────────────────────────────────────────────────────
-  const toggle = useCallback(() => {
-    setIsRunning(r => !r);
-  }, []);
+  const toggle = useCallback(() => setIsRunning(r => !r), []);
 
   const reset = useCallback(() => {
     setIsRunning(false);
@@ -114,10 +164,17 @@ export function PomodoroProvider({ children }) {
     });
   }, []);
 
+  const startWithObjetivo = useCallback((obj) => {
+    setObjetivo(obj);
+    setMode('study');
+    setSecondsLeft(STUDY_TIME);
+    setIsRunning(true);
+    lastIntervencionRef.current = 0;
+  }, []);
+
   const openPanel = useCallback(() => setPanelOpen(true), []);
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
-  // Has been started at least once (timer is not at full)
   const hasStarted = secondsLeft < totalTime || isRunning;
 
   const value = {
@@ -126,11 +183,14 @@ export function PomodoroProvider({ children }) {
     mode,
     totalTime,
     pomodorosCompletados,
+    objetivo,
     panelOpen,
     hasStarted,
     toggle,
     reset,
     toggleMode,
+    startWithObjetivo,
+    setObjetivo,
     openPanel,
     closePanel,
   };

@@ -14,6 +14,7 @@ import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 import Mascota from './components/mascota';
 import Timer from './components/Timer';
+import PomodoroSugerencia from './components/PomodoroSugerencia';
 import PomodoroFloating from './components/PomodoroFloating';
 import { MascotaProvider } from './context/MascotaContext';
 import { PomodoroProvider } from './context/PomodoroContext';
@@ -40,6 +41,7 @@ const AppContent = ({ user }) => {
       <BottomNav user={user} />
       {user?.id && <Mascota userId={user.id} />}
       <Timer />
+      <PomodoroSugerencia />
       <PomodoroFloating />
     </>
   );

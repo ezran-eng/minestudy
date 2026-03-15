@@ -5,6 +5,7 @@ import mascotaData from '../../assets/lotties/mascota.json';
 import { useMascotaHint, useMateriaResumen } from '../../hooks/useQueryHooks';
 import { useMascotaContext } from '../../hooks/useMascotaContext';
 import { usePomodoro } from '../../context/PomodoroContext';
+import { usePomodoroMascota } from '../../hooks/usePomodoroMascota';
 
 import { IDLE_MS, BUBBLE_MS, BLUR_MS, SEG_FULL, SEG_IDLE, SEG_GRAB, loadStorage, saveStorage } from './constants';
 import { pickRandomEffect, TransitionEffect } from './effects.jsx';
@@ -21,7 +22,8 @@ export default function Mascota({ userId }) {
   const iconZIndex = /\/materia\/.+\/unidad\//.test(pathname) ? 0 : 1001;
   const { data: hint } = useMascotaHint(userId);
   const { getMascotaResponse, getMascotaResponseAI } = useMascotaContext();
-  const { openPanel: openPomodoro } = usePomodoro();
+  const { openPanel: openPomodoro, objetivo: pomodoroObjetivo } = usePomodoro();
+  const { getIntervencion, getCelebracion, getDescanso, getVuelta } = usePomodoroMascota();
 
   const getMascotaResponseRef = useRef(getMascotaResponse);
   getMascotaResponseRef.current = getMascotaResponse;
@@ -219,6 +221,25 @@ export default function Mascota({ userId }) {
     window.addEventListener('mascota:event', handler);
     return () => window.removeEventListener('mascota:event', handler);
   }, [showBubble, resetIdle]);
+
+  // ── Pomodoro mascota events ─────────────────────────────────────────
+  useEffect(() => {
+    const onIntervencion = () => showBubble(getIntervencion(pomodoroObjetivo));
+    const onDescanso = () => showBubble(getDescanso(pomodoroObjetivo));
+    const onCompleto = () => showBubble(getCelebracion(pomodoroObjetivo));
+    const onVuelta = () => showBubble(getVuelta(pomodoroObjetivo));
+
+    window.addEventListener('mascota:pomodoro-intervencion', onIntervencion);
+    window.addEventListener('mascota:pomodoro-descanso', onDescanso);
+    window.addEventListener('mascota:pomodoro-completo', onCompleto);
+    window.addEventListener('mascota:pomodoro-vuelta', onVuelta);
+    return () => {
+      window.removeEventListener('mascota:pomodoro-intervencion', onIntervencion);
+      window.removeEventListener('mascota:pomodoro-descanso', onDescanso);
+      window.removeEventListener('mascota:pomodoro-completo', onCompleto);
+      window.removeEventListener('mascota:pomodoro-vuelta', onVuelta);
+    };
+  }, [showBubble, pomodoroObjetivo, getIntervencion, getCelebracion, getDescanso, getVuelta]);
 
   // ── Drag system ───────────────────────────────────────────────────────
 
