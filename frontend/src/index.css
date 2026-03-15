@@ -1042,12 +1042,17 @@ body {
   }
 }
 @keyframes mascota-menu-slide-up {
-  from { transform: translateY(40px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from { transform: translateY(44px) scale(0.94); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
 }
 @keyframes mascota-menu-slide-down {
-  from { transform: translateY(-40px); opacity: 0; }
-  to   { transform: translateY(0);     opacity: 1; }
+  from { transform: translateY(-44px) scale(0.94); opacity: 0; }
+  to   { transform: translateY(0)     scale(1);    opacity: 1; }
 }
-.mascota-slide-up   { animation: mascota-menu-slide-up   180ms ease-in-out; }
-.mascota-slide-down { animation: mascota-menu-slide-down 180ms ease-in-out; }
+.mascota-slide-up   { animation: mascota-menu-slide-up   240ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.mascota-slide-down { animation: mascota-menu-slide-down 240ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes mascota-menu-glow {
+  0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
+  50%  { box-shadow: 0 0 18px rgba(255,255,255,0.08); }
+  100% { box-shadow: 0 0 0px rgba(255,255,255,0); }
+}
