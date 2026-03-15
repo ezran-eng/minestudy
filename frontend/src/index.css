@@ -1023,6 +1023,14 @@ body {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+@keyframes icon-orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes icon-orbit-reverse {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(-360deg); }
+}
 @keyframes aurora-pulse {
   from {
     filter: drop-shadow(0 0 8px rgba(120, 180, 255, 0.6))
