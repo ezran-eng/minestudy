@@ -2,14 +2,6 @@ import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/ErrorBoundary';
-
-const Home = lazy(() => import('./screens/Home'));
-const Study = lazy(() => import('./screens/Study'));
-const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
-const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
-const Profile = lazy(() => import('./screens/Profile'));
-const UserProfile = lazy(() => import('./screens/UserProfile'));
-const OldOnboarding = lazy(() => import('./screens/Onboarding'));
 import CinematicOnboarding from './components/Onboarding';
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
@@ -19,9 +11,15 @@ import PomodoroSugerencia from './components/PomodoroSugerencia';
 import PomodoroFloating from './components/PomodoroFloating';
 import { MascotaProvider } from './context/MascotaContext';
 import { PomodoroProvider } from './context/PomodoroContext';
-
 import { useTelegram } from './hooks/useTelegram';
 import { createOrUpdateUser, getPrivacidad } from './services/api';
+
+const Home = lazy(() => import('./screens/Home'));
+const Study = lazy(() => import('./screens/Study'));
+const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
+const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
+const Profile = lazy(() => import('./screens/Profile'));
+const UserProfile = lazy(() => import('./screens/UserProfile'));
 
 const AppContent = ({ user }) => {
   const location = useLocation();
