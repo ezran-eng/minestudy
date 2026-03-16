@@ -220,6 +220,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
             animationData={mascotaData}
             autoplay={false}
             loop={false}
+            initialSegment={SEG_FULL}
             onComplete={handleLottieComplete}
             style={{ width: '100%', height: '100%' }}
           />

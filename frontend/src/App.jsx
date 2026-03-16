@@ -155,8 +155,9 @@ const App = () => {
 
   // ── Cinematic onboarding ──────────────────────────────────────────────────
   // Show for: first-time users, OR returning users who haven't opted out
+  const completado = localStorage.getItem('onboarding_completado');
   const noMostrar = localStorage.getItem('onboarding_no_mostrar');
-  if (!noMostrar) {
+  if (!completado && !noMostrar) {
     return (
       <ErrorBoundary fallback={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#000' }}>
