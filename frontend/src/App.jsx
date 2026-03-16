@@ -2,7 +2,6 @@ import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/ErrorBoundary';
-import CinematicOnboarding from './components/Onboarding';
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 import Mascota from './components/mascota';
@@ -20,6 +19,13 @@ const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
 const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
 const Profile = lazy(() => import('./screens/Profile'));
 const UserProfile = lazy(() => import('./screens/UserProfile'));
+const CinematicOnboarding = lazy(() => import('./components/Onboarding'));
+
+const Loading = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#000' }}>
+    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', fontFamily: "'Silkscreen', cursive" }}>...</div>
+  </div>
+);
 
 const AppContent = ({ user }) => {
   const location = useLocation();
@@ -147,18 +153,26 @@ const App = () => {
     );
   }
 
-  // ── Onboarding logic ─────────────────────────────────────────────────────
-  // First-time user (backend says not completed) → cinematic onboarding
-  // Returning user → show cinematic only if they haven't opted out via checkbox
-  const showCinematic = onboardingDone === false
-    || (!localStorage.getItem('onboarding_completado') || !localStorage.getItem('onboarding_no_mostrar'));
-
-  if (showCinematic && !localStorage.getItem('onboarding_no_mostrar')) {
+  // ── Cinematic onboarding ──────────────────────────────────────────────────
+  // Show for: first-time users, OR returning users who haven't opted out
+  const noMostrar = localStorage.getItem('onboarding_no_mostrar');
+  if (!noMostrar) {
     return (
-      <CinematicOnboarding
-        user={user}
-        onComplete={() => setOnboardingDone(true)}
-      />
+      <ErrorBoundary fallback={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#000' }}>
+          <button onClick={() => { localStorage.setItem('onboarding_no_mostrar', 'true'); localStorage.setItem('onboarding_completado', 'true'); window.location.reload(); }}
+            style={{ padding: '14px 28px', borderRadius: '14px', background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)', color: '#c4b5fd', fontFamily: "'Silkscreen', cursive", fontSize: '12px', cursor: 'pointer' }}>
+            Saltar intro →
+          </button>
+        </div>
+      }>
+        <Suspense fallback={<Loading />}>
+          <CinematicOnboarding
+            user={user}
+            onComplete={() => setOnboardingDone(true)}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
