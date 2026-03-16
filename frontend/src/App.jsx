@@ -9,7 +9,8 @@ const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
 const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
 const Profile = lazy(() => import('./screens/Profile'));
 const UserProfile = lazy(() => import('./screens/UserProfile'));
-const Onboarding = lazy(() => import('./screens/Onboarding'));
+const OldOnboarding = lazy(() => import('./screens/Onboarding'));
+import CinematicOnboarding from './components/Onboarding';
 import BottomNav from './components/BottomNav';
 import { ToastProvider } from './components/Toast';
 import Mascota from './components/mascota';
@@ -148,10 +149,15 @@ const App = () => {
     );
   }
 
-  // First time — show onboarding
-  if (onboardingDone === false) {
+  // ── Onboarding logic ─────────────────────────────────────────────────────
+  // First-time user (backend says not completed) → cinematic onboarding
+  // Returning user → show cinematic only if they haven't opted out via checkbox
+  const showCinematic = onboardingDone === false
+    || (!localStorage.getItem('onboarding_completado') || !localStorage.getItem('onboarding_no_mostrar'));
+
+  if (showCinematic && !localStorage.getItem('onboarding_no_mostrar')) {
     return (
-      <Onboarding
+      <CinematicOnboarding
         user={user}
         onComplete={() => setOnboardingDone(true)}
       />
