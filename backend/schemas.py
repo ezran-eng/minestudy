@@ -247,4 +247,4 @@ class MascotaChatRequest(BaseModel):
 
 class MascotaChatResponse(BaseModel):
     mensaje: str
-    accion: str | None = None
+    accion: dict | None = None

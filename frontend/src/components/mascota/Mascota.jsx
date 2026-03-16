@@ -390,26 +390,13 @@ export default function Mascota({ userId }) {
   const handleAction = useCallback((accion) => {
     if (!accion) return;
     setBubble(null);
-    switch (accion) {
-      case 'repaso':
-        if (hint?.materia_id && hint?.unidad_id) {
-          navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
-        } else {
-          navigate('/');
-        }
-        break;
-      case 'quiz':
-        if (hint?.materia_id && hint?.unidad_id) {
-          navigate(`/materia/${hint.materia_id}/unidad/${hint.unidad_id}`);
-        }
-        break;
-      case 'explorar':
-        navigate('/');
-        break;
-      default:
-        break;
+    const tipo = typeof accion === 'object' ? accion.tipo : accion;
+    if ((tipo === 'repaso' || tipo === 'quiz') && accion.unidad_id && accion.materia_id) {
+      navigate(`/materia/${accion.materia_id}/unidad/${accion.unidad_id}`);
+    } else {
+      navigate('/');
     }
-  }, [hint, navigate]);
+  }, [navigate]);
 
   // ── Icon logic (key remount + autoplay) ───────────────────────────────
 

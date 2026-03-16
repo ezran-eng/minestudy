@@ -60,6 +60,54 @@ SYSTEM_PROMPT = (
 VALID_ACTIONS = {"repaso", "quiz", "explorar"}
 
 
+# ── Action enricher ───────────────────────────────────────────────────────────
+
+def _pick_action_target(accion_tipo: str, user_id: int, db: Session) -> dict | None:
+    """
+    Given an action type string, find the best unit target and return a full
+    action object with unidad_id and materia_id.
+    """
+    if accion_tipo == "explorar":
+        return {"tipo": "explorar"}
+
+    now = datetime.now(timezone.utc)
+
+    if accion_tipo == "repaso":
+        # Unit with the most due flashcards for this user
+        row = (
+            db.query(
+                models.CardReview.id_unidad,
+                models.Unidad.id_materia,
+                func.count().label("n"),
+            )
+            .join(models.Unidad, models.Unidad.id == models.CardReview.id_unidad)
+            .filter(models.CardReview.id_usuario == user_id, models.CardReview.due_date <= now)
+            .group_by(models.CardReview.id_unidad, models.Unidad.id_materia)
+            .order_by(func.count().desc())
+            .first()
+        )
+        if row:
+            return {"tipo": "repaso", "unidad_id": row.id_unidad, "materia_id": row.id_materia}
+
+    elif accion_tipo == "quiz":
+        # Unit with the most quiz questions (most content to practice)
+        row = (
+            db.query(
+                models.QuizPregunta.id_unidad,
+                models.Unidad.id_materia,
+                func.count().label("n"),
+            )
+            .join(models.Unidad, models.Unidad.id == models.QuizPregunta.id_unidad)
+            .group_by(models.QuizPregunta.id_unidad, models.Unidad.id_materia)
+            .order_by(func.count().desc())
+            .first()
+        )
+        if row:
+            return {"tipo": "quiz", "unidad_id": row.id_unidad, "materia_id": row.id_materia}
+
+    return None
+
+
 # ── Response parser ──────────────────────────────────────────────────────────
 
 def _parse_response(raw: str) -> tuple[str, str | None, str | None]:
@@ -405,7 +453,8 @@ async def get_mascota_message(
     if cached:
         logger.info("[redo] cache HIT — %s", cache_key)
         mensaje, accion_sugerida, _ = _parse_response(cached)
-        return {"mensaje": mensaje, "accion": accion_sugerida}
+        accion_obj = _pick_action_target(accion_sugerida, user_id, db) if accion_sugerida else None
+        return {"mensaje": mensaje, "accion": accion_obj}
 
     # 2. Build full context
     ctx = _build_full_context(user_id, db)
@@ -430,6 +479,7 @@ async def get_mascota_message(
 
     # 5. Parse response
     mensaje, accion_sugerida, memoria = _parse_response(raw)
+    accion_obj = _pick_action_target(accion_sugerida, user_id, db) if accion_sugerida else None
 
     # 6. Save memory if Redo decided to remember something
     if memoria:
@@ -442,7 +492,7 @@ async def get_mascota_message(
     cache_set(cache_key, raw)
     logger.info(
         "[redo] result — %s | msg=%s | act=%s | mem=%s",
-        cache_key, mensaje[:60], accion_sugerida, memoria,
+        cache_key, mensaje[:60], accion_obj, memoria,
     )
 
-    return {"mensaje": mensaje, "accion": accion_sugerida}
+    return {"mensaje": mensaje, "accion": accion_obj}

@@ -10,7 +10,8 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
   if (!bubble) return null;
 
   const isComplete = displayed === bubble.text;
-  const hasAction = bubble.accion && ACTION_LABELS[bubble.accion];
+  const accionTipo = typeof bubble.accion === 'object' ? bubble.accion?.tipo : bubble.accion;
+  const hasAction = accionTipo && ACTION_LABELS[accionTipo];
 
   return (
     <div
@@ -92,7 +93,7 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
           onPointerUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
           onPointerLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
-          {ACTION_LABELS[bubble.accion]}
+          {ACTION_LABELS[accionTipo]}
         </div>
       )}
 
