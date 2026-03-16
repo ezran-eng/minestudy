@@ -69,6 +69,8 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const [lottieKey, setLottieKey] = useState(0);
   const lottieRef = useRef(null);
   const idleDirRef = useRef(1);
+  // 'full' = playing SEG_FULL intro, 'idle-loop' = ping-pong
+  const modeRef = useRef('full');
 
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
@@ -89,38 +91,49 @@ export default function CinematicOnboarding({ user, onComplete }) {
   // ── Typewriter ────────────────────────────────────────────────────────────
   const { displayed, skip, isComplete } = useTypewriter(slideText, slideKey, 35);
 
-  // ── Lottie control (runs after each remount via lottieKey) ────────────────
+  // ── Lottie control — same pattern as Mascota.jsx ─────────────────────────
   useEffect(() => {
-    // Small delay to ensure lottieRef is ready after remount
-    const t = setTimeout(() => {
+    const raf = requestAnimationFrame(() => {
       const l = lottieRef.current;
       if (!l) return;
-      const slide = SLIDES[step];
-      if (slide.segment === 'full') {
-        l.setSpeed(1);
-        l.playSegments(SEG_FULL, true);
-      } else {
+      if (modeRef.current === 'idle-loop') {
         l.setSpeed(0.22);
         l.playSegments(SEG_IDLE, true);
+      } else {
+        l.setSpeed(1);
+        l.playSegments(SEG_FULL, true);
       }
-    }, 50);
-    return () => clearTimeout(t);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [lottieKey]); // eslint-disable-line
 
-  // ── Idle ping-pong via onComplete callback ────────────────────────────────
+  // ── onComplete: full→idle remount, or idle ping-pong ─────────────────────
   const handleLottieComplete = useCallback(() => {
-    if (SLIDES[step]?.segment !== 'idle') return;
-    const l = lottieRef.current;
-    if (!l) return;
-    idleDirRef.current *= -1;
-    l.setDirection(idleDirRef.current);
-    l.playSegments(SEG_IDLE, true);
-  }, [step]);
+    if (modeRef.current === 'full') {
+      // Transition to idle-loop (same as Mascota intro→idle-loop)
+      modeRef.current = 'idle-loop';
+      idleDirRef.current = 1;
+      setLottieKey(k => k + 1);
+      return;
+    }
+    if (modeRef.current === 'idle-loop') {
+      const l = lottieRef.current;
+      if (!l) return;
+      idleDirRef.current *= -1;
+      l.setDirection(idleDirRef.current);
+      l.play(); // continue same segment, reversed — exact same as Mascota.jsx
+    }
+  }, []);
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     if (step < SLIDES.length - 1) {
-      setStep(s => s + 1);
+      const nextStep = step + 1;
+      const nextSegment = SLIDES[nextStep].segment;
+      // Set mode before remount so the useEffect picks it up
+      modeRef.current = nextSegment === 'full' ? 'full' : 'idle-loop';
+      idleDirRef.current = 1;
+      setStep(nextStep);
       setSlideKey(k => k + 1);
       setLottieKey(k => k + 1);
     }
