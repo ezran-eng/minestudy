@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { usePomodoro } from '../context/PomodoroContext';
 
 const STUDY_TIME = 25 * 60;
@@ -23,6 +23,15 @@ export default function Timer() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  // Guard against mobile ghost-clicks closing the panel immediately after mount
+  const mountedAt = useRef(0);
+  useEffect(() => {
+    if (panelOpen) mountedAt.current = Date.now();
+  }, [panelOpen]);
+  const safeClose = () => {
+    if (Date.now() - mountedAt.current > 200) closePanel();
+  };
+
   const pct = secondsLeft / totalTime;
   const r = 54;
   const circ = 2 * Math.PI * r;
@@ -31,7 +40,7 @@ export default function Timer() {
 
   return (
     <div
-      onClick={closePanel}
+      onClick={safeClose}
       style={{
         position: 'fixed',
         inset: 0,

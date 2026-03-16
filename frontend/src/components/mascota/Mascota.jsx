@@ -492,7 +492,7 @@ export default function Mascota({ userId }) {
         {menuOpen && (
           <MascotaMenu
             onApagar={apagar}
-            onPomodoro={() => { setMenuOpen(false); openPomodoro(); }}
+            onPomodoro={() => { setMenuOpen(false); setTimeout(openPomodoro, 80); }}
             onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
             onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
             above={menuAbove}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { usePomodoro } from '../context/PomodoroContext';
 import { useMascotaHint, useMateriasSeguidas } from '../hooks/useQueryHooks';
 import { usePomodoroMascota } from '../hooks/usePomodoroMascota';
@@ -31,8 +31,18 @@ export default function PomodoroSugerencia() {
   }, [sugerencia?.text]); // eslint-disable-line
   const { displayed, skip } = useTypewriter(bubble);
 
+  // Guard against mobile ghost-clicks closing the panel immediately after mount
+  const mountedAt = useRef(0);
+  useEffect(() => {
+    if (panelOpen && !objetivo && !hasStarted) mountedAt.current = Date.now();
+  }, [panelOpen, objetivo, hasStarted]);
+
   // Don't show if: panel closed, already has objetivo, or timer already started
   if (!panelOpen || objetivo || hasStarted) return null;
+
+  const safeClose = () => {
+    if (Date.now() - mountedAt.current > 200) closePanel();
+  };
 
   const handleConfirm = () => {
     if (sugerencia?.objetivo) {
@@ -53,7 +63,7 @@ export default function PomodoroSugerencia() {
 
   return (
     <div
-      onClick={closePanel}
+      onClick={safeClose}
       style={{
         position: 'fixed',
         inset: 0,
