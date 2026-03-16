@@ -19,8 +19,11 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
       onClick={hasAction && isComplete ? undefined : onSkip}
       style={{
         position: 'absolute',
-        [above ? 'bottom' : 'top']: '72px',
+        bottom: above ? '110%' : 'auto',
+        top: above ? 'auto' : '110%',
         [left ? 'right' : 'left']: '0',
+        maxHeight: '40vh',
+        overflowY: 'auto',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
@@ -43,7 +46,6 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
         animation: 'mascota-pop 0.18s ease-out',
         cursor: 'pointer',
         whiteSpace: 'normal',
-        position: 'absolute',
       }}
     >
       {/* IA badge */}

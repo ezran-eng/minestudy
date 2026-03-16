@@ -291,10 +291,10 @@ export default function Mascota({ userId }) {
       posRef.current = { x: newX, y: newY };
 
       if (bubbleRef.current) {
-        const above = newY > 150;
+        const above = newY > 216;
         const toLeft = newX > window.innerWidth / 2;
-        bubbleRef.current.style.bottom = above ? '72px' : '';
-        bubbleRef.current.style.top    = above ? '' : '72px';
+        bubbleRef.current.style.bottom = above ? '110%' : 'auto';
+        bubbleRef.current.style.top    = above ? 'auto' : '110%';
         bubbleRef.current.style.right  = toLeft ? '0' : '';
         bubbleRef.current.style.left   = toLeft ? '' : '0';
       }
@@ -444,7 +444,7 @@ export default function Mascota({ userId }) {
 
   // ── Derived positions ─────────────────────────────────────────────────
 
-  const bubbleAbove = posRef.current.y > 150;
+  const bubbleAbove = posRef.current.y > 216;
   const bubbleLeft = posRef.current.x > window.innerWidth / 2;
   const menuAbove = posRef.current.y > window.innerHeight / 2;
   const menuLeft = posRef.current.x > window.innerWidth / 2;
