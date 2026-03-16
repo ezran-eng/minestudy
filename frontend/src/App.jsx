@@ -65,6 +65,8 @@ const App = () => {
   const { user, tg } = useTelegram();
   // null = loading, false = not done, true = done
   const [onboardingDone, setOnboardingDone] = useState(null);
+  // Tracks if cinematic was shown THIS session (prevents re-render loop)
+  const [cinematicDone, setCinematicDone] = useState(false);
   // Wait briefly for Telegram to inject initData before deciding we're outside Telegram
   const [telegramChecked, setTelegramChecked] = useState(false);
   useEffect(() => {
@@ -154,10 +156,10 @@ const App = () => {
   }
 
   // ── Cinematic onboarding ──────────────────────────────────────────────────
-  // Show for: first-time users, OR returning users who haven't opted out
-  const completado = localStorage.getItem('onboarding_completado');
+  // Show every session UNLESS user checked "No mostrar otra vez".
+  // cinematicDone prevents re-render loop after completing within the same session.
   const noMostrar = localStorage.getItem('onboarding_no_mostrar');
-  if (!completado && !noMostrar) {
+  if (!noMostrar && !cinematicDone) {
     return (
       <ErrorBoundary fallback={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#000' }}>
@@ -170,7 +172,7 @@ const App = () => {
         <Suspense fallback={<Loading />}>
           <CinematicOnboarding
             user={user}
-            onComplete={() => setOnboardingDone(true)}
+            onComplete={() => { setCinematicDone(true); setOnboardingDone(true); }}
           />
         </Suspense>
       </ErrorBoundary>
