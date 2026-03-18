@@ -353,6 +353,22 @@ export const aiGenerateQuiz = async (unidad_id, count = 10) => {
   return response.json();
 };
 
+export const tutorAccion = async (user_id, unidad_id, accion, tema_nombre = null) => {
+  const response = await fetch(`${API_URL}/tutor/accion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ user_id, unidad_id, accion, tema_nombre }),
+  });
+  if (!response.ok) throw new Error('tutor accion failed');
+  return response.json();
+};
+
+export const getUnidadTemas = async (unidad_id) => {
+  const response = await fetch(`${API_URL}/unidades/${unidad_id}/temas`);
+  if (!response.ok) throw new Error('Failed to get temas');
+  return response.json();
+};
+
 export const tutorChat = async (user_id, unidad_id, messages, question) => {
   const response = await fetch(`${API_URL}/tutor/chat`, {
     method: 'POST',

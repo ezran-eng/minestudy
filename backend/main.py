@@ -29,6 +29,7 @@ import schemas
 from database import engine, get_db
 from mascota_ai import get_mascota_message
 from tutor_chat import tutor_respond
+from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_practica, accion_explicar_tema
 from ai_generate import generate_flashcards, generate_quiz
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -1709,6 +1710,46 @@ async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_d
     except Exception as e:
         logger.error("[tutor/chat] FAIL — user=%s error=%s", body.user_id, e)
         return {"respuesta": "Perdón, no pude procesar tu pregunta. Intentá de nuevo."}
+
+
+@app.post("/tutor/accion")
+async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(get_db)):
+    """Single focused study action — no history, minimal tokens (~150-280/call)."""
+    try:
+        if body.accion == "concepto_clave":
+            resp = await accion_concepto_clave(body.unidad_id, db)
+        elif body.accion == "punto_debil":
+            resp = await accion_punto_debil(body.user_id, body.unidad_id, db)
+        elif body.accion == "practica":
+            resp = await accion_practica(body.unidad_id, db)
+        elif body.accion == "explicar_tema":
+            if not body.tema_nombre:
+                raise HTTPException(status_code=400, detail="tema_nombre required")
+            resp = await accion_explicar_tema(body.unidad_id, body.tema_nombre, db)
+        else:
+            raise HTTPException(status_code=400, detail=f"Acción desconocida: {body.accion}")
+        logger.info("[tutor/accion] %s OK — user=%s unidad=%s", body.accion, body.user_id, body.unidad_id)
+        return {"respuesta": resp}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[tutor/accion] FAIL — %s user=%s error=%s", body.accion, body.user_id, e)
+        return {"respuesta": "Perdón, no pude procesar la acción. Intentá de nuevo."}
+
+
+@app.get("/unidades/{id}/temas")
+def get_unidad_temas(id: int, db: Session = Depends(get_db)):
+    """Lightweight temas list + unidad/materia names (used by TutorChat)."""
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+    materia = db.query(models.Materia).filter(models.Materia.id == unidad.id_materia).first()
+    temas = db.query(models.Tema).filter(models.Tema.id_unidad == id).all()
+    return {
+        "unidad_nombre": unidad.nombre,
+        "materia_nombre": materia.nombre if materia else "",
+        "temas": [{"id": t.id, "nombre": t.nombre} for t in temas],
+    }
 
 
 @app.post("/ai/generate/flashcards", dependencies=[Depends(require_init_data)])

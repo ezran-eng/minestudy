@@ -266,3 +266,10 @@ class TutorChatResponse(BaseModel):
 class AIGenerateRequest(BaseModel):
     unidad_id: int
     count: int = 10
+
+
+class TutorAccionRequest(BaseModel):
+    user_id: int
+    unidad_id: int
+    accion: str  # "concepto_clave" | "punto_debil" | "practica" | "explicar_tema"
+    tema_nombre: str | None = None

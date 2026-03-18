@@ -1,16 +1,19 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { tutorChat } from '../../services/api';
+import React, { useState, useRef, useEffect } from 'react';
+import { tutorAccion, getUnidadTemas } from '../../services/api';
 
-// ── Typing indicator ─────────────────────────────────────────────────────────
+const ACCIONES = [
+  { id: 'concepto_clave', icon: '🧠', label: 'Concepto clave' },
+  { id: 'punto_debil',    icon: '📌', label: 'Punto débil' },
+  { id: 'practica',       icon: '❓', label: 'Pregunta de práctica' },
+  { id: 'explicar_tema',  icon: '📖', label: 'Explicame un tema', hasTemas: true },
+];
+
 function TypingDots() {
   return (
-    <div style={{
-      display: 'flex', gap: '4px', padding: '10px 14px',
-      alignSelf: 'flex-start',
-    }}>
+    <div style={{ display: 'flex', gap: '5px', padding: '12px 14px', alignSelf: 'flex-start' }}>
       {[0, 1, 2].map(i => (
         <div key={i} style={{
-          width: '6px', height: '6px', borderRadius: '50%',
+          width: '7px', height: '7px', borderRadius: '50%',
           background: 'rgba(167,139,250,0.6)',
           animation: `ob-fade-up 0.6s ease-in-out ${i * 0.15}s infinite alternate`,
         }} />
@@ -19,115 +22,158 @@ function TypingDots() {
   );
 }
 
-// ── Single message bubble ────────────────────────────────────────────────────
-function ChatMessage({ role, content, isLatest }) {
-  const isUser = role === 'user';
-
+function ResponseCard({ accion, content }) {
+  const a = ACCIONES.find(x => x.id === accion) || {};
   return (
     <div style={{
-      display: 'flex',
-      justifyContent: isUser ? 'flex-end' : 'flex-start',
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '16px',
+      padding: '14px',
       animation: 'ob-fade-up 0.25s ease-out',
     }}>
       <div style={{
-        maxWidth: '85%',
-        padding: '10px 14px',
-        borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-        background: isUser
-          ? 'rgba(139,92,246,0.2)'
-          : 'rgba(255,255,255,0.06)',
-        border: `1px solid ${isUser ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.08)'}`,
-        fontFamily: "'Outfit', sans-serif",
-        fontSize: '13px',
-        lineHeight: 1.55,
-        color: isUser ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
+        display: 'flex', alignItems: 'center', gap: '6px',
+        marginBottom: '8px',
       }}>
-        {!isUser && (
-          <div style={{
-            fontSize: '10px', fontWeight: 600, color: 'rgba(167,139,250,0.7)',
-            marginBottom: '4px', letterSpacing: '0.04em',
-          }}>REDO</div>
-        )}
-        {content}
+        <span style={{ fontSize: '14px' }}>{a.icon}</span>
+        <span style={{
+          fontSize: '10px', fontWeight: 700,
+          color: 'rgba(167,139,250,0.7)', letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}>REDO · {a.label}</span>
       </div>
+      <div style={{
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: '14px', lineHeight: 1.6,
+        color: 'rgba(255,255,255,0.88)',
+        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+      }}>{content}</div>
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// TutorChat — full-screen chat panel
-// ═════════════════════════════════════════════════════════════════════════════
+function TemaPicker({ temas, onSelect, onClose }) {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'rgba(5,5,16,0.96)',
+      zIndex: 10,
+      display: 'flex', flexDirection: 'column',
+      padding: '20px 16px',
+      animation: 'ob-fade-up 0.2s ease-out',
+    }}>
+      <div style={{
+        fontFamily: "'Outfit', sans-serif",
+        fontSize: '15px', fontWeight: 600, color: '#fff',
+        marginBottom: '6px',
+      }}>¿Qué tema querés que te explique?</div>
+      <div style={{
+        fontSize: '12px', color: 'rgba(255,255,255,0.35)',
+        marginBottom: '16px',
+      }}>Elegí uno de los temas de esta unidad</div>
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {temas.map(t => (
+          <button
+            key={t.id}
+            onClick={() => onSelect(t.nombre)}
+            style={{
+              background: 'rgba(139,92,246,0.08)',
+              border: '1px solid rgba(139,92,246,0.2)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: '13px', color: 'rgba(167,139,250,0.9)',
+              cursor: 'pointer', textAlign: 'left',
+              transition: 'background 0.15s',
+            }}
+          >{t.nombre}</button>
+        ))}
+        {temas.length === 0 && (
+          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px', textAlign: 'center', paddingTop: '20px' }}>
+            Esta unidad no tiene temas cargados
+          </div>
+        )}
+      </div>
+      <button
+        onClick={onClose}
+        style={{
+          marginTop: '12px',
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '12px',
+          padding: '12px',
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: '13px', color: 'rgba(255,255,255,0.4)',
+          cursor: 'pointer',
+        }}
+      >Cancelar</button>
+    </div>
+  );
+}
+
 export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombre, onClose }) {
-  const [messages, setMessages] = useState([]); // { role, content, id }
-  const [input, setInput] = useState('');
+  const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [temas, setTemas] = useState([]);
+  const [resolvedUnidad, setResolvedUnidad] = useState(unidadNombre || null);
+  const [resolvedMateria, setResolvedMateria] = useState(materiaNombre || null);
+  const [temaPickerOpen, setTemaPickerOpen] = useState(false);
   const scrollRef = useRef(null);
-  const inputRef = useRef(null);
 
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
 
-  // Scroll to bottom on new messages
+  // Load temas + names for the unidad
+  useEffect(() => {
+    if (!unidadId) return;
+    getUnidadTemas(unidadId).then(data => {
+      setTemas(data.temas ?? []);
+      if (!unidadNombre && data.unidad_nombre) setResolvedUnidad(data.unidad_nombre);
+      if (!materiaNombre && data.materia_nombre) setResolvedMateria(data.materia_nombre);
+    }).catch(() => {});
+  }, [unidadId]); // eslint-disable-line
+
+  // Scroll to bottom on new responses
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, loading]);
+  }, [responses, loading]);
 
-  // Handle viewport resize (keyboard open/close)
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const handler = () => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
-    };
-    vv.addEventListener('resize', handler);
-    return () => vv.removeEventListener('resize', handler);
-  }, []);
-
-  const sendMessage = useCallback(async () => {
-    const q = input.trim();
-    if (!q || loading) return;
-
-    const userMsg = { role: 'user', content: q, id: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
+  const runAccion = async (accionId, temaNombre = null) => {
+    if (loading) return;
     setLoading(true);
-
     try {
-      // Build history for API (exclude the id field)
-      const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
-      const { respuesta } = await tutorChat(userId, unidadId, history.slice(0, -1), q);
-
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: respuesta, id: Date.now() + 1 },
-      ]);
+      const { respuesta } = await tutorAccion(userId, unidadId, accionId, temaNombre);
+      setResponses(prev => [...prev, { accion: accionId, content: respuesta, id: Date.now() }]);
     } catch (e) {
-      console.error('[TutorChat]', e);
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: 'Perdón, hubo un error. Intentá de nuevo.', id: Date.now() + 1 },
-      ]);
+      setResponses(prev => [...prev, {
+        accion: accionId,
+        content: 'Perdón, hubo un error. Intentá de nuevo.',
+        id: Date.now(),
+      }]);
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, userId, unidadId]);
+  };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const handleAccion = (a) => {
+    if (a.hasTemas) {
+      setTemaPickerOpen(true);
+    } else {
+      runAccion(a.id);
     }
   };
 
-  const contextLabel = materiaNombre && unidadNombre
-    ? `${materiaNombre} → ${unidadNombre}`
-    : materiaNombre || 'General';
+  const handleTemaSelect = (nombre) => {
+    setTemaPickerOpen(false);
+    runAccion('explicar_tema', nombre);
+  };
+
+  const contextLabel = resolvedMateria && resolvedUnidad
+    ? `${resolvedMateria} → ${resolvedUnidad}`
+    : resolvedMateria || resolvedUnidad || 'General';
 
   return (
     <div style={{
@@ -138,7 +184,7 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
       animation: 'ob-fade-up 0.25s ease-out',
     }}>
 
-      {/* ── Header ────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '12px',
         padding: `${safeTop + 12}px 16px 12px`,
@@ -153,15 +199,14 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
             borderRadius: '10px',
             color: 'rgba(255,255,255,0.6)',
             fontSize: '18px', lineHeight: 1,
-            padding: '6px 10px',
-            cursor: 'pointer',
+            padding: '6px 10px', cursor: 'pointer',
           }}
         >←</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: "'Outfit', sans-serif", fontSize: '15px', fontWeight: 600,
-            color: '#fff',
-          }}>Preguntale a Redo</div>
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: '15px', fontWeight: 600, color: '#fff',
+          }}>Estudiar con Redo</div>
           <div style={{
             fontFamily: "'Outfit', sans-serif", fontSize: '11px',
             color: 'rgba(167,139,250,0.7)',
@@ -172,128 +217,92 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
           padding: '4px 10px', borderRadius: '10px',
           background: 'rgba(139,92,246,0.15)',
           border: '1px solid rgba(139,92,246,0.25)',
-          fontFamily: "'Outfit', sans-serif", fontSize: '10px', fontWeight: 600,
+          fontFamily: "'Outfit', sans-serif",
+          fontSize: '10px', fontWeight: 600,
           color: 'rgba(167,139,250,0.8)', letterSpacing: '0.04em',
         }}>IA</div>
       </div>
 
-      {/* ── Messages area ─────────────────────────────────────────────── */}
+      {/* Scrollable response area */}
       <div
         ref={scrollRef}
         style={{
-          flex: 1, overflowY: 'auto', padding: '16px',
-          display: 'flex', flexDirection: 'column', gap: '10px',
+          flex: 1, overflowY: 'auto',
+          padding: '16px', display: 'flex',
+          flexDirection: 'column', gap: '12px',
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        {/* Welcome message */}
-        {messages.length === 0 && !loading && (
+        {responses.length === 0 && !loading && (
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', flex: 1, gap: '12px',
-            padding: '20px',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            flex: 1, gap: '10px', padding: '20px',
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: "'Outfit', sans-serif",
+            fontSize: '13px', textAlign: 'center', lineHeight: 1.6,
           }}>
-            <div style={{ fontSize: '32px' }}>🐾</div>
-            <div style={{
-              fontFamily: "'Outfit', sans-serif", fontSize: '14px',
-              color: 'rgba(255,255,255,0.4)', textAlign: 'center',
-              lineHeight: 1.5, maxWidth: '260px',
-            }}>
-              {unidadNombre
-                ? `Preguntame cualquier cosa sobre ${unidadNombre}. Conozco las flashcards, quizzes y temas.`
-                : 'Preguntame lo que necesites sobre tus materias. Cuanto más específico, mejor te ayudo.'
+            <div style={{ fontSize: '34px' }}>🐾</div>
+            <div>
+              {resolvedUnidad
+                ? `Elegí una acción para que te ayude con ${resolvedUnidad}`
+                : 'Elegí una acción y te ayudo a estudiar'
               }
-            </div>
-            {/* Suggested questions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', maxWidth: '280px', marginTop: '8px' }}>
-              {(unidadNombre ? [
-                `Explicame los temas de ${unidadNombre}`,
-                '¿Qué debería repasar primero?',
-                'Haceme un resumen rápido',
-              ] : [
-                '¿Qué debería estudiar hoy?',
-                '¿En qué materias estoy más flojo?',
-                '¿Cómo funciona el sistema de flashcards?',
-              ]).map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setInput(q); setTimeout(() => inputRef.current?.focus(), 50); }}
-                  style={{
-                    background: 'rgba(139,92,246,0.08)',
-                    border: '1px solid rgba(139,92,246,0.15)',
-                    borderRadius: '12px',
-                    padding: '9px 14px',
-                    fontFamily: "'Outfit', sans-serif",
-                    fontSize: '12px', color: 'rgba(167,139,250,0.7)',
-                    cursor: 'pointer', textAlign: 'left',
-                    transition: 'background 0.15s',
-                  }}
-                >{q}</button>
-              ))}
             </div>
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <ChatMessage
-            key={msg.id}
-            role={msg.role}
-            content={msg.content}
-            isLatest={i === messages.length - 1}
-          />
+        {responses.map(r => (
+          <ResponseCard key={r.id} accion={r.accion} content={r.content} />
         ))}
 
         {loading && <TypingDots />}
       </div>
 
-      {/* ── Input area ────────────────────────────────────────────────── */}
+      {/* Action buttons */}
       <div style={{
-        display: 'flex', gap: '8px',
         padding: '12px 16px',
         paddingBottom: `max(12px, env(safe-area-inset-bottom, 12px))`,
         borderTop: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(5,5,16,0.95)',
+        background: 'rgba(5,5,16,0.97)',
         flexShrink: 0,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '8px',
       }}>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Escribí tu pregunta..."
-          disabled={loading}
-          style={{
-            flex: 1,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '14px',
-            padding: '11px 16px',
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: '14px',
-            color: '#fff',
-            outline: 'none',
-            minWidth: 0,
-          }}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={!input.trim() || loading}
-          style={{
-            width: '44px', height: '44px',
-            borderRadius: '14px',
-            background: input.trim() && !loading
-              ? 'linear-gradient(135deg, #8b5cf6, #6366f1)'
-              : 'rgba(255,255,255,0.06)',
-            border: 'none',
-            color: input.trim() && !loading ? '#fff' : 'rgba(255,255,255,0.3)',
-            fontSize: '18px',
-            cursor: input.trim() && !loading ? 'pointer' : 'default',
-            flexShrink: 0,
-            transition: 'all 0.2s ease',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >↑</button>
+        {ACCIONES.map(a => (
+          <button
+            key={a.id}
+            onClick={() => handleAccion(a)}
+            disabled={loading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '11px 14px',
+              background: loading ? 'rgba(255,255,255,0.03)' : 'rgba(139,92,246,0.08)',
+              border: `1px solid ${loading ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.2)'}`,
+              borderRadius: '14px',
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: '12px', fontWeight: 500,
+              color: loading ? 'rgba(255,255,255,0.25)' : 'rgba(167,139,250,0.9)',
+              cursor: loading ? 'default' : 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize: '16px', flexShrink: 0 }}>{a.icon}</span>
+            <span>{a.label}</span>
+          </button>
+        ))}
       </div>
+
+      {/* Tema picker overlay */}
+      {temaPickerOpen && (
+        <TemaPicker
+          temas={temas}
+          onSelect={handleTemaSelect}
+          onClose={() => setTemaPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
