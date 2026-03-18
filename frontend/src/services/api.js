@@ -333,6 +333,16 @@ export const updateNotificaciones = async (id_usuario, data) => {
   return response.json();
 };
 
+export const tutorChat = async (user_id, unidad_id, messages, question) => {
+  const response = await fetch(`${API_URL}/tutor/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ user_id, unidad_id, messages, question }),
+  });
+  if (!response.ok) throw new Error('tutor chat failed');
+  return response.json();
+};
+
 export const registrarActividad = async (id_telegram, tipo, fecha_local) => {
   const response = await fetch(`${API_URL}/actividad`, {
     method: 'POST',

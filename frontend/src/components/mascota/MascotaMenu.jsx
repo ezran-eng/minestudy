@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
 const OPCIONES = [
-  { emoji: '🔴', label: 'APAGAR ASISTENTE', id: 'apagar' },
+  { emoji: '💬', label: 'PREGUNTARLE ALGO',  id: 'chat' },
   { emoji: '🍅', label: 'POMODORO',          id: 'pomodoro' },
   { emoji: '🔔', label: 'NOTIFICACIONES',    id: 'notificaciones' },
-  { emoji: '❓', label: 'AYUDA',             id: 'ayuda' },
+  { emoji: '🔴', label: 'APAGAR ASISTENTE',  id: 'apagar' },
 ];
 
 // Spring easing: fast press (80ms), springy release (420ms overshoot)
@@ -53,7 +53,7 @@ function NavButton({ dir, onPress }) {
   );
 }
 
-export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, onProximamente, above, left }) {
+export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, onChat, onProximamente, above, left }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideClass, setSlideClass] = useState('');
   const [animKey, setAnimKey] = useState(0);
@@ -71,7 +71,8 @@ export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, on
 
   const handleSelect = () => {
     const { id } = OPCIONES[activeIndex];
-    if (id === 'apagar') onApagar();
+    if (id === 'chat') onChat?.();
+    else if (id === 'apagar') onApagar();
     else if (id === 'pomodoro') onPomodoro?.();
     else if (id === 'notificaciones') onNotificaciones();
     else onProximamente?.();

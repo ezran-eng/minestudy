@@ -248,3 +248,17 @@ class MascotaChatRequest(BaseModel):
 class MascotaChatResponse(BaseModel):
     mensaje: str
     accion: dict | None = None
+
+
+class TutorMessage(BaseModel):
+    role: str
+    content: str
+
+class TutorChatRequest(BaseModel):
+    user_id: int
+    unidad_id: int | None = None
+    messages: list[TutorMessage] = []
+    question: str
+
+class TutorChatResponse(BaseModel):
+    respuesta: str

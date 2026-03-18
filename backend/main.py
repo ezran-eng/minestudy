@@ -28,6 +28,7 @@ import models
 import schemas
 from database import engine, get_db
 from mascota_ai import get_mascota_message
+from tutor_chat import tutor_respond
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -1662,6 +1663,21 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
     except Exception as e:
         logger.error("[mascota/chat] FAIL — accion=%s error=%s", body.accion, e)
         return {"mensaje": None, "accion": None}
+
+
+@app.post("/tutor/chat")
+async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_db)):
+    """Multi-turn tutor chat with Redo, scoped to a specific unidad."""
+    try:
+        history = [{"role": m.role, "content": m.content} for m in body.messages]
+        respuesta = await tutor_respond(
+            body.user_id, body.unidad_id, history, body.question, db
+        )
+        logger.info("[tutor/chat] OK — user=%s unidad=%s", body.user_id, body.unidad_id)
+        return {"respuesta": respuesta}
+    except Exception as e:
+        logger.error("[tutor/chat] FAIL — user=%s error=%s", body.user_id, e)
+        return {"respuesta": "Perdón, no pude procesar tu pregunta. Intentá de nuevo."}
 
 
 def _notif_defaults() -> dict:

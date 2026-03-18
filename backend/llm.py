@@ -62,7 +62,7 @@ def cache_set(key: str, resp: str):
 
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
-async def chat_completion(messages: list[dict], max_tokens: int = 60) -> str:
+async def chat_completion(messages: list[dict], max_tokens: int = 60, timeout: float = 8.0) -> str:
     provider = os.getenv("LLM_PROVIDER", "deepseek")
     cfg = _CONFIGS.get(provider, _CONFIGS["deepseek"])
     api_key = os.getenv(cfg["api_key_env"], "")
@@ -74,7 +74,7 @@ async def chat_completion(messages: list[dict], max_tokens: int = 60) -> str:
     url = f"{cfg['base_url']}/chat/completions"
     logger.info("[llm] calling %s model=%s max_tokens=%d", provider, cfg["model"], max_tokens)
 
-    async with httpx.AsyncClient(timeout=8.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(
             url,
             headers={

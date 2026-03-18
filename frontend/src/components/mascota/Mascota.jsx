@@ -14,6 +14,7 @@ import MascotaIcon from './MascotaIcon';
 import SpeechBubble from './SpeechBubble';
 import MascotaMenu from './MascotaMenu';
 import BlurOverlay from './BlurOverlay';
+import TutorChat from './TutorChat';
 
 export default function Mascota({ userId }) {
   const navigate = useNavigate();
@@ -35,6 +36,12 @@ export default function Mascota({ userId }) {
 
   const [activa, setActiva] = useState(() => loadStorage().mascota_activa !== false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // Extract unidad/materia from current route for tutor context
+  const routeMatch = pathname.match(/\/materia\/(\d+)(?:\/unidad\/(\d+))?/);
+  const currentMateriaId = routeMatch ? parseInt(routeMatch[1]) : null;
+  const currentUnidadId = routeMatch?.[2] ? parseInt(routeMatch[2]) : null;
 
   const [pos, setPos] = useState(() => {
     const p = loadStorage().pos;
@@ -492,6 +499,7 @@ export default function Mascota({ userId }) {
         {menuOpen && (
           <MascotaMenu
             onApagar={apagar}
+            onChat={() => { setMenuOpen(false); setChatOpen(true); }}
             onPomodoro={() => { setMenuOpen(false); setTimeout(openPomodoro, 80); }}
             onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
             onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
@@ -532,6 +540,17 @@ export default function Mascota({ userId }) {
         </div>
       </div>
       </>
+    )}
+
+    {/* Tutor Chat */}
+    {chatOpen && (
+      <TutorChat
+        userId={userId}
+        unidadId={currentUnidadId}
+        unidadNombre={null}
+        materiaNombre={null}
+        onClose={() => setChatOpen(false)}
+      />
     )}
 
     {/* Transition effect — persists across activa changes */}
