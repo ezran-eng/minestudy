@@ -83,6 +83,7 @@ export default function Mascota({ userId }) {
   if (!dragging.current) posRef.current = pos;
   const wasDragging = useRef(false);
   const dragStart = useRef({});
+  const activePointerId = useRef(null);
   const idleTimer = useRef(null);
   const bubbleTimer = useRef(null);
   const blurTimer = useRef(null);
@@ -249,6 +250,9 @@ export default function Mascota({ userId }) {
 
   const onPointerDown = useCallback((e) => {
     e.stopPropagation();
+    // Ignore secondary touches — only track one pointer at a time
+    if (activePointerId.current !== null) return;
+    activePointerId.current = e.pointerId;
     e.currentTarget.setPointerCapture(e.pointerId);
     wasDragging.current = false;
     dragging.current = false;
@@ -272,6 +276,7 @@ export default function Mascota({ userId }) {
     });
 
     const onMove = (ev) => {
+      if (ev.pointerId !== activePointerId.current) return;
       const dx = ev.clientX - dragStart.current.px;
       const dy = ev.clientY - dragStart.current.py;
 
@@ -331,7 +336,9 @@ export default function Mascota({ userId }) {
       }
     };
 
-    const onUp = () => {
+    const onUp = (ev) => {
+      if (ev.pointerId !== activePointerId.current) return;
+      activePointerId.current = null;
       if (dragging.current) {
         const finalPos = posRef.current;
         setPos(finalPos);
