@@ -246,7 +246,7 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
             <div>
               {resolvedUnidad
                 ? `Elegí una acción para que te ayude con ${resolvedUnidad}`
-                : 'Elegí una acción y te ayudo a estudiar'
+                : 'Entrá a una unidad para que pueda ayudarte a estudiar'
               }
             </div>
           </div>
@@ -274,17 +274,17 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
           <button
             key={a.id}
             onClick={() => handleAccion(a)}
-            disabled={loading}
+            disabled={loading || !unidadId}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               padding: '11px 14px',
-              background: loading ? 'rgba(255,255,255,0.03)' : 'rgba(139,92,246,0.08)',
-              border: `1px solid ${loading ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.2)'}`,
+              background: (loading || !unidadId) ? 'rgba(255,255,255,0.03)' : 'rgba(139,92,246,0.08)',
+              border: `1px solid ${(loading || !unidadId) ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.2)'}`,
               borderRadius: '14px',
               fontFamily: "'Outfit', sans-serif",
               fontSize: '12px', fontWeight: 500,
-              color: loading ? 'rgba(255,255,255,0.25)' : 'rgba(167,139,250,0.9)',
-              cursor: loading ? 'default' : 'pointer',
+              color: (loading || !unidadId) ? 'rgba(255,255,255,0.25)' : 'rgba(167,139,250,0.9)',
+              cursor: (loading || !unidadId) ? 'default' : 'pointer',
               textAlign: 'left',
               transition: 'all 0.15s',
             }}

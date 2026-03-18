@@ -270,6 +270,6 @@ class AIGenerateRequest(BaseModel):
 
 class TutorAccionRequest(BaseModel):
     user_id: int
-    unidad_id: int
+    unidad_id: int | None = None
     accion: str  # "concepto_clave" | "punto_debil" | "practica" | "explicar_tema"
     tema_nombre: str | None = None

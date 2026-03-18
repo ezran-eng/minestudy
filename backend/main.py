@@ -1716,6 +1716,8 @@ async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_d
 async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(get_db)):
     """Single focused study action — no history, minimal tokens (~150-280/call)."""
     try:
+        if not body.unidad_id:
+            return {"respuesta": "Para usar esta acción, entrá a una unidad primero."}
         if body.accion == "concepto_clave":
             resp = await accion_concepto_clave(body.unidad_id, db)
         elif body.accion == "punto_debil":
