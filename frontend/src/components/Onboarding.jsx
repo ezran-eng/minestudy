@@ -231,17 +231,18 @@ export default function CinematicOnboarding({ user, onComplete }) {
   }, []);
 
   // ── Navigation ──────────────────────────────────────────────────────────────
-  const goNext = useCallback(() => {
-    if (step < SLIDES.length - 1) {
-      const nextStep = step + 1;
-      const nextSegment = SLIDES[nextStep].segment;
-      modeRef.current = nextSegment === 'full' ? 'full' : 'idle-loop';
-      idleDirRef.current = 1;
-      setStep(nextStep);
-      setSlideKey(k => k + 1);
-      setLottieKey(k => k + 1);
-    }
-  }, [step]);
+  const goTo = useCallback((nextStep) => {
+    if (nextStep < 0 || nextStep >= SLIDES.length) return;
+    const nextSegment = SLIDES[nextStep].segment;
+    modeRef.current = nextSegment === 'full' ? 'full' : 'idle-loop';
+    idleDirRef.current = 1;
+    setStep(nextStep);
+    setSlideKey(k => k + 1);
+    setLottieKey(k => k + 1);
+  }, []);
+
+  const goNext = useCallback(() => goTo(step + 1), [step, goTo]);
+  const goPrev = useCallback(() => goTo(step - 1), [step, goTo]);
 
   const handleFinish = useCallback(async () => {
     if (saving) return;
@@ -262,10 +263,14 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const handleScreenTap = useCallback((e) => {
     if (e.target.closest('button, input, label, a, [data-interactive]')) return;
     if (!isComplete) { skip(); return; }
-    if (!SLIDES[step].isFinal && e.clientX > window.innerWidth * 0.4) {
+
+    const x = e.clientX / window.innerWidth;
+    if (x < 0.3 && step > 0) {
+      goPrev();
+    } else if (x > 0.4 && !SLIDES[step].isFinal) {
       goNext();
     }
-  }, [isComplete, skip, step, goNext]);
+  }, [isComplete, skip, step, goNext, goPrev]);
 
   const slide = SLIDES[step];
 

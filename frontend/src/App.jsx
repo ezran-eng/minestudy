@@ -21,9 +21,21 @@ const Profile = lazy(() => import('./screens/Profile'));
 const UserProfile = lazy(() => import('./screens/UserProfile'));
 const CinematicOnboarding = lazy(() => import('./components/Onboarding'));
 
-const Loading = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#000' }}>
-    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', fontFamily: "'Silkscreen', cursive" }}>...</div>
+const LoadingBar = () => (
+  <div style={{
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    height: '100vh', background: '#050510', gap: '24px',
+  }}>
+    <div style={{
+      width: '120px', height: '3px', borderRadius: '2px',
+      background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
+    }}>
+      <div style={{
+        width: '40%', height: '100%', borderRadius: '2px',
+        background: 'linear-gradient(90deg, rgba(139,92,246,0.8), rgba(96,165,250,0.8))',
+        animation: 'loading-slide 1.2s ease-in-out infinite',
+      }} />
+    </div>
   </div>
 );
 
@@ -32,7 +44,7 @@ const AppContent = ({ user }) => {
   return (
     <>
       <ErrorBoundary>
-        <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}><div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div></div>}>
+        <Suspense fallback={<LoadingBar />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/study" element={<Study />} />
@@ -148,11 +160,7 @@ const App = () => {
 
   // Waiting for onboarding check
   if (onboardingDone === null) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
-        <div style={{ color: 'var(--text2)', fontSize: '14px' }}>Cargando...</div>
-      </div>
-    );
+    return <LoadingBar />;
   }
 
   // ── Cinematic onboarding ──────────────────────────────────────────────────
@@ -169,7 +177,7 @@ const App = () => {
           </button>
         </div>
       }>
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<LoadingBar />}>
           <CinematicOnboarding
             user={user}
             onComplete={() => { setCinematicDone(true); setOnboardingDone(true); }}
