@@ -141,15 +141,24 @@ const Home = () => {
           </div>
         ) : (
           <div className="activity-list">
-            {actividad.map((item, i) => (
-              <div key={i} className="act-item">
-                <div style={{ fontSize: '20px', flexShrink: 0 }}>{TIPO_ICON[item.tipo] || '📌'}</div>
-                <div className="act-info">
-                  <div className="act-text">{item.titulo}</div>
-                  <div className="act-sub">{item.detalle} · {item.hace}</div>
+            {actividad.map((item, i) => {
+              const isNavigable = item.materia_id && item.unidad_id;
+              return (
+                <div
+                  key={i}
+                  className="act-item"
+                  onClick={isNavigable ? () => navigate(`/materia/${item.materia_id}/unidad/${item.unidad_id}`) : undefined}
+                  style={isNavigable ? { cursor: 'pointer' } : undefined}
+                >
+                  <div style={{ fontSize: '20px', flexShrink: 0 }}>{TIPO_ICON[item.tipo] || '📌'}</div>
+                  <div className="act-info">
+                    <div className="act-text">{item.titulo}</div>
+                    <div className="act-sub">{item.detalle} · {item.hace}</div>
+                  </div>
+                  {isNavigable && <div style={{ fontSize: '16px', color: 'var(--text2)', flexShrink: 0 }}>›</div>}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

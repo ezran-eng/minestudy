@@ -1494,53 +1494,76 @@ def get_actividad_reciente(id: int, limit: int = 10, db: Session = Depends(get_d
 
     # Quiz resultados
     quizzes = (
-        db.query(models.QuizResultado, models.Unidad.nombre.label("u_nombre"))
+        db.query(
+            models.QuizResultado,
+            models.Unidad.nombre.label("u_nombre"),
+            models.Unidad.id.label("u_id"),
+            models.Unidad.id_materia.label("m_id"),
+        )
         .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
         .filter(models.QuizResultado.id_usuario == id)
         .order_by(models.QuizResultado.fecha.desc())
         .limit(_sub)
         .all()
     )
-    for q, u_nombre in quizzes:
+    for q, u_nombre, u_id, m_id in quizzes:
         events.append({
             "tipo": "quiz",
             "titulo": "Cuestionario completado",
             "detalle": f"{q.correctas}/{q.total} correctas · {u_nombre}",
             "ts": q.fecha,
+            "unidad_id": u_id,
+            "materia_id": m_id,
         })
 
     # PDFs vistos
     pdfs_v = (
-        db.query(models.PdfVisto, models.Pdf.titulo.label("pdf_titulo"))
+        db.query(
+            models.PdfVisto,
+            models.Pdf.titulo.label("pdf_titulo"),
+            models.Unidad.id.label("u_id"),
+            models.Unidad.id_materia.label("m_id"),
+        )
         .join(models.Pdf, models.PdfVisto.id_pdf == models.Pdf.id)
+        .join(models.Unidad, models.Pdf.id_unidad == models.Unidad.id)
         .filter(models.PdfVisto.id_usuario == id)
         .order_by(models.PdfVisto.visto_at.desc())
         .limit(_sub)
         .all()
     )
-    for pv, titulo in pdfs_v:
+    for pv, titulo, u_id, m_id in pdfs_v:
         events.append({
             "tipo": "pdf",
             "titulo": "PDF visto",
             "detalle": titulo,
             "ts": pv.visto_at,
+            "unidad_id": u_id,
+            "materia_id": m_id,
         })
 
     # Infografías vistas
     infs_v = (
-        db.query(models.InfografiaVista, models.Infografia.titulo.label("inf_titulo"))
+        db.query(
+            models.InfografiaVista,
+            models.Infografia.titulo.label("inf_titulo"),
+            models.Unidad.id.label("u_id"),
+            models.Unidad.id_materia.label("m_id"),
+        )
         .join(models.Infografia, models.InfografiaVista.id_infografia == models.Infografia.id)
+        .join(models.Unidad, models.Infografia.id_unidad == models.Unidad.id)
         .filter(models.InfografiaVista.id_usuario == id)
         .order_by(models.InfografiaVista.visto_at.desc())
         .limit(_sub)
         .all()
     )
-    for iv, titulo in infs_v:
+    for iv, titulo, u_id, m_id in infs_v:
         events.append({
             "tipo": "infografia",
             "titulo": "Infografía vista",
             "detalle": titulo,
             "ts": iv.visto_at,
+            "unidad_id": u_id,
+            "materia_id": m_id,
         })
 
     # Flashcards: group reviews by calendar date
@@ -1573,7 +1596,14 @@ def get_actividad_reciente(id: int, limit: int = 10, db: Session = Depends(get_d
 
     events.sort(key=sort_key, reverse=True)
     return [
-        {"tipo": e["tipo"], "titulo": e["titulo"], "detalle": e["detalle"], "hace": _hace(e["ts"])}
+        {
+            "tipo": e["tipo"],
+            "titulo": e["titulo"],
+            "detalle": e["detalle"],
+            "hace": _hace(e["ts"]),
+            "materia_id": e.get("materia_id"),
+            "unidad_id": e.get("unidad_id"),
+        }
         for e in events[:limit]
     ]
 
