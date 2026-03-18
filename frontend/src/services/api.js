@@ -408,3 +408,40 @@ export const mascotaChat = async (user_id, accion, datos = {}, pantalla = 'home'
   const data = response.json();
   return data;
 };
+
+// ── Zona Libre ──────────────────────────────────────────────────────────────
+
+export const zonaLibreList = async () => {
+  const response = await fetch(`${API_URL}/zona-libre/archivos`, {
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to list archivos');
+  return response.json();
+};
+
+export const zonaLibreUpload = async (userId, file, descripcion = '') => {
+  const formData = new FormData();
+  formData.append('archivo', file);
+  formData.append('user_id', String(userId));
+  if (descripcion) formData.append('descripcion', descripcion);
+  const response = await fetch(`${API_URL}/zona-libre/upload`, {
+    method: 'POST',
+    headers: { ...getInitDataHeader() },
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Upload failed');
+  }
+  return response.json();
+};
+
+export const zonaLibreReport = async (archivoId, userId, motivo) => {
+  const response = await fetch(`${API_URL}/zona-libre/reportar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ archivo_id: archivoId, user_id: userId, motivo }),
+  });
+  if (!response.ok) throw new Error('Report failed');
+  return response.json();
+};

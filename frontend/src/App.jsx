@@ -19,6 +19,7 @@ const MateriaDetail = lazy(() => import('./screens/MateriaDetail'));
 const UnidadDetail = lazy(() => import('./screens/UnidadDetail'));
 const Profile = lazy(() => import('./screens/Profile'));
 const UserProfile = lazy(() => import('./screens/UserProfile'));
+const ZonaLibre = lazy(() => import('./screens/ZonaLibre'));
 const CinematicOnboarding = lazy(() => import('./components/Onboarding'));
 
 const LoadingBar = () => (
@@ -52,6 +53,7 @@ const AppContent = ({ user }) => {
             <Route path="/materia/:id/unidad/:idx" element={<UnidadDetail />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/perfil/:id" element={<UserProfile />} />
+            <Route path="/zona-libre" element={<ZonaLibre />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

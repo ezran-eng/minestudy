@@ -258,3 +258,32 @@ class RedoMemoria(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     usuario = relationship("User")
+
+
+class ZonaLibreArchivo(Base):
+    __tablename__ = "zona_libre_archivos"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    bag_id = Column(String(255), unique=True, nullable=False, index=True)
+    nombre = Column(String(500), nullable=False)
+    tamanio = Column(BigInteger, nullable=True)
+    descripcion = Column(String, nullable=True)
+    user_id = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
+    activo = Column(Boolean, default=True, nullable=False)
+
+    usuario = relationship("User")
+    reportes = relationship("ZonaLibreReporte", back_populates="archivo", cascade="all, delete-orphan")
+
+
+class ZonaLibreReporte(Base):
+    __tablename__ = "zona_libre_reportes"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    archivo_id = Column(Integer, ForeignKey("zona_libre_archivos.id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
+    motivo = Column(String(100), nullable=True)
+    fecha = Column(DateTime(timezone=True), server_default=func.now())
+
+    archivo = relationship("ZonaLibreArchivo", back_populates="reportes")
+    usuario = relationship("User")

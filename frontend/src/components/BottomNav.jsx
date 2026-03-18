@@ -1,11 +1,19 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
+const EyeIcon = ({ active }) => (
+  <svg width="20" height="14" viewBox="0 0 20 14" style={{ display: 'block' }}>
+    <ellipse cx="10" cy="7" rx="9" ry="6" stroke={active ? '#fff' : '#555'} strokeWidth="1.5" fill="none"/>
+    <circle cx="10" cy="7" r="3" fill={active ? '#fff' : '#555'}/>
+  </svg>
+);
+
 const BottomNav = ({ user }) => {
   const location = useLocation();
 
   const initial = user?.first_name ? user.first_name[0].toUpperCase() : 'E';
   const photoUrl = user?.photo_url;
+  const isZonaLibre = location.pathname === '/zona-libre';
 
   return (
     <div className="bottom-nav">
@@ -21,7 +29,12 @@ const BottomNav = ({ user }) => {
         <div className="nav-avatar">
           {photoUrl ? <img src={photoUrl} alt="Avatar" /> : initial}
         </div>
-
+      </Link>
+      <Link to="/zona-libre" className={`nav-item ${isZonaLibre ? 'active' : ''}`}>
+        <div className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EyeIcon active={isZonaLibre} />
+        </div>
+        <div className="nav-label" style={isZonaLibre ? { color: '#fff' } : undefined}>Zona Libre</div>
       </Link>
     </div>
   );

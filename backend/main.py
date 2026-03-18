@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract, desc
@@ -31,6 +31,7 @@ from mascota_ai import get_mascota_message
 from tutor_chat import tutor_respond
 from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_practica, accion_explicar_tema
 from ai_generate import generate_flashcards, generate_quiz
+from ton_storage import upload_to_ton, get_download_url
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -1857,3 +1858,138 @@ def delete_infografia(request: Request, id: int, db: Session = Depends(get_db)):
     db.delete(infografia)
     db.commit()
     return
+
+
+# ── Zona Libre ────────────────────────────────────────────────────────────────
+
+@app.get("/zona-libre/archivos", dependencies=[Depends(require_init_data)])
+@limiter.limit("30/minute")
+def zona_libre_list(request: Request, db: Session = Depends(get_db)):
+    archivos = (
+        db.query(models.ZonaLibreArchivo)
+        .filter(models.ZonaLibreArchivo.activo == True)
+        .order_by(models.ZonaLibreArchivo.fecha.desc())
+        .limit(100)
+        .all()
+    )
+    result = []
+    for a in archivos:
+        user = db.query(models.User).filter(models.User.id_telegram == a.user_id).first()
+        result.append({
+            "id": a.id,
+            "bag_id": a.bag_id,
+            "nombre": a.nombre,
+            "tamanio": a.tamanio,
+            "descripcion": a.descripcion,
+            "fecha": a.fecha.isoformat() if a.fecha else None,
+            "username": user.username if user else None,
+        })
+    return {"archivos": result}
+
+
+@app.post("/zona-libre/upload", dependencies=[Depends(require_init_data)])
+@limiter.limit("5/minute")
+async def zona_libre_upload(
+    request: Request,
+    archivo: UploadFile = File(...),
+    user_id: int = Form(...),
+    descripcion: str = Form(default=""),
+    db: Session = Depends(get_db),
+):
+    # Validate user exists
+    user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Read file
+    file_bytes = await archivo.read()
+    if len(file_bytes) > 50 * 1024 * 1024:  # 50MB limit
+        raise HTTPException(status_code=413, detail="Archivo demasiado grande (máx 50MB)")
+
+    filename = archivo.filename or "archivo"
+
+    # Upload to TON Storage
+    try:
+        bag_id = await upload_to_ton(file_bytes, filename)
+    except Exception as e:
+        logger.error("[zona-libre] TON upload failed: %s", e)
+        raise HTTPException(status_code=502, detail="No se pudo subir a TON Storage. Intentá de nuevo más tarde.")
+
+    # Save to DB
+    nuevo = models.ZonaLibreArchivo(
+        bag_id=bag_id,
+        nombre=filename,
+        tamanio=len(file_bytes),
+        descripcion=descripcion or None,
+        user_id=user_id,
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+
+    return {
+        "bag_id": bag_id,
+        "nombre": filename,
+        "tamanio": len(file_bytes),
+        "url_descarga": await get_download_url(bag_id),
+        "subido_por": {"user_id": user_id, "username": user.username},
+    }
+
+
+@app.get("/zona-libre/archivo/{bag_id}", dependencies=[Depends(require_init_data)])
+@limiter.limit("30/minute")
+async def zona_libre_download(request: Request, bag_id: str, db: Session = Depends(get_db)):
+    archivo = (
+        db.query(models.ZonaLibreArchivo)
+        .filter(models.ZonaLibreArchivo.bag_id == bag_id, models.ZonaLibreArchivo.activo == True)
+        .first()
+    )
+    if not archivo:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    url = await get_download_url(bag_id)
+    return RedirectResponse(url=url)
+
+
+@app.post("/zona-libre/reportar", dependencies=[Depends(require_init_data)])
+@limiter.limit("10/minute")
+def zona_libre_report(request: Request, body: dict, db: Session = Depends(get_db)):
+    archivo_id = body.get("archivo_id")
+    user_id = body.get("user_id")
+    motivo = body.get("motivo", "otro")
+
+    if not archivo_id or not user_id:
+        raise HTTPException(status_code=400, detail="archivo_id y user_id requeridos")
+
+    archivo = db.query(models.ZonaLibreArchivo).filter(models.ZonaLibreArchivo.id == archivo_id).first()
+    if not archivo:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    # Check duplicate report
+    existing = (
+        db.query(models.ZonaLibreReporte)
+        .filter(
+            models.ZonaLibreReporte.archivo_id == archivo_id,
+            models.ZonaLibreReporte.user_id == user_id,
+        )
+        .first()
+    )
+    if existing:
+        return {"ok": True, "msg": "Ya reportaste este archivo"}
+
+    reporte = models.ZonaLibreReporte(
+        archivo_id=archivo_id,
+        user_id=user_id,
+        motivo=motivo,
+    )
+    db.add(reporte)
+    db.commit()
+
+    # Auto-hide if 3+ reports
+    count = db.query(models.ZonaLibreReporte).filter(models.ZonaLibreReporte.archivo_id == archivo_id).count()
+    if count >= 3:
+        archivo.activo = False
+        db.commit()
+        logger.info("[zona-libre] archivo %d oculto por %d reportes", archivo_id, count)
+
+    return {"ok": True}
