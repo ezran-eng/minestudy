@@ -9,7 +9,6 @@ import { usePomodoroMascota } from '../../hooks/usePomodoroMascota';
 
 import { IDLE_MS, BUBBLE_MS, BLUR_MS, SEG_FULL, SEG_IDLE, SEG_GRAB, loadStorage, saveStorage } from './constants';
 import { pickRandomEffect, TransitionEffect } from './effects.jsx';
-import { useTypewriter } from './useTypewriter';
 import MascotaIcon from './MascotaIcon';
 import SpeechBubble from './SpeechBubble';
 import MascotaMenu from './MascotaMenu';
@@ -56,8 +55,6 @@ export default function Mascota({ userId }) {
   const [transition, setTransition] = useState(null);
 
   const { data: resumenData } = useMateriaResumen(resumenMateriaId, userId);
-
-  const { displayed, skip } = useTypewriter(bubble);
 
   const resumenDataRef = useRef(null);
   resumenDataRef.current = resumenData ?? null;
@@ -488,9 +485,7 @@ export default function Mascota({ userId }) {
         <SpeechBubble
           ref={bubbleRef}
           bubble={bubble}
-          displayed={displayed}
           hint={hint}
-          onSkip={skip}
           onAction={handleAction}
           above={bubbleAbove}
           left={bubbleLeft}

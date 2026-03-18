@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const ACTION_LABELS = {
   repaso: 'Ir a repasar →',
@@ -6,8 +6,26 @@ const ACTION_LABELS = {
   explorar: 'Explorar →',
 };
 
-export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint, onSkip, onAction, above, left }, ref) {
+const SPEED = 40;
+
+export default React.forwardRef(function SpeechBubble({ bubble, hint, onAction, above, left }, ref) {
   if (!bubble) return null;
+
+  const [displayed, setDisplayed] = useState('');
+
+  useEffect(() => {
+    const text = bubble?.text ?? '';
+    setDisplayed('');
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, SPEED);
+    return () => clearInterval(interval);
+  }, [bubble?.id]); // eslint-disable-line
+
+  const skip = useCallback(() => setDisplayed(bubble?.text ?? ''), [bubble]);
 
   const isComplete = displayed === bubble.text;
   const accionTipo = typeof bubble.accion === 'object' ? bubble.accion?.tipo : bubble.accion;
@@ -17,7 +35,7 @@ export default React.forwardRef(function SpeechBubble({ bubble, displayed, hint,
     <div
       ref={ref}
       key={bubble.id}
-      onClick={hasAction && isComplete ? undefined : onSkip}
+      onClick={hasAction && isComplete ? undefined : skip}
       style={{
         position: 'absolute',
         bottom: above ? '110%' : 'auto',
