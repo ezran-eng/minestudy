@@ -43,9 +43,7 @@ export default React.forwardRef(function SpeechBubble({ bubble, hint, onAction, 
         [left ? 'right' : 'left']: '0',
         maxHeight: '40vh',
         overflowY: 'auto',
-        background: 'rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        background: 'rgba(20, 18, 40, 0.92)',
         border: bubble.fromAI
           ? '1px solid rgba(160, 130, 255, 0.3)'
           : '1px solid rgba(255, 255, 255, 0.15)',

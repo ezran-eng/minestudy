@@ -7,8 +7,6 @@ export default function BlurOverlay({ isFading, onClick }) {
       style={{
         position: 'fixed',
         inset: 0,
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
         background: 'rgba(0,0,0,0.25)',
         zIndex: 999,
         animation: isFading
