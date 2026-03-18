@@ -1012,8 +1012,8 @@ body {
 
 /* ── Mascota ─────────────────────────────────────────────────────────────── */
 @keyframes mascota-pop {
-  from { opacity: 0; transform: scale(0.8) translateY(4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
 }
 @keyframes mascota-blur-in {
   from { opacity: 0; }
