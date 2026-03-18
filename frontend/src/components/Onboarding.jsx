@@ -8,7 +8,7 @@ const SEG_FULL = [60, 240];
 const SEG_IDLE = [67, 89];
 
 // ── Typewriter ──────────────────────────────────────────────────────────────
-function useTypewriter(text, id, speed = 40) {
+function useTypewriter(text, id, speed = 25) {
   const [displayed, setDisplayed] = useState('');
   useEffect(() => {
     if (!text) { setDisplayed(''); return; }
@@ -69,7 +69,6 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const [lottieKey, setLottieKey] = useState(0);
   const lottieRef = useRef(null);
   const idleDirRef = useRef(1);
-  // 'full' = playing SEG_FULL intro, 'idle-loop' = ping-pong
   const modeRef = useRef('full');
 
   const tg = window.Telegram?.WebApp;
@@ -89,9 +88,9 @@ export default function CinematicOnboarding({ user, onComplete }) {
   }, [step, weather]);
 
   // ── Typewriter ────────────────────────────────────────────────────────────
-  const { displayed, skip, isComplete } = useTypewriter(slideText, slideKey, 35);
+  const { displayed, skip, isComplete } = useTypewriter(slideText, slideKey, 25);
 
-  // ── Lottie control — same pattern as Mascota.jsx ─────────────────────────
+  // ── Lottie control — same pattern as Mascota.jsx ──────────────────────────
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
       const l = lottieRef.current;
@@ -107,10 +106,8 @@ export default function CinematicOnboarding({ user, onComplete }) {
     return () => cancelAnimationFrame(raf);
   }, [lottieKey]); // eslint-disable-line
 
-  // ── onComplete: full→idle remount, or idle ping-pong ─────────────────────
   const handleLottieComplete = useCallback(() => {
     if (modeRef.current === 'full') {
-      // Transition to idle-loop (same as Mascota intro→idle-loop)
       modeRef.current = 'idle-loop';
       idleDirRef.current = 1;
       setLottieKey(k => k + 1);
@@ -121,7 +118,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
       if (!l) return;
       idleDirRef.current *= -1;
       l.setDirection(idleDirRef.current);
-      l.play(); // continue same segment, reversed — exact same as Mascota.jsx
+      l.play();
     }
   }, []);
 
@@ -130,7 +127,6 @@ export default function CinematicOnboarding({ user, onComplete }) {
     if (step < SLIDES.length - 1) {
       const nextStep = step + 1;
       const nextSegment = SLIDES[nextStep].segment;
-      // Set mode before remount so the useEffect picks it up
       modeRef.current = nextSegment === 'full' ? 'full' : 'idle-loop';
       idleDirRef.current = 1;
       setStep(nextStep);
@@ -142,34 +138,38 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const handleFinish = useCallback(async () => {
     if (saving) return;
     setSaving(true);
-
     localStorage.setItem('onboarding_completado', 'true');
     if (noMostrar) localStorage.setItem('onboarding_no_mostrar', 'true');
-
     setExiting(true);
-
     try {
       await completeOnboarding(user.id, {
-        mostrar_foto: true,
-        mostrar_nombre: true,
-        mostrar_username: true,
-        mostrar_progreso: true,
-        mostrar_cursos: true,
+        mostrar_foto: true, mostrar_nombre: true, mostrar_username: true,
+        mostrar_progreso: true, mostrar_cursos: true,
       });
-    } catch (e) {
-      console.error('[Onboarding]', e);
-    }
-
+    } catch (e) { console.error('[Onboarding]', e); }
     setTimeout(() => onComplete(), 500);
   }, [saving, noMostrar, user, onComplete]);
 
-  const handleBubbleTap = useCallback(() => {
-    if (!isComplete) skip();
-  }, [isComplete, skip]);
+  // ── Screen tap handler ────────────────────────────────────────────────────
+  // Tap anywhere → skip typewriter. Tap right half when done → next slide.
+  const handleScreenTap = useCallback((e) => {
+    // Don't intercept interactive elements
+    if (e.target.closest('button, input, label, a')) return;
+
+    if (!isComplete) {
+      skip();
+      return;
+    }
+
+    // Text complete → tap right half to advance (non-final slides only)
+    if (!SLIDES[step].isFinal && e.clientX > window.innerWidth * 0.4) {
+      goNext();
+    }
+  }, [isComplete, skip, step, goNext]);
 
   const slide = SLIDES[step];
 
-  // ── Redo style (separate to avoid conflicting animation props) ────────────
+  // ── Redo style ────────────────────────────────────────────────────────────
   const redoStyle = { width: 120, height: 120 };
   if (step === 0) {
     redoStyle.animation = 'onboarding-zoom-in 0.6s ease-out both, aurora-pulse 1.5s ease-in-out infinite alternate 0.6s';
@@ -181,23 +181,31 @@ export default function CinematicOnboarding({ user, onComplete }) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: '#000',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: `${safeTop + 24}px 24px 40px`,
-      opacity: exiting ? 0 : 1,
-      transform: exiting ? 'scale(0.95)' : 'scale(1)',
-      transition: 'opacity 0.5s ease, transform 0.5s ease',
-    }}>
+    <div
+      onClick={handleScreenTap}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#000',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: `${safeTop + 20}px 24px 32px`,
+        opacity: exiting ? 0 : 1,
+        transform: exiting ? 'scale(0.95)' : 'scale(1)',
+        transition: 'opacity 0.5s ease, transform 0.5s ease',
+        cursor: 'pointer',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      }}
+    >
 
       {/* ── Progress dots ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '6px', width: '100%', maxWidth: '280px' }}>
+      <div style={{
+        display: 'flex', gap: '6px', width: '100%', maxWidth: '260px',
+        marginBottom: '8px', flexShrink: 0,
+      }}>
         {SLIDES.map((_, i) => (
           <div key={i} style={{
             height: '3px', flex: 1, borderRadius: '2px',
@@ -207,11 +215,11 @@ export default function CinematicOnboarding({ user, onComplete }) {
         ))}
       </div>
 
-      {/* ── Center area ────────────────────────────────────────────────── */}
+      {/* ── Main content area ──────────────────────────────────────────── */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        gap: '24px', width: '100%', maxWidth: '340px',
+        gap: '20px', width: '100%', maxWidth: '340px',
       }}>
 
         {/* Beta badge */}
@@ -225,7 +233,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
           </div>
         )}
 
-        {/* ── Redo (Lottie) ────────────────────────────────────────────── */}
+        {/* ── Redo (Lottie) ──────────────────────────────────────────── */}
         <div style={redoStyle}>
           <Lottie
             key={lottieKey}
@@ -239,31 +247,28 @@ export default function CinematicOnboarding({ user, onComplete }) {
           />
         </div>
 
-        {/* ── Speech bubble ────────────────────────────────────────────── */}
-        <div
-          onClick={handleBubbleTap}
-          style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(160, 130, 255, 0.3)',
-            borderRadius: '20px',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.3), 0 0 12px rgba(140,100,255,0.12)',
-            padding: '16px 20px',
-            fontFamily: "'Silkscreen', cursive",
-            fontSize: '12px', color: '#fff', lineHeight: 1.7,
-            maxWidth: 'min(320px, 80vw)', minWidth: '200px', width: '100%',
-            cursor: 'pointer', minHeight: '52px',
-            animation: 'mascota-pop 0.2s ease-out',
-            whiteSpace: 'normal',
-          }}
-        >
+        {/* ── Speech bubble ──────────────────────────────────────────── */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(160, 130, 255, 0.3)',
+          borderRadius: '20px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3), 0 0 12px rgba(140,100,255,0.12)',
+          padding: '16px 20px',
+          fontFamily: "'Silkscreen', cursive",
+          fontSize: '12px', color: '#fff', lineHeight: 1.7,
+          maxWidth: 'min(300px, 85vw)', width: '100%',
+          minHeight: '48px',
+          animation: 'mascota-pop 0.2s ease-out',
+          whiteSpace: 'normal',
+        }}>
           {displayed || '...'}
         </div>
 
-        {/* ── Feature icons (slide 2) ──────────────────────────────────── */}
+        {/* ── Feature icons (slide 2) ────────────────────────────────── */}
         {slide.features && isComplete && (
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
             {slide.features.map((f, i) => (
               <div key={f.label} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
@@ -279,7 +284,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
           </div>
         )}
 
-        {/* ── Drag demo card (slide 3) ─────────────────────────────────── */}
+        {/* ── Drag demo card (slide 3) ───────────────────────────────── */}
         {slide.showDragDemo && isComplete && (
           <div style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
@@ -300,7 +305,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
           </div>
         )}
 
-        {/* ── Final slide: checkbox + button ────────────────────────────── */}
+        {/* ── Final slide: checkbox + button ──────────────────────────── */}
         {slide.isFinal && isComplete && (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
@@ -341,22 +346,15 @@ export default function CinematicOnboarding({ user, onComplete }) {
         )}
       </div>
 
-      {/* ── Bottom: Continue button ────────────────────────────────────── */}
+      {/* ── Bottom hint ──────────────────────────────────────────────── */}
       {!slide.isFinal && (
-        <button
-          onClick={isComplete ? goNext : skip}
-          style={{
-            padding: '14px 40px', borderRadius: '16px',
-            background: isComplete ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${isComplete ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
-            color: isComplete ? '#c4b5fd' : 'rgba(255,255,255,0.4)',
-            fontFamily: "'Silkscreen', cursive", fontSize: '12px',
-            fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {isComplete ? 'Continuar' : 'Saltar ▸'}
-        </button>
+        <div style={{
+          fontFamily: "'Silkscreen', cursive", fontSize: '9px',
+          color: 'rgba(255,255,255,0.2)', letterSpacing: '0.06em',
+          paddingTop: '12px', flexShrink: 0, textAlign: 'center',
+        }}>
+          {isComplete ? 'TOCA PARA CONTINUAR ▸' : 'TOCA PARA SALTAR'}
+        </div>
       )}
     </div>
   );
