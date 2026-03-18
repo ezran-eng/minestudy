@@ -1697,7 +1697,7 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
         return {"mensaje": None, "accion": None}
 
 
-@app.post("/tutor/chat")
+@app.post("/tutor/chat", dependencies=[Depends(require_init_data)])
 async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_db)):
     """Multi-turn tutor chat with Redo, scoped to a specific unidad."""
     try:

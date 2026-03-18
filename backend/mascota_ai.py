@@ -77,13 +77,14 @@ def _pick_action_target(accion_tipo: str, user_id: int, db: Session) -> dict | N
         # Unit with the most due flashcards for this user
         row = (
             db.query(
-                models.CardReview.id_unidad,
+                models.Flashcard.id_unidad,
                 models.Unidad.id_materia,
                 func.count().label("n"),
             )
-            .join(models.Unidad, models.Unidad.id == models.CardReview.id_unidad)
+            .join(models.CardReview, models.CardReview.id_flashcard == models.Flashcard.id)
+            .join(models.Unidad, models.Unidad.id == models.Flashcard.id_unidad)
             .filter(models.CardReview.id_usuario == user_id, models.CardReview.due_date <= now)
-            .group_by(models.CardReview.id_unidad, models.Unidad.id_materia)
+            .group_by(models.Flashcard.id_unidad, models.Unidad.id_materia)
             .order_by(func.count().desc())
             .first()
         )
