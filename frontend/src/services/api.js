@@ -333,6 +333,26 @@ export const updateNotificaciones = async (id_usuario, data) => {
   return response.json();
 };
 
+export const aiGenerateFlashcards = async (unidad_id, count = 10) => {
+  const response = await fetch(`${API_URL}/ai/generate/flashcards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ unidad_id, count }),
+  });
+  if (!response.ok) throw new Error('AI flashcard generation failed');
+  return response.json();
+};
+
+export const aiGenerateQuiz = async (unidad_id, count = 10) => {
+  const response = await fetch(`${API_URL}/ai/generate/quiz`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ unidad_id, count }),
+  });
+  if (!response.ok) throw new Error('AI quiz generation failed');
+  return response.json();
+};
+
 export const tutorChat = async (user_id, unidad_id, messages, question) => {
   const response = await fetch(`${API_URL}/tutor/chat`, {
     method: 'POST',

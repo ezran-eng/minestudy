@@ -29,6 +29,7 @@ import schemas
 from database import engine, get_db
 from mascota_ai import get_mascota_message
 from tutor_chat import tutor_respond
+from ai_generate import generate_flashcards, generate_quiz
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -1678,6 +1679,28 @@ async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_d
     except Exception as e:
         logger.error("[tutor/chat] FAIL — user=%s error=%s", body.user_id, e)
         return {"respuesta": "Perdón, no pude procesar tu pregunta. Intentá de nuevo."}
+
+
+@app.post("/ai/generate/flashcards", dependencies=[Depends(require_init_data)])
+async def ai_generate_flashcards(body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
+    """Generate flashcards for a unidad using AI."""
+    try:
+        cards = await generate_flashcards(body.unidad_id, min(body.count, 15), db)
+        return {"generated": cards, "count": len(cards)}
+    except Exception as e:
+        logger.error("[ai-gen] flashcards FAIL: %s", e)
+        raise HTTPException(status_code=500, detail="Error generating flashcards")
+
+
+@app.post("/ai/generate/quiz", dependencies=[Depends(require_init_data)])
+async def ai_generate_quiz(body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
+    """Generate quiz questions for a unidad using AI."""
+    try:
+        questions = await generate_quiz(body.unidad_id, min(body.count, 10), db)
+        return {"generated": questions, "count": len(questions)}
+    except Exception as e:
+        logger.error("[ai-gen] quiz FAIL: %s", e)
+        raise HTTPException(status_code=500, detail="Error generating quiz")
 
 
 def _notif_defaults() -> dict:

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { tutorChat } from '../services/api';
 
 const LETTER = ['A', 'B', 'C', 'D'];
 const OPTS = ['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d'];
 
-const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFinish = null }) => {
+const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFinish = null, userId = null, unidadId = null }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -11,6 +12,8 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
   // Ref to avoid stale closure in goNext and onQuizFinish
   const correctCountRef = useRef(0);
   const correctStreakRef = useRef(0);
+  const [aiExplanation, setAiExplanation] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +23,8 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
       setCorrectCount(0);
       correctCountRef.current = 0;
       correctStreakRef.current = 0;
+      setAiExplanation(null);
+      setAiLoading(false);
       window.dispatchEvent(new CustomEvent('mascota:event', { detail: { accion: 'enter', pantalla: 'quiz' } }));
     }
   }, [isOpen, customQuestions]);
@@ -80,6 +85,28 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
       setCurrentIndex(nextIndex);
       setSelectedOpt(null);
       setIsAnswered(false);
+      setAiExplanation(null);
+      setAiLoading(false);
+    }
+  };
+
+  const askRedoExplain = async () => {
+    if (aiLoading || !currentQ || !userId) return;
+    setAiLoading(true);
+    try {
+      const correctLetter = currentQ.respuesta_correcta.toUpperCase();
+      const correctText = currentQ[OPTS[correctOpt]];
+      const question = (
+        `Respondí mal esta pregunta de quiz: "${currentQ.pregunta}". ` +
+        `Elegí "${currentQ[OPTS[selectedOpt]]}" pero la correcta era ${correctLetter}: "${correctText}". ` +
+        `Explicame por qué es esa la respuesta correcta, de forma simple.`
+      );
+      const { respuesta } = await tutorChat(userId, unidadId, [], question);
+      setAiExplanation(respuesta);
+    } catch (e) {
+      setAiExplanation('No pude generar la explicación. Intentá de nuevo.');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -141,6 +168,45 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
                   💡 {currentQ.justificacion}
                 </div>
               )}
+
+              {/* AI explanation for wrong answers */}
+              {selectedOpt !== correctOpt && userId && (
+                <>
+                  {!aiExplanation && (
+                    <button
+                      onClick={askRedoExplain}
+                      disabled={aiLoading}
+                      style={{
+                        width: '100%', padding: '10px', borderRadius: '10px',
+                        background: 'rgba(139,92,246,0.1)',
+                        border: '1px solid rgba(139,92,246,0.2)',
+                        color: 'rgba(167,139,250,0.85)',
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: '13px', fontWeight: 600,
+                        cursor: aiLoading ? 'wait' : 'pointer',
+                        marginBottom: '10px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      }}
+                    >
+                      {aiLoading ? '🤔 Pensando...' : '🤖 Pedirle a Redo que me explique'}
+                    </button>
+                  )}
+                  {aiExplanation && (
+                    <div style={{
+                      background: 'rgba(139,92,246,0.08)',
+                      border: '1px solid rgba(139,92,246,0.15)',
+                      borderRadius: '10px',
+                      padding: '10px 14px', fontSize: '13px',
+                      color: 'var(--text)', marginBottom: '10px',
+                      lineHeight: 1.5,
+                    }}>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(167,139,250,0.7)', marginBottom: '4px' }}>REDO</div>
+                      {aiExplanation}
+                    </div>
+                  )}
+                </>
+              )}
+
               <button
                 className="btn-primary"
                 style={{ width: '100%', padding: '12px', borderRadius: '10px', fontSize: '15px', fontWeight: 600 }}

@@ -5,7 +5,7 @@ import Quiz from '../components/Quiz';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getProgresoUnidad } from '../services/api';
+import api, { registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getProgresoUnidad, aiGenerateFlashcards, aiGenerateQuiz } from '../services/api';
 import { useMaterias, useMateriasSeguidas, useInfografias, usePdfs, useVistasUnidad, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
@@ -55,6 +55,7 @@ const UnidadDetail = () => {
   const [flashcards, setFlashcards] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(null); // 'flashcards' | 'quiz' | null
 
   // Cached queries
   const { data: allMaterias } = useMaterias();
@@ -229,6 +230,49 @@ const UnidadDetail = () => {
     refreshProgresoRef.current();
   };
 
+  // AI generate handlers
+  const handleGenerateFlashcards = async () => {
+    if (generating) return;
+    setGenerating('flashcards');
+    try {
+      const { generated } = await aiGenerateFlashcards(parseInt(idx), 10);
+      if (generated?.length) {
+        showToast(`${generated.length} flashcards generadas con IA`);
+        // Refetch flashcards
+        const res = await api.get(`/unidades/${idx}/flashcards`);
+        setFlashcards(res.data);
+        invalidate(['progreso', user?.id, parseInt(idx)]);
+      } else {
+        showToast('No se pudieron generar flashcards');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error al generar flashcards');
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (generating) return;
+    setGenerating('quiz');
+    try {
+      const { generated } = await aiGenerateQuiz(parseInt(idx), 10);
+      if (generated?.length) {
+        showToast(`${generated.length} preguntas generadas con IA`);
+        const res = await api.get(`/unidades/${idx}/quiz`);
+        setQuizQuestions(res.data);
+      } else {
+        showToast('No se pudieron generar preguntas');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error al generar quiz');
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   // Badge helpers
   const flashBadge = progreso?.flashcards.total > 0
     ? `${progreso.flashcards.dominadas}/${progreso.flashcards.total} dominadas`
@@ -307,6 +351,56 @@ const UnidadDetail = () => {
               </div>
               <div className="resource-badge">{quizBadge}</div>
             </div>
+          </div>
+
+          {/* AI Generate buttons */}
+          <div style={{
+            display: 'flex', gap: '8px', marginTop: '14px',
+          }}>
+            <button
+              onClick={handleGenerateFlashcards}
+              disabled={!!generating}
+              style={{
+                flex: 1, padding: '10px 12px',
+                borderRadius: '12px',
+                background: 'rgba(139,92,246,0.1)',
+                border: '1px solid rgba(139,92,246,0.2)',
+                color: generating === 'flashcards' ? 'rgba(167,139,250,0.5)' : 'rgba(167,139,250,0.85)',
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: '12px', fontWeight: 600,
+                cursor: generating ? 'wait' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {generating === 'flashcards' ? (
+                <><span style={{ animation: 'ob-float 1s ease-in-out infinite' }}>🧠</span> Generando...</>
+              ) : (
+                <>🤖 Generar flashcards</>
+              )}
+            </button>
+            <button
+              onClick={handleGenerateQuiz}
+              disabled={!!generating}
+              style={{
+                flex: 1, padding: '10px 12px',
+                borderRadius: '12px',
+                background: 'rgba(96,165,250,0.1)',
+                border: '1px solid rgba(96,165,250,0.2)',
+                color: generating === 'quiz' ? 'rgba(96,165,250,0.5)' : 'rgba(96,165,250,0.85)',
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: '12px', fontWeight: 600,
+                cursor: generating ? 'wait' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {generating === 'quiz' ? (
+                <><span style={{ animation: 'ob-float 1s ease-in-out infinite' }}>🎯</span> Generando...</>
+              ) : (
+                <>🤖 Generar quiz</>
+              )}
+            </button>
           </div>
 
           {infografias.length > 0 && (
@@ -402,6 +496,8 @@ const UnidadDetail = () => {
         customQuestions={quizQuestions.length > 0 ? quizQuestions : null}
         onFirstAnswer={registrarHoy}
         onQuizFinish={handleQuizFinish}
+        userId={user?.id}
+        unidadId={parseInt(idx)}
       />
     </>
   );

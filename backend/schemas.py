@@ -262,3 +262,7 @@ class TutorChatRequest(BaseModel):
 
 class TutorChatResponse(BaseModel):
     respuesta: str
+
+class AIGenerateRequest(BaseModel):
+    unidad_id: int
+    count: int = 10
