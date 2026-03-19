@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
 import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad } from '../services/api';
 import { useMaterias, useVistasMateria, useSeguidoresMateria, useInvalidate } from '../hooks/useQueryHooks';
@@ -10,6 +11,7 @@ import ConfirmModal from '../components/ConfirmModal';
 const MAX_AVATARS = 4;
 
 const AvatarStack = ({ seguidores, total, onClick }) => {
+  const { t } = useTranslation();
   if (total === 0) return null;
   const shown = seguidores.slice(0, MAX_AVATARS);
   const extra = total - MAX_AVATARS;
@@ -38,20 +40,22 @@ const AvatarStack = ({ seguidores, total, onClick }) => {
         </div>
       )}
       <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--text2)' }}>
-        {total} {total === 1 ? 'seguidor' : 'seguidores'}
+        {t('materia.follower', { count: total })}
       </span>
     </div>
   );
 };
 
 // ─── Seguidores modal ─────────────────────────────────────────────────────────
-const SeguidoresModal = ({ seguidores, onClose, onClickUser }) => (
+const SeguidoresModal = ({ seguidores, onClose, onClickUser }) => {
+  const { t } = useTranslation();
+  return (
   <div className="overlay show" id="seg-overlay" onClick={e => { if (e.target.id === 'seg-overlay') onClose(); }}>
     <div className="sheet">
       <div className="sheet-handle" />
-      <div className="sheet-title">Seguidores</div>
+      <div className="sheet-title">{t('materia.followers')}</div>
       {seguidores.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--text2)', padding: '24px 0' }}>Sin seguidores aún</div>
+        <div style={{ textAlign: 'center', color: 'var(--text2)', padding: '24px 0' }}>{t('materia.noFollowers')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {seguidores.map(s => (
@@ -80,7 +84,8 @@ const SeguidoresModal = ({ seguidores, onClose, onClickUser }) => (
       )}
     </div>
   </div>
-);
+  );
+};
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const MateriaDetail = () => {
@@ -88,6 +93,7 @@ const MateriaDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useTelegram();
+  const { t } = useTranslation();
   const invalidate = useInvalidate();
 
   // Cached queries
@@ -185,7 +191,7 @@ const MateriaDetail = () => {
     }
   };
 
-  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Cargando materia...</div>;
+  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('materia.loadingSubject')}</div>;
 
   const totalUnits = materia.unidades.length;
   let overallPct = 0;
@@ -204,7 +210,7 @@ const MateriaDetail = () => {
 
           <div className="detail-prog">
             <div className="detail-prog-top">
-              <span className="detail-prog-label">Progreso general</span>
+              <span className="detail-prog-label">{t('materia.generalProgress')}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="detail-prog-pct">{overallPct}%</span>
                 {siguiendo && user?.id && (
@@ -218,7 +224,7 @@ const MateriaDetail = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    ✓ Siguiendo
+                    {t('materia.following')}
                   </button>
                 )}
               </div>
@@ -233,7 +239,7 @@ const MateriaDetail = () => {
           </div>
 
           <div className="section-head" style={{ marginBottom: '10px' }}>
-            <div className="section-title">Programa</div>
+            <div className="section-title">{t('materia.syllabus')}</div>
           </div>
 
           {!siguiendo && (
@@ -243,7 +249,7 @@ const MateriaDetail = () => {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
             }}>
               <span style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.4 }}>
-                🔒 Seguí esta materia para desbloquear el contenido
+                🔒 {t('materia.followToUnlock')}
               </span>
               {user?.id && (
                 <button
@@ -254,7 +260,7 @@ const MateriaDetail = () => {
                     background: 'var(--gold)', border: 'none', color: '#000', cursor: 'pointer',
                   }}
                 >
-                  ➕ Seguir
+                  {t('materia.follow')}
                 </button>
               )}
             </div>
@@ -266,7 +272,7 @@ const MateriaDetail = () => {
               let statusClass = 'pend';
               if (userPct === 100) statusClass = 'done';
               else if (userPct > 0) statusClass = 'cur';
-              const badgeText = userPct === 100 ? '✓ Completa' : `${userPct}%`;
+              const badgeText = userPct === 100 ? t('materia.complete') : `${userPct}%`;
               const displayTemas = u.temas.slice(0, 3);
               const hasMore = u.temas.length > 3;
 
@@ -281,7 +287,7 @@ const MateriaDetail = () => {
                       {hasMore && <span className="topic-chip">...</span>}
                       {u.flashcard_count > 0 && (
                         <span className="topic-chip" style={{ background: 'var(--gold)', color: '#000' }}>
-                          {u.flashcard_count} tarjetas
+                          {t('materia.cards', { n: u.flashcard_count })}
                         </span>
                       )}
                     </div>
@@ -332,10 +338,10 @@ const MateriaDetail = () => {
 
       {showUnfollowConfirm && (
         <ConfirmModal
-          title="⚠️ ¿Dejar de seguir?"
-          message="Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer."
-          confirmLabel="Sí, dejar de seguir"
-          cancelLabel="Cancelar"
+          title={t('study.unfollowTitle')}
+          message={t('study.unfollowMessage')}
+          confirmLabel={t('study.unfollowConfirm')}
+          cancelLabel={t('common.cancel')}
           dangerous
           onConfirm={doUnfollow}
           onCancel={() => setShowUnfollowConfirm(false)}
@@ -350,7 +356,7 @@ const MateriaDetail = () => {
           fontSize: '13px', color: 'var(--text)', fontWeight: 500,
           zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         }}>
-          Seguí esta materia para acceder al contenido
+          {t('materia.followToAccess')}
         </div>
       )}
     </>

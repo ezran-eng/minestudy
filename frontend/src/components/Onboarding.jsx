@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Lottie from 'lottie-react';
 import mascotaData from '../assets/lotties/mascota.json';
 import { completeOnboarding, updateNotificaciones } from '../services/api';
@@ -155,6 +156,7 @@ function AiPill({ icon, text, delay }) {
 // Component
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CinematicOnboarding({ user, onComplete }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [noMostrar, setNoMostrar] = useState(false);
@@ -187,11 +189,16 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
 
   // ── Slide text (dynamic for welcome & final) ──────────────────────────────
-  const slideText = useMemo(() => {
-    if (step === 0) return `Hola ${firstName}, soy Redo. Tu compañero de estudio con inteligencia artificial.`;
-    if (step === 6) return `Estoy en beta y aprendo con vos. ¿Arrancamos, ${firstName}?`;
-    return SLIDES[step].text;
-  }, [step, firstName]);
+  const slideTexts = useMemo(() => [
+    t('onboarding.helloRedo', { name: firstName }),
+    t('onboarding.redoAiDesc'),
+    t('onboarding.redoFeatures'),
+    t('onboarding.redoDragDemo'),
+    t('onboarding.redoPrivacy'),
+    t('onboarding.redoNotifications'),
+    t('onboarding.redoFinal', { name: firstName }),
+  ], [t, firstName]);
+  const slideText = slideTexts[step];
 
   // ── Typewriter ────────────────────────────────────────────────────────────
   const { displayed, skip, isComplete } = useTypewriter(slideText, slideKey, 20);
@@ -285,10 +292,10 @@ export default function CinematicOnboarding({ user, onComplete }) {
 
   // ── Hint text ─────────────────────────────────────────────────────────────
   const hintText = useMemo(() => {
-    if (!isComplete) return 'TOCA PARA SALTAR';
+    if (!isComplete) return t('onboarding.tapToSkip');
     if (step === 0) return null; // no back hint on first
-    return '← ATRÁS · SIGUIENTE →';
-  }, [isComplete, step]);
+    return t('onboarding.backNext');
+  }, [isComplete, step, t]);
 
   return (
     <div
@@ -396,19 +403,19 @@ export default function CinematicOnboarding({ user, onComplete }) {
         {/* AI capabilities (slide 1) */}
         {slide.type === 'ai' && isComplete && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-            <AiPill icon="💬" text="Explicar cualquier tema de tus materias" delay={0} />
-            <AiPill icon="🧠" text="Generar flashcards automáticamente" delay={0.08} />
-            <AiPill icon="📈" text="Analizar tu progreso y sugerir repasos" delay={0.16} />
+            <AiPill icon="💬" text={t('onboarding.aiExplainTopics')} delay={0} />
+            <AiPill icon="🧠" text={t('onboarding.aiGenerateFlashcards')} delay={0.08} />
+            <AiPill icon="📈" text={t('onboarding.aiAnalyzeProgress')} delay={0.16} />
           </div>
         )}
 
         {/* Features (slide 2) */}
         {slide.type === 'features' && isComplete && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
-            <FeatureCard icon="🧠" title="Flashcards" desc="Repaso inteligente con algoritmo SM2" bg="rgba(167,139,250,0.12)" border="rgba(167,139,250,0.25)" delay={0} />
-            <FeatureCard icon="📊" title="Progreso" desc="Seguimiento detallado por materia" bg="rgba(96,165,250,0.12)" border="rgba(96,165,250,0.25)" delay={0.08} />
-            <FeatureCard icon="🍅" title="Pomodoro" desc="Sesiones de focus con descansos" bg="rgba(248,113,113,0.10)" border="rgba(248,113,113,0.22)" delay={0.16} />
-            <FeatureCard icon="✍️" title="Quizzes" desc="Evaluaciones por unidad" bg="rgba(52,211,153,0.10)" border="rgba(52,211,153,0.22)" delay={0.24} />
+            <FeatureCard icon="🧠" title={t('onboarding.flashcardsFeature')} desc={t('onboarding.flashcardsFeatureDesc')} bg="rgba(167,139,250,0.12)" border="rgba(167,139,250,0.25)" delay={0} />
+            <FeatureCard icon="📊" title={t('onboarding.progressFeature')} desc={t('onboarding.progressFeatureDesc')} bg="rgba(96,165,250,0.12)" border="rgba(96,165,250,0.25)" delay={0.08} />
+            <FeatureCard icon="🍅" title={t('onboarding.pomodoroFeature')} desc={t('onboarding.pomodoroFeatureDesc')} bg="rgba(248,113,113,0.10)" border="rgba(248,113,113,0.22)" delay={0.16} />
+            <FeatureCard icon="✍️" title={t('onboarding.quizzesFeature')} desc={t('onboarding.quizzesFeatureDesc')} bg="rgba(52,211,153,0.10)" border="rgba(52,211,153,0.22)" delay={0.24} />
           </div>
         )}
 
@@ -443,7 +450,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
               fontFamily: "'Outfit', sans-serif", fontSize: '10px',
               color: 'rgba(255,255,255,0.2)', textAlign: 'center',
               animation: 'ob-pulse-text 2s ease-in-out infinite',
-            }}>← arrastrá a Redo sobre una materia →</div>
+            }}>{t('onboarding.dragHint')}</div>
           </div>
         )}
 
@@ -453,31 +460,31 @@ export default function CinematicOnboarding({ user, onComplete }) {
             display: 'flex', flexDirection: 'column', gap: '6px', width: '100%',
           }}>
             <Toggle
-              label="Foto de perfil" desc="Visible en listas y seguidores"
+              label={t('onboarding.privacyPhotoLabel')} desc={t('onboarding.privacyPhotoDesc')}
               checked={privacy.mostrar_foto}
               onChange={v => setPrivacy(p => ({ ...p, mostrar_foto: v }))}
               delay={0}
             />
             <Toggle
-              label="Nombre completo" desc="Visible en tu perfil público"
+              label={t('onboarding.privacyNameLabel')} desc={t('onboarding.privacyNameDesc')}
               checked={privacy.mostrar_nombre}
               onChange={v => setPrivacy(p => ({ ...p, mostrar_nombre: v }))}
               delay={0.06}
             />
             <Toggle
-              label="Username" desc="Tu @ de Telegram visible"
+              label={t('onboarding.privacyUsernameLabel')} desc={t('onboarding.privacyUsernameDesc')}
               checked={privacy.mostrar_username}
               onChange={v => setPrivacy(p => ({ ...p, mostrar_username: v }))}
               delay={0.12}
             />
             <Toggle
-              label="Progreso de estudio" desc="Porcentaje de avance por materia"
+              label={t('onboarding.privacyProgressLabel')} desc={t('onboarding.privacyProgressDesc')}
               checked={privacy.mostrar_progreso}
               onChange={v => setPrivacy(p => ({ ...p, mostrar_progreso: v }))}
               delay={0.18}
             />
             <Toggle
-              label="Materias que seguís" desc="Qué estás estudiando"
+              label={t('onboarding.privacySubjectsLabel')} desc={t('onboarding.privacySubjectsDesc')}
               checked={privacy.mostrar_cursos}
               onChange={v => setPrivacy(p => ({ ...p, mostrar_cursos: v }))}
               delay={0.24}
@@ -485,7 +492,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
             <div style={{
               fontFamily: "'Outfit', sans-serif", fontSize: '10px',
               color: 'rgba(255,255,255,0.18)', textAlign: 'center', marginTop: '2px',
-            }}>Podés cambiarlo después en Perfil → Ajustes</div>
+            }}>{t('onboarding.privacyChangeNote')}</div>
           </div>
         )}
 
@@ -495,19 +502,19 @@ export default function CinematicOnboarding({ user, onComplete }) {
             display: 'flex', flexDirection: 'column', gap: '6px', width: '100%',
           }}>
             <Toggle
-              label="Recordatorio diario" desc="Te aviso a las 08:00 si no estudiaste"
+              label={t('onboarding.dailyReminder')} desc={t('onboarding.dailyReminderDesc')}
               checked={notifs.recordatorio_activo}
               onChange={v => setNotifs(n => ({ ...n, recordatorio_activo: v }))}
               color="#34d399" delay={0}
             />
             <Toggle
-              label="Racha en riesgo" desc="Alerta a las 21:00 para no perderla"
+              label={t('onboarding.streakAtRisk')} desc={t('onboarding.streakAtRiskDesc')}
               checked={notifs.racha_activa}
               onChange={v => setNotifs(n => ({ ...n, racha_activa: v }))}
               color="#f59e0b" delay={0.08}
             />
             <Toggle
-              label="Flashcards vencidas" desc="Aviso a las 09:00 si tenés repasos"
+              label={t('onboarding.dueFlashcards')} desc={t('onboarding.dueFlashcardsDesc')}
               checked={notifs.flashcards_activa}
               onChange={v => setNotifs(n => ({ ...n, flashcards_activa: v }))}
               color="#60a5fa" delay={0.16}
@@ -515,7 +522,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
             <div style={{
               fontFamily: "'Outfit', sans-serif", fontSize: '10px',
               color: 'rgba(255,255,255,0.18)', textAlign: 'center', marginTop: '2px',
-            }}>Las notificaciones llegan por Telegram</div>
+            }}>{t('onboarding.notifViaTelegram')}</div>
           </div>
         )}
 
@@ -550,7 +557,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
                 onChange={(e) => setNoMostrar(e.target.checked)}
                 style={{ accentColor: '#a78bfa', width: '15px', height: '15px' }}
               />
-              No mostrar otra vez
+              {t('onboarding.noShowAgain')}
             </label>
 
             <button
@@ -571,7 +578,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
               onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
               onPointerLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              {saving ? 'Guardando...' : '¡Arrancamos!'}
+              {saving ? t('onboarding.saving') : t('onboarding.letsGo')}
             </button>
           </div>
         )}

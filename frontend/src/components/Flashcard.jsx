@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = null, onFirstAction = null, onCardReviewed = null }) => {
+  const { t } = useTranslation();
   const defaultCards = [
     { q: '¿Cuál es la dureza del cuarzo en la escala de Mohs?', a: 'Dureza 7 — es uno de los minerales más comunes y resistentes de la corteza terrestre.' },
     { q: '¿Qué significa RQD en geomecánica?', a: 'Rock Quality Designation — mide la calidad de la roca según el porcentaje de testigos intactos mayores a 10 cm.' },
@@ -89,8 +91,8 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
     <div className="overlay show" id="flash-overlay" onClick={closeBg}>
       <div className="sheet">
         <div className="sheet-handle"></div>
-        <div className="sheet-title">Flashcards</div>
-        <div className="sheet-sub" id="flash-sub">{materiaName} · {cards.length} tarjetas</div>
+        <div className="sheet-title">{t('flashcards.title')}</div>
+        <div className="sheet-sub" id="flash-sub">{materiaName} · {t('flashcards.cardsCount', { n: cards.length })}</div>
 
         <div
           className="flashcard"
@@ -105,7 +107,7 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
             {cards[cardIdx].a}
           </div>
           <div className="fc-hint" style={{ display: flipped ? 'none' : '' }}>
-            Toca para ver la respuesta
+            {t('flashcards.front')}
           </div>
         </div>
 
@@ -116,8 +118,8 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
         </div>
 
         <div className="fc-actions">
-          <button className="btn-wrong" onClick={() => nextCard(false)}>✗ No sabía</button>
-          <button className="btn-correct" onClick={() => nextCard(true)}>✓ Lo sabía</button>
+          <button className="btn-wrong" onClick={() => nextCard(false)}>✗ {t('flashcards.didntKnow')}</button>
+          <button className="btn-correct" onClick={() => nextCard(true)}>✓ {t('flashcards.knew')}</button>
         </div>
       </div>
     </div>

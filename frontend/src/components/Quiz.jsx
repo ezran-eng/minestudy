@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { tutorChat } from '../services/api';
 
 const LETTER = ['A', 'B', 'C', 'D'];
 const OPTS = ['opcion_a', 'opcion_b', 'opcion_c', 'opcion_d'];
 
 const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFinish = null, userId = null, unidadId = null }) => {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -125,7 +127,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
         <div className="sheet-handle"></div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 4px' }}>
-          <div className="sheet-title" style={{ margin: 0 }}>Cuestionario</div>
+          <div className="sheet-title" style={{ margin: 0 }}>{t('quiz.questionnaire')}</div>
           {hasQuestions && (
             <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text2)' }}>
               ✅ {correctCount} / {customQuestions.length}
@@ -136,11 +138,11 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
         {!hasQuestions ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text2)' }}>
             <div style={{ fontSize: '36px', marginBottom: '12px' }}>📭</div>
-            <div style={{ fontSize: '15px' }}>Sin preguntas cargadas aún</div>
+            <div style={{ fontSize: '15px' }}>{t('quiz.noQuestions')}</div>
           </div>
         ) : (<>
           <div className="sheet-sub">
-            {`Pregunta ${currentIndex + 1} de ${customQuestions.length}`}
+            {t('quiz.question', { n: currentIndex + 1, total: customQuestions.length })}
           </div>
           <div className="quiz-question">{currentQ.pregunta}</div>
           <div className="quiz-options">
@@ -188,7 +190,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       }}
                     >
-                      {aiLoading ? '🤔 Pensando...' : '🤖 Pedirle a Redo que me explique'}
+                      {aiLoading ? `🤔 ${t('quiz.thinking')}` : `🤖 ${t('quiz.askRedo')}`}
                     </button>
                   )}
                   {aiExplanation && (
@@ -212,7 +214,7 @@ const Quiz = ({ isOpen, onClose, customQuestions, onFirstAnswer = null, onQuizFi
                 style={{ width: '100%', padding: '12px', borderRadius: '10px', fontSize: '15px', fontWeight: 600 }}
                 onClick={goNext}
               >
-                {currentIndex === customQuestions.length - 1 ? 'Finalizar' : 'Siguiente →'}
+                {currentIndex === customQuestions.length - 1 ? t('quiz.finish') : `${t('quiz.next')} →`}
               </button>
             </div>
           )}

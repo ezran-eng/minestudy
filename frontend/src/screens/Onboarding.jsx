@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { completeOnboarding } from '../services/api';
 
 const STEPS = 4;
@@ -35,6 +36,7 @@ const Toggle = ({ label, description, value, onChange }) => (
 );
 
 const Onboarding = ({ user, onComplete }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [privacy, setPrivacy] = useState({
@@ -67,23 +69,23 @@ const Onboarding = ({ user, onComplete }) => {
     <div key="welcome" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}>
       <div style={{ fontSize: '64px', marginBottom: '24px' }}>📚</div>
       <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text)', marginBottom: '12px', lineHeight: 1.2 }}>
-        Bienvenido, <span style={{ color: 'var(--gold)' }}>{user?.first_name || 'estudiante'}</span>
+        {t('onboarding.welcome')} <span style={{ color: 'var(--gold)' }}>{user?.first_name || t('common.student')}</span>
       </div>
       <div style={{ fontSize: '15px', color: 'var(--text2)', lineHeight: 1.6 }}>
-        Antes de empezar, te mostramos cómo funciona DaathApp y te dejamos elegir qué información compartís con otros.
+        {t('onboarding.introDesc')}
       </div>
     </div>,
 
     // Step 1 — Cómo funciona
     <div key="features" style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
-      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '6px' }}>¿Qué podés hacer?</div>
-      <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '24px' }}>DaathApp tiene todo lo que necesitás para estudiar mejor.</div>
+      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '6px' }}>{t('onboarding.whatCanYouDo')}</div>
+      <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '24px' }}>{t('onboarding.appDesc')}</div>
       {[
-        { icon: '🃏', title: 'Flashcards', desc: 'Repasá con spaced repetition — el sistema te muestra cada tarjeta en el momento justo para que la recuerdes a largo plazo.' },
-        { icon: '🎯', title: 'Cuestionarios', desc: 'Preguntas de opción múltiple generadas desde el contenido de cada unidad. Ideal para repasar antes de un parcial.' },
-        { icon: '🖼', title: 'Infografías y PDFs', desc: 'Todo el material de cada unidad en un solo lugar, organizado y siempre disponible.' },
-        { icon: '📈', title: 'Progreso real', desc: 'Seguí tu avance por materia y unidad. Cada acción que hacés suma al progreso.' },
-        { icon: '🔥', title: 'Racha de estudio', desc: 'Estudiá todos los días para mantener tu racha activa. Cuanto más constante, mejor.' },
+        { icon: '🃏', title: t('onboarding.flashcardsFeature'), desc: t('onboarding.flashcardsDesc') },
+        { icon: '🎯', title: t('onboarding.quizzesTitle'), desc: t('onboarding.quizzesDesc') },
+        { icon: '🖼', title: t('onboarding.infographicsAndPdfs'), desc: t('onboarding.infographicsAndPdfsDesc') },
+        { icon: '📈', title: t('onboarding.realProgress'), desc: t('onboarding.realProgressDesc') },
+        { icon: '🔥', title: t('onboarding.studyStreak'), desc: t('onboarding.studyStreakDesc') },
       ].map(f => (
         <div key={f.icon} style={{
           display: 'flex', gap: '14px', marginBottom: '20px',
@@ -101,35 +103,35 @@ const Onboarding = ({ user, onComplete }) => {
 
     // Step 2 — Privacidad
     <div key="privacy" style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
-      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '6px' }}>Tu privacidad</div>
+      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '6px' }}>{t('onboarding.yourPrivacy')}</div>
       <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '8px', lineHeight: 1.5 }}>
-        Elegí qué información tuya pueden ver los otros usuarios. Podés cambiarlo cuando quieras desde tu perfil.
+        {t('onboarding.privacyDesc')}
       </div>
       <div style={{
         background: 'rgba(212,168,71,0.08)', border: '1px solid rgba(212,168,71,0.25)',
         borderRadius: '10px', padding: '10px 14px', marginBottom: '16px',
         fontSize: '12px', color: 'var(--text2)', lineHeight: 1.5,
       }}>
-        🔒 Esto aplica a tu presencia en la lista de seguidores de las materias y en tu perfil público.
+        🔒 {t('onboarding.privacyNote')}
       </div>
-      <Toggle label="Foto de perfil" description="Tu foto aparece en la lista de seguidores de cada materia." value={privacy.mostrar_foto} onChange={v => set('mostrar_foto', v)} />
-      <Toggle label="Nombre" description="Tu nombre se muestra junto a tu avatar." value={privacy.mostrar_nombre} onChange={v => set('mostrar_nombre', v)} />
-      <Toggle label="@Usuario" description="Tu arroba de Telegram visible en tu perfil público." value={privacy.mostrar_username} onChange={v => set('mostrar_username', v)} />
-      <Toggle label="Materias que cursás" description="Otros pueden ver qué materias estás siguiendo." value={privacy.mostrar_cursos} onChange={v => set('mostrar_cursos', v)} />
-      <Toggle label="Progreso" description="Tu porcentaje de avance visible en tu perfil." value={privacy.mostrar_progreso} onChange={v => set('mostrar_progreso', v)} />
+      <Toggle label={t('onboarding.profilePhoto')} description={t('onboarding.profilePhotoDesc')} value={privacy.mostrar_foto} onChange={v => set('mostrar_foto', v)} />
+      <Toggle label={t('onboarding.name')} description={t('onboarding.nameDesc')} value={privacy.mostrar_nombre} onChange={v => set('mostrar_nombre', v)} />
+      <Toggle label={t('onboarding.username')} description={t('onboarding.usernameDesc')} value={privacy.mostrar_username} onChange={v => set('mostrar_username', v)} />
+      <Toggle label={t('onboarding.subjectsYouFollow')} description={t('onboarding.subjectsYouFollowDesc')} value={privacy.mostrar_cursos} onChange={v => set('mostrar_cursos', v)} />
+      <Toggle label={t('onboarding.progressToggle')} description={t('onboarding.progressToggleDesc')} value={privacy.mostrar_progreso} onChange={v => set('mostrar_progreso', v)} />
     </div>,
 
     // Step 3 — Listo
     <div key="done" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}>
       <div style={{ fontSize: '64px', marginBottom: '24px' }}>🚀</div>
       <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)', marginBottom: '12px' }}>
-        ¡Todo listo!
+        {t('onboarding.allSet')}
       </div>
       <div style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.6, marginBottom: '8px' }}>
-        Ya configuraste tu privacidad. Podés cambiarlo en cualquier momento desde tu perfil.
+        {t('onboarding.allSetDesc')}
       </div>
       <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
-        Seguí una materia en Study para empezar a estudiar.
+        {t('onboarding.followSubject')}
       </div>
     </div>,
   ];
@@ -175,7 +177,7 @@ const Onboarding = ({ user, onComplete }) => {
               color: 'var(--text2)', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
             }}
           >
-            Atrás
+            {t('onboarding.back')}
           </button>
         )}
         <button
@@ -188,7 +190,7 @@ const Onboarding = ({ user, onComplete }) => {
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {isLast ? (saving ? 'Guardando...' : '¡Empezar!') : 'Continuar'}
+          {isLast ? (saving ? t('onboarding.saving') : t('onboarding.getStarted')) : t('onboarding.continue')}
         </button>
       </div>
     </div>

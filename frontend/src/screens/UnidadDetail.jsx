@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import InfografiaCarousel from '../components/InfografiaCarousel';
@@ -34,6 +35,7 @@ const CircularProgress = ({ pct }) => {
 const UnidadDetail = () => {
   const { id, idx } = useParams();
   const { user } = useTelegram();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const { registrarHoy } = useActividad(user?.id, showToast);
   const navigate = useNavigate();
@@ -183,9 +185,9 @@ const UnidadDetail = () => {
     if (!loading && user?.id) refreshProgreso();
   }, [loading, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return <div className="screen active" style={{ padding: '20px' }}>Cargando unidad...</div>;
-  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>Materia no encontrada</div>;
-  if (!unidad) return <div className="screen active" style={{ padding: '20px' }}>Unidad no encontrada</div>;
+  if (loading) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.loadingUnit')}</div>;
+  if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.subjectNotFound')}</div>;
+  if (!unidad) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.unitNotFound')}</div>;
 
   const topicsArray = unidad.temas.map(t => t.nombre);
 
@@ -232,12 +234,12 @@ const UnidadDetail = () => {
 
   // Badge helpers
   const flashBadge = progreso?.flashcards.total > 0
-    ? `${progreso.flashcards.dominadas}/${progreso.flashcards.total} dominadas`
-    : flashcards.length > 0 ? `${flashcards.length} tarjetas` : 'Sin tarjetas';
+    ? t('unit.dominatedCount', { n: progreso.flashcards.dominadas, total: progreso.flashcards.total })
+    : flashcards.length > 0 ? t('unit.cards', { n: flashcards.length }) : t('unit.noCards');
 
   const quizBadge = progreso?.cuestionario.total > 0 && progreso?.cuestionario.correctas > 0
     ? `${progreso.cuestionario.correctas}/${progreso.cuestionario.total}`
-    : quizQuestions.length > 0 ? `${quizQuestions.length} preguntas` : 'Nuevo';
+    : quizQuestions.length > 0 ? t('unit.questions', { n: quizQuestions.length }) : t('unit.new');
 
   return (
     <>
@@ -258,22 +260,22 @@ const UnidadDetail = () => {
               <CircularProgress pct={progreso.porcentaje_total} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>Progreso de la unidad</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{t('unit.unitProgress')}</span>
                   {vistas !== null && <VistaBadge vistas={vistas} />}
                 </div>
                 {progreso.flashcards.total > 0 && (
                   <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '2px' }}>
-                    🃏 {progreso.flashcards.dominadas}/{progreso.flashcards.total} flashcards dominadas
+                    🃏 {t('unit.flashcardsDominated', { n: progreso.flashcards.dominadas, total: progreso.flashcards.total })}
                   </div>
                 )}
                 {progreso.cuestionario.total > 0 && (
                   <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '2px' }}>
-                    🎯 {progreso.cuestionario.correctas}/{progreso.cuestionario.total} respuestas correctas
+                    🎯 {t('unit.correctAnswers', { n: progreso.cuestionario.correctas, total: progreso.cuestionario.total })}
                   </div>
                 )}
                 {progreso.pdfs.total > 0 && (
                   <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
-                    📄 {progreso.pdfs.vistos}/{progreso.pdfs.total} apuntes vistos
+                    📄 {t('unit.notesViewed', { n: progreso.pdfs.vistos, total: progreso.pdfs.total })}
                   </div>
                 )}
               </div>
@@ -289,22 +291,22 @@ const UnidadDetail = () => {
           </div>
 
           <div className="section-head" style={{ marginTop: '18px', marginBottom: '10px' }}>
-            <div className="section-title">Recursos</div>
+            <div className="section-title">{t('unit.resources')}</div>
           </div>
           <div className="resources-grid">
             <div className="resource-card flash" onClick={() => setIsFlashOpen(true)}>
               <div className="resource-icon-wrap">🃏</div>
               <div className="resource-info">
-                <div className="resource-name">Flashcards</div>
-                <div className="resource-sub">Repaso con spaced repetition</div>
+                <div className="resource-name">{t('unit.flashcards')}</div>
+                <div className="resource-sub">{t('unit.spacedRepetition')}</div>
               </div>
               <div className="resource-badge">{flashBadge}</div>
             </div>
             <div className="resource-card quiz" onClick={() => setIsQuizOpen(true)}>
               <div className="resource-icon-wrap">🎯</div>
               <div className="resource-info">
-                <div className="resource-name">Cuestionario</div>
-                <div className="resource-sub">Preguntas desde tus PDFs</div>
+                <div className="resource-name">{t('unit.questionnaire')}</div>
+                <div className="resource-sub">{t('unit.questionsFromPdfs')}</div>
               </div>
               <div className="resource-badge">{quizBadge}</div>
             </div>
@@ -313,7 +315,7 @@ const UnidadDetail = () => {
           {infografias.length > 0 && (
             <div style={{ marginTop: '24px' }}>
               <div className="section-head" style={{ marginBottom: '12px' }}>
-                <div className="section-title">Infografías</div>
+                <div className="section-title">{t('unit.infographics')}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                 {infografias.map((inf, i) => (
@@ -345,7 +347,7 @@ const UnidadDetail = () => {
           {pdfs.length > 0 && (
             <div style={{ marginTop: '24px' }}>
               <div className="section-head" style={{ marginBottom: '12px' }}>
-                <div className="section-title">📄 Apuntes</div>
+                <div className="section-title">📄 {t('unit.notes')}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {pdfs.map((pdf) => (
