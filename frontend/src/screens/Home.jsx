@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
-import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil, useMascotaHint } from '../hooks/useQueryHooks';
+import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil, useMascotaHint, useCommunityCounter } from '../hooks/useQueryHooks';
 import { useMascotaUpdate } from '../context/MascotaContext';
 
 const TIPO_ICON = {
@@ -11,6 +11,26 @@ const TIPO_ICON = {
   pdf: '📄',
   infografia: '🖼️',
 };
+
+function AnimatedNumber({ value }) {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!value) return;
+    const duration = 1200;
+    const start = performance.now();
+    const from = 0;
+    const step = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplay(Math.round(from + (value - from) * eased));
+      if (t < 1) ref.current = requestAnimationFrame(step);
+    };
+    ref.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(ref.current);
+  }, [value]);
+  return <span>{display.toLocaleString()}</span>;
+}
 
 const Home = () => {
   const navigate = useNavigate();
@@ -23,6 +43,7 @@ const Home = () => {
   const { data: seguidasRes } = useMateriasSeguidas(user?.id);
 
   const { data: hint } = useMascotaHint(user?.id);
+  const { data: community } = useCommunityCounter();
   const updateMascota = useMascotaUpdate();
 
   const racha = perfilData?.racha ?? 0;
@@ -133,6 +154,31 @@ const Home = () => {
           <div className="stat-lbl">{t('home.generalProgress')}</div>
         </div>
       </div>
+
+      {/* Community Counter — nuevos usuarios en Telegram */}
+      {community && community.total > 0 && (
+        <div className="community-counter">
+          <div className="community-counter-inner">
+            <div className="community-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="var(--gold)"/>
+              </svg>
+            </div>
+            <div className="community-big-number">
+              <AnimatedNumber value={community.total} />
+            </div>
+            <div className="community-label">{t('home.communityTotal')}</div>
+            <div className="community-pills">
+              {community.new_this_week > 0 && (
+                <span className="community-pill">+{community.new_this_week} {t('home.communityWeek')}</span>
+              )}
+              {community.new_today > 0 && (
+                <span className="community-pill community-pill--hot">+{community.new_today} {t('home.communityToday')}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Actividad Reciente */}
       <div className="section" style={{ padding: '0 16px', marginBottom: '16px' }}>

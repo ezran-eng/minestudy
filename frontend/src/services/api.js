@@ -278,6 +278,12 @@ export const getMascotaHint = async (id_usuario) => {
   return response.json();
 };
 
+export const getCommunityCounter = async () => {
+  const response = await fetch(`${API_URL}/community-counter`);
+  if (!response.ok) throw new Error('Failed to get community counter');
+  return response.json();
+};
+
 export const getMateriaResumen = async (id, id_usuario) => {
   const url = id_usuario
     ? `${API_URL}/materias/${id}/resumen?id_usuario=${id_usuario}`

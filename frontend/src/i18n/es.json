@@ -24,7 +24,11 @@
     "yourProgress": "Tu progreso",
     "generalProgress": "Progreso general",
     "recentActivity": "Actividad reciente",
-    "noActivity": "Sin actividad registrada aún"
+    "noActivity": "Sin actividad registrada aún",
+    "communityTitle": "Nuevos en Telegram",
+    "communityTotal": "estudiantes llegaron a Telegram por DaathApp",
+    "communityWeek": "esta semana",
+    "communityToday": "hoy"
   },
 
   "study": {

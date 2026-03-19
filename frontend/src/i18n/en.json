@@ -24,7 +24,11 @@
     "yourProgress": "Your progress",
     "generalProgress": "General progress",
     "recentActivity": "Recent activity",
-    "noActivity": "No activity registered yet"
+    "noActivity": "No activity registered yet",
+    "communityTitle": "New on Telegram",
+    "communityTotal": "students joined Telegram through DaathApp",
+    "communityWeek": "this week",
+    "communityToday": "today"
   },
 
   "study": {

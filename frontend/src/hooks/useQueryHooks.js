@@ -14,6 +14,7 @@ import api, {
   getNotificaciones,
   getMascotaHint,
   getMateriaResumen,
+  getCommunityCounter,
 } from '../services/api';
 
 // ── Materias (public, rarely changes) ──────────────────────────────────────
@@ -148,6 +149,14 @@ export const useMateriaResumen = (materiaId, userId) =>
     queryFn: () => getMateriaResumen(materiaId, userId),
     enabled: !!materiaId,
     staleTime: 2 * 60 * 1000,
+  });
+
+// ── Community counter (public, no auth) ─────────────────────────────────────
+export const useCommunityCounter = () =>
+  useQuery({
+    queryKey: ['community-counter'],
+    queryFn: getCommunityCounter,
+    staleTime: 5 * 60 * 1000, // 5 min
   });
 
 // ── Invalidation helpers ───────────────────────────────────────────────────

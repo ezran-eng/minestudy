@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -18,11 +18,25 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE, direct: bool
         today = date.today()
         active_today = db.query(models.User).filter(func.date(models.User.ultima_actividad) == today.strftime('%Y-%m-%d')).count()
 
+        # Growth metrics
+        now_utc = datetime.now(timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = now_utc - timedelta(days=7)
+        month_ago = now_utc - timedelta(days=30)
+
+        new_today = db.query(models.User).filter(models.User.fecha_registro >= today_start).count()
+        new_this_week = db.query(models.User).filter(models.User.fecha_registro >= week_ago).count()
+        new_this_month = db.query(models.User).filter(models.User.fecha_registro >= month_ago).count()
+
         top_streaks = db.query(models.User).order_by(models.User.racha.desc()).limit(3).all()
 
         msg = "📊 Estadísticas de la App\n\n"
         msg += f"👥 Total de usuarios: {total_users}\n"
         msg += f"🔥 Activos hoy: {active_today}\n\n"
+        msg += "📈 Nuevos usuarios en Telegram:\n"
+        msg += f"   Hoy: +{new_today}\n"
+        msg += f"   Esta semana: +{new_this_week}\n"
+        msg += f"   Este mes: +{new_this_month}\n\n"
         msg += "🏆 Top 3 Rachas:\n"
         for i, u in enumerate(top_streaks):
             msg += f"{i+1}. {u.first_name} (@{u.username if u.username else 'N/A'}) - {u.racha} días\n"

@@ -227,6 +227,60 @@ body {
   font-size:9px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.8px;
 }
 
+/* ── Community Counter ─────────────────────────────────────────────────────── */
+.community-counter{
+  margin:0 16px 16px;
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  position:relative;
+  overflow:hidden;
+}
+.community-counter::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#229ED9,#2AABEE,#229ED9);
+}
+.community-counter-inner{
+  padding:20px 16px;
+  text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.community-icon{
+  width:44px;height:44px;
+  border-radius:50%;
+  background:rgba(34,158,217,0.12);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:4px;
+}
+.community-big-number{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:48px;line-height:1;
+  color:#2AABEE;
+  letter-spacing:1px;
+}
+.community-label{
+  font-size:12px;color:var(--text2);
+  font-weight:500;max-width:220px;
+}
+.community-pills{
+  display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;justify-content:center;
+}
+.community-pill{
+  font-size:11px;font-weight:700;
+  padding:3px 10px;border-radius:20px;
+  background:rgba(34,158,217,0.12);color:#2AABEE;
+}
+.community-pill--hot{
+  background:rgba(var(--gold-rgb,218,165,32),0.15);
+  color:var(--gold);
+  animation:pill-pulse 2s ease-in-out infinite;
+}
+@keyframes pill-pulse{
+  0%,100%{opacity:1;}
+  50%{opacity:0.6;}
+}
+
 /* ── ACTIVITY ── */
 .activity-list {
   display: flex;

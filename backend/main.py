@@ -394,6 +394,26 @@ def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)
         print(f"[auth] 403: initData hash invalid. initData[:60]={x_telegram_init_data[:60]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
+@app.get("/community-counter")
+def community_counter(db: Session = Depends(get_db)):
+    """Public counter: total users attracted to Telegram via the mini-app."""
+    from datetime import datetime, timedelta, timezone
+    total = db.query(models.User).count()
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    new_this_week = db.query(models.User).filter(
+        models.User.fecha_registro >= week_ago
+    ).count()
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    new_today = db.query(models.User).filter(
+        models.User.fecha_registro >= today
+    ).count()
+    return {
+        "total": total,
+        "new_this_week": new_this_week,
+        "new_today": new_today,
+    }
+
+
 @app.post("/users", response_model=schemas.User)
 @limiter.limit("30/minute")
 def create_or_update_user(request: Request, user: schemas.UserCreate, db: Session = Depends(get_db)):
