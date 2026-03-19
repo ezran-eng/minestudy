@@ -18,9 +18,16 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
 
+  const MAX_FILE = 50 * 1024 * 1024; // 50MB
+
   const handleFileSelect = (e) => {
     const f = e.target.files?.[0];
     if (f) {
+      if (f.size > MAX_FILE) {
+        setError('El archivo es muy grande. Máximo 50MB por archivo.');
+        setFile(null);
+        return;
+      }
       setFile(f);
       setError(null);
       setResult(null);

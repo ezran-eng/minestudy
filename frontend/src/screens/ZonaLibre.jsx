@@ -21,6 +21,8 @@ export default function ZonaLibre() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [archivos, setArchivos] = useState([]);
+  const [totalBytes, setTotalBytes] = useState(0);
+  const [maxBytes, setMaxBytes] = useState(300 * 1024 * 1024);
   const [loading, setLoading] = useState(true);
   const [reportTarget, setReportTarget] = useState(null);
 
@@ -42,6 +44,8 @@ export default function ZonaLibre() {
     try {
       const data = await zonaLibreList();
       setArchivos(data.archivos || []);
+      if (data.total_bytes != null) setTotalBytes(data.total_bytes);
+      if (data.max_bytes != null) setMaxBytes(data.max_bytes);
     } catch (e) {
       console.error('[ZonaLibre] load error:', e);
     } finally {
@@ -118,22 +122,56 @@ export default function ZonaLibre() {
         </div>
 
         {/* Redo banner */}
-        <div style={{
-          background: '#0f0f0f',
-          border: '1px solid #1e1e1e',
-          borderRadius: '16px',
-          padding: '14px 16px',
-          display: 'flex', alignItems: 'center', gap: '12px',
-          marginBottom: '16px',
-        }}>
-          <RedoMini size={40} />
-          <div style={{
-            fontFamily: "'Outfit', sans-serif",
-            fontSize: '12px', color: '#999', lineHeight: 1.5,
-          }}>
-            Nadie puede borrar esto. Los archivos aquí viven en la red TON — sin servidores, sin censura.
-          </div>
-        </div>
+        {(() => {
+          const pct = maxBytes > 0 ? totalBytes / maxBytes : 0;
+          const isNearFull = pct >= 0.9;
+          const usedMB = (totalBytes / (1024 * 1024)).toFixed(1);
+          const maxMB = Math.round(maxBytes / (1024 * 1024));
+          return (
+            <div style={{
+              background: '#0f0f0f',
+              border: '1px solid #1e1e1e',
+              borderRadius: '16px',
+              padding: '14px 16px',
+              display: 'flex', flexDirection: 'column', gap: '10px',
+              marginBottom: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <RedoMini size={40} />
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '12px', color: '#999', lineHeight: 1.5,
+                }}>
+                  {isNearFull
+                    ? 'La Zona Libre se está llenando... disfrutala mientras dure 👁'
+                    : 'Nadie puede borrar esto. Los archivos aquí viven en la red TON — sin servidores, sin censura.'}
+                </div>
+              </div>
+              {/* Capacity bar */}
+              <div>
+                <div style={{
+                  height: '4px', borderRadius: '2px',
+                  background: '#1e1e1e', overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%', borderRadius: '2px',
+                    width: `${Math.min(pct * 100, 100)}%`,
+                    background: isNearFull
+                      ? 'linear-gradient(90deg, #e07070, #c04040)'
+                      : 'linear-gradient(90deg, #555, #888)',
+                    transition: 'width 0.4s ease',
+                  }} />
+                </div>
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '10px', color: '#444', marginTop: '4px',
+                }}>
+                  {usedMB} MB de {maxMB} MB usados
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Upload button */}
         <div

@@ -1862,6 +1862,10 @@ def delete_infografia(request: Request, id: int, db: Session = Depends(get_db)):
 
 # ── Zona Libre ────────────────────────────────────────────────────────────────
 
+ZL_MAX_TOTAL = 300 * 1024 * 1024   # 300 MB global cap
+ZL_MAX_FILE  =  50 * 1024 * 1024   # 50 MB per file
+
+
 @app.get("/zona-libre/archivos", dependencies=[Depends(require_init_data)])
 @limiter.limit("30/minute")
 def zona_libre_list(request: Request, db: Session = Depends(get_db)):
@@ -1871,6 +1875,11 @@ def zona_libre_list(request: Request, db: Session = Depends(get_db)):
         .order_by(models.ZonaLibreArchivo.fecha.desc())
         .limit(100)
         .all()
+    )
+    total_bytes = (
+        db.query(func.coalesce(func.sum(models.ZonaLibreArchivo.tamanio), 0))
+        .filter(models.ZonaLibreArchivo.activo == True)
+        .scalar()
     )
     result = []
     for a in archivos:
@@ -1884,7 +1893,7 @@ def zona_libre_list(request: Request, db: Session = Depends(get_db)):
             "fecha": a.fecha.isoformat() if a.fecha else None,
             "username": user.username if user else None,
         })
-    return {"archivos": result}
+    return {"archivos": result, "total_bytes": total_bytes, "max_bytes": ZL_MAX_TOTAL}
 
 
 @app.post("/zona-libre/upload", dependencies=[Depends(require_init_data)])
@@ -1903,8 +1912,17 @@ async def zona_libre_upload(
 
     # Read file
     file_bytes = await archivo.read()
-    if len(file_bytes) > 50 * 1024 * 1024:  # 50MB limit
+    if len(file_bytes) > ZL_MAX_FILE:
         raise HTTPException(status_code=413, detail="Archivo demasiado grande (máx 50MB)")
+
+    # Check global capacity
+    total_used = (
+        db.query(func.coalesce(func.sum(models.ZonaLibreArchivo.tamanio), 0))
+        .filter(models.ZonaLibreArchivo.activo == True)
+        .scalar()
+    )
+    if total_used + len(file_bytes) > ZL_MAX_TOTAL:
+        raise HTTPException(status_code=400, detail="La Zona Libre alcanzó su capacidad máxima por ahora. Volvé pronto.")
 
     filename = archivo.filename or "archivo"
 
