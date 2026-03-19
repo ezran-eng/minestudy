@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
 import { useMateriasSeguidas, useUserStats, useActividadReciente, useUserPerfil, useMascotaHint } from '../hooks/useQueryHooks';
 import { useMascotaUpdate } from '../context/MascotaContext';
@@ -13,6 +14,7 @@ const TIPO_ICON = {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user } = useTelegram();
 
   const { data: perfilData } = useUserPerfil(user?.id);
@@ -54,10 +56,10 @@ const Home = () => {
       <div className="hero">
         <div className="hero-top">
           <div>
-            <div className="hero-greeting">Bienvenido de vuelta, <span style={{ color: 'var(--gold)' }}>{firstName}</span> 👋</div>
-            <div className="hero-name">Listo para <span style={{ color: 'var(--gold)' }}>estudiar?</span></div>
+            <div className="hero-greeting">{t('home.welcomeBack')} <span style={{ color: 'var(--gold)' }}>{firstName}</span> 👋</div>
+            <div className="hero-name"><Trans i18nKey="home.readyToStudy" components={{ 1: <span style={{ color: 'var(--gold)' }} /> }} /></div>
           </div>
-          <div className="streak-pill">🔥 {racha} {racha === 1 ? 'día' : 'días'}</div>
+          <div className="streak-pill">🔥 {t('home.streak', { count: racha })}</div>
         </div>
       </div>
 
@@ -71,20 +73,20 @@ const Home = () => {
           border: '1px solid var(--border)',
         }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
-            Para empezar a estudiar
+            {t('home.getStarted')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>📚</span>
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Andá a <strong>Study</strong></span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}><Trans i18nKey="home.goToStudy" components={{ 1: <strong /> }} /></span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>🔍</span>
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Buscá tu materia</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>{t('home.searchSubject')}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '20px', width: '28px', textAlign: 'center' }}>➕</span>
-              <span style={{ fontSize: '14px', color: 'var(--text)' }}>Tocá <strong>Seguir</strong> para desbloquear el contenido</span>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}><Trans i18nKey="home.tapFollow" components={{ 1: <strong /> }} /></span>
             </div>
           </div>
           <button
@@ -96,7 +98,7 @@ const Home = () => {
               fontWeight: 700, fontSize: '14px', cursor: 'pointer',
             }}
           >
-            Ir a Study
+            {t('home.goStudy')}
           </button>
         </div>
       )}
@@ -105,39 +107,39 @@ const Home = () => {
       {/* Foco del día */}
       <div className="focus-card">
         <div className="focus-inner">
-          <div className="focus-tag">Foco del día</div>
+          <div className="focus-tag">{t('home.focusOfDay')}</div>
           {!stats ? (
-            <div className="focus-title" style={{ opacity: 0.5 }}>Cargando...</div>
+            <div className="focus-title" style={{ opacity: 0.5 }}>{t('home.loading')}</div>
           ) : stats.foco ? (
             <>
               <div className="focus-title">{stats.foco.materia_nombre} — {stats.foco.unidad_nombre}</div>
               <div className="progress-track">
                 <div className="progress-fill" style={{ width: `${stats.foco.porcentaje}%` }}></div>
               </div>
-              <div className="progress-text">{stats.foco.porcentaje}% completado</div>
+              <div className="progress-text">{t('home.completed', { n: stats.foco.porcentaje })}</div>
             </>
           ) : (
-            <div className="focus-title" style={{ opacity: 0.7 }}>Todo al día — sin unidades pendientes 🎉</div>
+            <div className="focus-title" style={{ opacity: 0.7 }}>{t('home.allCaughtUp')}</div>
           )}
-          <button className="btn-continue" onClick={handleContinuar}>▶ Continuar estudio</button>
+          <button className="btn-continue" onClick={handleContinuar}>{t('home.continueStudy')}</button>
         </div>
       </div>
 
       {/* Tu Progreso */}
       <div className="section" style={{ padding: '0 16px', marginBottom: '16px' }}>
-        <div className="section-head"><div className="section-title">Tu progreso</div></div>
+        <div className="section-head"><div className="section-title">{t('home.yourProgress')}</div></div>
         <div className="stat-card" style={{ textAlign: 'center' }}>
           <div className="stat-val">{stats != null ? `${Math.round(stats.progreso_general)}%` : '—'}</div>
-          <div className="stat-lbl">Progreso general</div>
+          <div className="stat-lbl">{t('home.generalProgress')}</div>
         </div>
       </div>
 
       {/* Actividad Reciente */}
       <div className="section" style={{ padding: '0 16px', marginBottom: '16px' }}>
-        <div className="section-head"><div className="section-title">Actividad reciente</div></div>
+        <div className="section-head"><div className="section-title">{t('home.recentActivity')}</div></div>
         {actividad.length === 0 ? (
           <div style={{ color: 'var(--text2)', fontSize: '14px', padding: '8px 0' }}>
-            Sin actividad registrada aún
+            {t('home.noActivity')}
           </div>
         ) : (
           <div className="activity-list">

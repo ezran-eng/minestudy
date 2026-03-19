@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import '@telegram-apps/telegram-ui/dist/styles.css'
 import './index.css'
+import './i18n'
 import App from './App.jsx'
 import { AppRoot } from '@telegram-apps/telegram-ui'
 

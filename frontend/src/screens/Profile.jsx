@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
 import { updatePrivacidad, updateNotificaciones, deleteAccount } from '../services/api';
 import { useMascotaUpdate } from '../context/MascotaContext';
@@ -52,37 +53,18 @@ const DevBtn = ({ label, onClick }) => (
   </button>
 );
 
-const HELPERS = [
-  {
-    icon: '🃏',
-    title: 'Flashcards y Spaced Repetition',
-    content: 'El sistema te muestra cada tarjeta en el momento exacto antes de que la olvides. Cuanto más la respondés bien, más tiempo pasa hasta que vuelve a aparecer. Así memorizás a largo plazo sin repasar todo cada vez.',
-  },
-  {
-    icon: '🎯',
-    title: 'Cuestionarios',
-    content: 'Preguntas de opción múltiple sobre el contenido de cada unidad. Te ayudan a identificar qué sabés y qué no. Respondé todas para que quede registrado en tu progreso.',
-  },
-  {
-    icon: '📈',
-    title: 'Cómo se calcula el progreso',
-    content: 'El progreso de una unidad combina: flashcards dominadas, preguntas respondidas, PDFs vistos e infografías vistas. El progreso de una materia es el promedio de todas sus unidades.',
-  },
-  {
-    icon: '🔒',
-    title: 'Privacidad',
-    content: 'Controlás exactamente qué ven los demás. Tu nombre, foto, arroba, materias y progreso se pueden ocultar de forma independiente. Cambialo cuando quieras desde esta pantalla.',
-  },
-  {
-    icon: '🔥',
-    title: 'Racha de estudio',
-    content: 'Se registra un día de actividad cada vez que abrís una unidad, respondés flashcards, completás un cuestionario o mirás una infografía o PDF. Si no estudiás un día, la racha vuelve a cero.',
-  },
-];
-
 const Profile = () => {
+  const { t, i18n } = useTranslation();
   const { user } = useTelegram();
   const navigate = useNavigate();
+
+  const HELPERS = [
+    { icon: '🃏', title: t('helpers.flashcards.title'), content: t('helpers.flashcards.content') },
+    { icon: '🎯', title: t('helpers.quizzes.title'), content: t('helpers.quizzes.content') },
+    { icon: '📈', title: t('helpers.progress.title'), content: t('helpers.progress.content') },
+    { icon: '🔒', title: t('helpers.privacyHelp.title'), content: t('helpers.privacyHelp.content') },
+    { icon: '🔥', title: t('helpers.streak.title'), content: t('helpers.streak.content') },
+  ];
   const { data: perfil, isLoading: loadingPerfil } = useUserPerfil(user?.id);
   const { data: privacyData } = usePrivacidad(user?.id);
   const { data: notifData } = useNotificaciones(user?.id);
@@ -175,7 +157,7 @@ const Profile = () => {
     return (
       <div className="screen active screen-container" id="screen-profile">
         <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text2)' }}>
-          Cargando perfil...
+          {t('profile.loadingProfile')}
         </div>
       </div>
     );
@@ -185,7 +167,7 @@ const Profile = () => {
     return (
       <div className="screen active screen-container" id="screen-profile">
         <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text2)' }}>
-          No se pudo cargar el perfil
+          {t('profile.errorProfile')}
         </div>
       </div>
     );
@@ -211,7 +193,7 @@ const Profile = () => {
           {username && <div className="profile-user">{username}</div>}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '10px auto 0' }}>
             <div className="streak-pill">
-              🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
+              {t('home.streak', { count: perfil.racha })}
             </div>
             <button
               onClick={() => setShowSettings(true)}
@@ -230,14 +212,14 @@ const Profile = () => {
         {/* Materias */}
         {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
           <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '24px 16px' }}>
-            No seguís ninguna materia todavía
+            {t('profile.noSubjects')}
           </div>
         ) : (
           <>
             {perfil.materias_cursando.length > 0 && (
               <>
                 <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
-                  <div className="section-title">📚 Cursando</div>
+                  <div className="section-title">{t('profile.studying')}</div>
                 </div>
                 <MateriaList materias={perfil.materias_cursando} isOwnProfile navigate={navigate} />
               </>
@@ -245,7 +227,7 @@ const Profile = () => {
             {perfil.materias_completadas.length > 0 && (
               <>
                 <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
-                  <div className="section-title">🎓 Completadas</div>
+                  <div className="section-title">{t('profile.completedSubjects')}</div>
                 </div>
                 <MateriaList materias={perfil.materias_completadas} isOwnProfile navigate={navigate} />
               </>
@@ -258,7 +240,7 @@ const Profile = () => {
           onClick={handleVersionTap}
           style={{ textAlign: 'center', padding: '32px 16px 32px', color: 'var(--text2)', fontSize: '12px', userSelect: 'none' }}
         >
-          DaathApp v1.0
+          {t('profile.version')}
         </div>
 
       </div>
@@ -274,7 +256,7 @@ const Profile = () => {
         <div className="sheet" style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
           <div className="sheet-handle" />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px' }}>
-            <div className="sheet-title" style={{ margin: 0 }}>Configuración</div>
+            <div className="sheet-title" style={{ margin: 0 }}>{t('profile.settings')}</div>
             <button
               onClick={() => setShowSettings(false)}
               style={{ background: 'none', border: 'none', fontSize: '20px', color: 'var(--text2)', cursor: 'pointer', padding: '4px' }}
@@ -287,17 +269,17 @@ const Profile = () => {
             {privacy && (
               <div style={{ marginBottom: '28px' }}>
                 <div className="section-head" style={{ marginBottom: '4px' }}>
-                  <div className="section-title">🔒 Privacidad</div>
+                  <div className="section-title">{t('profile.privacy')}</div>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
-                  Controlá qué información ven otros usuarios sobre vos.
+                  {t('profile.privacyDesc')}
                 </div>
                 <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
-                  <Toggle label="Foto de perfil" description="Visible en la lista de seguidores de cada materia." value={privacy.mostrar_foto} onChange={v => handleToggle('mostrar_foto', v)} disabled={saving} />
-                  <Toggle label="Nombre" description="Tu nombre visible junto a tu avatar." value={privacy.mostrar_nombre} onChange={v => handleToggle('mostrar_nombre', v)} disabled={saving} />
-                  <Toggle label="@Usuario" description="Tu arroba de Telegram en tu perfil público." value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
-                  <Toggle label="Materias que cursás" description="Qué materias estás siguiendo." value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
-                  <Toggle label="Progreso" description="Tu porcentaje de avance." value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
+                  <Toggle label={t('profile.profilePhoto')} description={t('profile.profilePhotoDesc')} value={privacy.mostrar_foto} onChange={v => handleToggle('mostrar_foto', v)} disabled={saving} />
+                  <Toggle label={t('profile.name')} description={t('profile.nameDesc')} value={privacy.mostrar_nombre} onChange={v => handleToggle('mostrar_nombre', v)} disabled={saving} />
+                  <Toggle label={t('profile.username')} description={t('profile.usernameDesc')} value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
+                  <Toggle label={t('profile.subjects')} description={t('profile.subjectsDesc')} value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
+                  <Toggle label={t('profile.progress')} description={t('profile.progressDesc')} value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
                 </div>
               </div>
             )}
@@ -306,15 +288,15 @@ const Profile = () => {
             {notifConfig && (
               <div style={{ marginBottom: '28px' }}>
                 <div className="section-head" style={{ marginBottom: '4px' }}>
-                  <div className="section-title">🔔 Notificaciones</div>
+                  <div className="section-title">{t('profile.notifications')}</div>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.4 }}>
-                  El bot te manda un mensaje cuando aplica. Los horarios son en hora Argentina (ART).
+                  {t('profile.notifDesc')}
                 </div>
                 <div style={{ background: 'var(--s2)', borderRadius: '12px', padding: '0 14px', border: '1px solid var(--border)' }}>
                   <Toggle
-                    label="Recordatorio diario"
-                    description="Te avisa si no estudiaste todavía a la hora que elijas."
+                    label={t('profile.dailyReminder')}
+                    description={t('profile.dailyReminderDesc')}
                     value={notifConfig.recordatorio_activo}
                     onChange={v => handleNotifChange('recordatorio_activo', v)}
                     disabled={saving}
@@ -324,7 +306,7 @@ const Profile = () => {
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '13px 0', borderBottom: '1px solid var(--border)',
                     }}>
-                      <div style={{ fontSize: '14px', color: 'var(--text2)' }}>Hora del recordatorio</div>
+                      <div style={{ fontSize: '14px', color: 'var(--text2)' }}>{t('profile.reminderTime')}</div>
                       <input
                         type="time"
                         value={notifConfig.hora_recordatorio}
@@ -338,15 +320,15 @@ const Profile = () => {
                     </div>
                   )}
                   <Toggle
-                    label="Racha en riesgo"
-                    description="Te alerta a las 21:00 ART si tu racha está en peligro."
+                    label={t('profile.streakAtRisk')}
+                    description={t('profile.streakAtRiskDesc')}
                     value={notifConfig.racha_activa}
                     onChange={v => handleNotifChange('racha_activa', v)}
                     disabled={saving}
                   />
                   <Toggle
-                    label="Flashcards vencidas"
-                    description="Te avisa a las 09:00 ART si tenés tarjetas para repasar."
+                    label={t('profile.dueFlashcards')}
+                    description={t('profile.dueFlashcardsDesc')}
                     value={notifConfig.flashcards_activa}
                     onChange={v => handleNotifChange('flashcards_activa', v)}
                     disabled={saving}
@@ -358,7 +340,7 @@ const Profile = () => {
             {/* Ayuda */}
             <div>
               <div className="section-head" style={{ marginBottom: '12px' }}>
-                <div className="section-title">❓ Ayuda</div>
+                <div className="section-title">{t('profile.help')}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {HELPERS.map((h, i) => (
@@ -393,6 +375,34 @@ const Profile = () => {
               </div>
             </div>
 
+            {/* Language */}
+            <div style={{ marginBottom: '28px' }}>
+              <div className="section-head" style={{ marginBottom: '12px' }}>
+                <div className="section-title">{t('profile.language')}</div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[
+                  { code: 'en', flag: '\u{1F1EC}\u{1F1E7}', label: 'English' },
+                  { code: 'es', flag: '\u{1F1E6}\u{1F1F7}', label: 'Español' },
+                ].map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => { i18n.changeLanguage(lang.code); localStorage.setItem('daathapp_lang', lang.code); }}
+                    style={{
+                      flex: 1, padding: '11px 14px',
+                      background: i18n.language === lang.code ? 'rgba(212,168,71,0.15)' : 'var(--s2)',
+                      border: i18n.language === lang.code ? '1px solid var(--gold)' : '1px solid var(--border)',
+                      borderRadius: '10px', color: i18n.language === lang.code ? 'var(--gold)' : 'var(--text2)',
+                      fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    }}
+                  >
+                    {lang.flag} {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Eliminar cuenta */}
             <div style={{ marginTop: '8px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
               {deleteStep === 0 && (
@@ -405,7 +415,7 @@ const Profile = () => {
                     fontSize: '14px', fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  Eliminar cuenta
+                  {t('profile.deleteAccount')}
                 </button>
               )}
               {deleteStep === 1 && (
@@ -415,8 +425,8 @@ const Profile = () => {
                     borderRadius: '10px', padding: '12px 14px',
                     fontSize: '13px', color: 'var(--text)', lineHeight: 1.5,
                   }}>
-                    <strong style={{ color: '#ff4444' }}>⚠️ Esta acción es irreversible.</strong>
-                    {' '}Se eliminarán tu progreso, flashcards, materias seguidas y todos tus datos. La próxima vez que abras la app comenzarás desde cero.
+                    <strong style={{ color: '#ff4444' }}>{t('profile.deleteWarning')}</strong>
+                    {' '}{t('profile.deleteExplain')}
                   </div>
                   <button
                     onClick={async () => {
@@ -437,7 +447,7 @@ const Profile = () => {
                       fontSize: '14px', fontWeight: 700, cursor: 'pointer',
                     }}
                   >
-                    Sí, eliminar mi cuenta
+                    {t('profile.deleteConfirm')}
                   </button>
                   <button
                     onClick={() => setDeleteStep(0)}
@@ -448,13 +458,13 @@ const Profile = () => {
                       fontSize: '14px', cursor: 'pointer',
                     }}
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </button>
                 </div>
               )}
               {deleteStep === 2 && (
                 <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '12px' }}>
-                  Eliminando datos...
+                  {t('profile.deleting')}
                 </div>
               )}
             </div>

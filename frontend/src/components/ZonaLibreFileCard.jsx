@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const FILE_ICONS = {
   pdf: '📄',
@@ -28,6 +29,7 @@ function formatDate(fecha) {
 }
 
 export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
+  const { t } = useTranslation();
   return (
     <div
       onClick={() => onDownload?.(archivo)}

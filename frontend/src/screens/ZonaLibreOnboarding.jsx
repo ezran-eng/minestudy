@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import RedoMini from '../components/RedoMini';
 
-const SLIDES = [
-  { mode: 'full', text: 'Bienvenido a la Zona Libre.' },
-  { mode: 'idle', text: 'En internet, cualquier archivo puede desaparecer. Un servidor se cae, alguien lo censura, un link se rompe.' },
-  { mode: 'idle', text: 'Acá es diferente. Los archivos que subas viajan a la red TON — miles de nodos en todo el mundo los guardan.' },
-  { mode: 'idle', text: 'Nadie puede borrarlos. Ni yo, ni DaathApp, ni ningún gobierno. Son tuyos para siempre.' },
-  { mode: 'idle', text: 'Una sola regla: respetá a la comunidad. Podés reportar contenido inapropiado. Yo me encargo del resto.' },
-  { mode: 'full', text: '¿Listo para la resistencia digital? 👁', isFinal: true },
-];
-
 export default function ZonaLibreOnboarding({ onEnter }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
+
+  const SLIDES = [
+    { mode: 'full', text: t('zlOnboarding.slide1') },
+    { mode: 'idle', text: t('zlOnboarding.slide2') },
+    { mode: 'idle', text: t('zlOnboarding.slide3') },
+    { mode: 'idle', text: t('zlOnboarding.slide4') },
+    { mode: 'idle', text: t('zlOnboarding.slide5') },
+    { mode: 'full', text: t('zlOnboarding.slide6'), isFinal: true },
+  ];
   const [noMostrar, setNoMostrar] = useState(false);
 
   const tg = window.Telegram?.WebApp;

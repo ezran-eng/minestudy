@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const EyeIcon = ({ active }) => (
   <svg width="20" height="14" viewBox="0 0 20 14" style={{ display: 'block' }}>
@@ -9,6 +10,7 @@ const EyeIcon = ({ active }) => (
 );
 
 const BottomNav = ({ user }) => {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const initial = user?.first_name ? user.first_name[0].toUpperCase() : 'E';
@@ -19,11 +21,11 @@ const BottomNav = ({ user }) => {
     <div className="bottom-nav">
       <Link to="/" className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}>
         <div className="nav-icon">🏠</div>
-        <div className="nav-label">Inicio</div>
+        <div className="nav-label">{t('nav.home')}</div>
       </Link>
       <Link to="/study" className={`nav-item ${location.pathname.startsWith('/study') || location.pathname.startsWith('/materia') ? 'active' : ''}`}>
         <div className="nav-icon">📖</div>
-        <div className="nav-label">Study</div>
+        <div className="nav-label">{t('nav.study')}</div>
       </Link>
       <Link to="/profile" className={`nav-item ${location.pathname === '/profile' ? 'active' : ''}`}>
         <div className="nav-avatar">
@@ -34,7 +36,7 @@ const BottomNav = ({ user }) => {
         <div className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <EyeIcon active={isZonaLibre} />
         </div>
-        <div className="nav-label" style={isZonaLibre ? { color: '#fff' } : undefined}>Zona Libre</div>
+        <div className="nav-label" style={isZonaLibre ? { color: '#fff' } : undefined}>{t('nav.zonaLibre')}</div>
       </Link>
     </div>
   );

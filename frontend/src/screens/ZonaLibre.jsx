@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import RedoMini from '../components/RedoMini';
 import ZonaLibreOnboarding from './ZonaLibreOnboarding';
 import ZonaLibreUpload from '../components/ZonaLibreUpload';
@@ -6,16 +7,17 @@ import ZonaLibreFileCard from '../components/ZonaLibreFileCard';
 import { useTelegram } from '../hooks/useTelegram';
 import { zonaLibreList, zonaLibreUpload, zonaLibreReport } from '../services/api';
 
-const REPORT_MOTIVOS = [
-  { id: 'inapropiado', label: 'Contenido inapropiado' },
-  { id: 'copyright', label: 'Copyright' },
-  { id: 'spam', label: 'Spam' },
-  { id: 'otro', label: 'Otro' },
-];
-
 export default function ZonaLibre() {
+  const { t } = useTranslation();
   const { user } = useTelegram();
   const userId = user?.id;
+
+  const REPORT_MOTIVOS = [
+    { id: 'inapropiado', label: t('zonaLibre.reportInappropriate') },
+    { id: 'copyright', label: t('zonaLibre.reportCopyright') },
+    { id: 'spam', label: t('zonaLibre.reportSpam') },
+    { id: 'otro', label: t('zonaLibre.reportOther') },
+  ];
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);

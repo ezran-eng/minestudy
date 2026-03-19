@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import RedoMini from './RedoMini';
 
 function formatSize(bytes) {
@@ -8,6 +9,7 @@ function formatSize(bytes) {
 }
 
 export default function ZonaLibreUpload({ onUpload, onClose }) {
+  const { t } = useTranslation();
   const [file, setFile] = useState(null);
   const [descripcion, setDescripcion] = useState('');
   const [uploading, setUploading] = useState(false);

@@ -16,9 +16,11 @@
     "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",
     "@telegram-apps/telegram-ui": "^2.1.13",
+    "i18next": "^25.8.19",
     "lottie-react": "^2.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^16.5.8",
     "react-pdf": "^10.4.1",
     "react-router-dom": "^7.13.1"
   },

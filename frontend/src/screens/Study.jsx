@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, getVistasMateria } from '../services/api';
 import { useMaterias, useMateriasSeguidas, useInvalidate } from '../hooks/useQueryHooks';
 import { useMascotaUpdate } from '../context/MascotaContext';
@@ -8,6 +9,7 @@ import ConfirmModal from '../components/ConfirmModal';
 
 const Study = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [confirmUnfollowId, setConfirmUnfollowId] = useState(null);
 
@@ -157,7 +159,7 @@ const Study = () => {
     return (
       <div className="screen active screen-container" id="screen-study">
         <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text2)' }}>
-          Cargando materias...
+          {t('study.loadingSubjects')}
         </div>
       </div>
     );
@@ -173,7 +175,7 @@ const Study = () => {
       <div className="study-body-pad" style={{ paddingBottom: '8px' }}>
         <input
           type="text"
-          placeholder="Buscar materia..."
+          placeholder={t('study.searchPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           style={{
@@ -188,7 +190,7 @@ const Study = () => {
       <div className="materias-list study-body-pad" style={{ paddingTop: 0 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', marginTop: '32px' }}>
-            No se encontraron materias
+            {t('study.noResults')}
           </div>
         )}
         {filtered.map((materia) => {
@@ -232,7 +234,7 @@ const Study = () => {
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px',
                       borderRadius: '6px', background: 'rgba(212,168,71,0.15)',
                       color: 'var(--gold)', border: '1px solid var(--gold)',
-                    }}>Siguiendo</span>
+                    }}>{t('study.following')}</span>
                   )}
                 </div>
                 <div className="materia-bottom">
@@ -263,10 +265,10 @@ const Study = () => {
 
     {confirmUnfollowId !== null && (
       <ConfirmModal
-        title="⚠️ ¿Dejar de seguir?"
-        message="Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer."
-        confirmLabel="Sí, dejar de seguir"
-        cancelLabel="Cancelar"
+        title={t('study.unfollowTitle')}
+        message={t('study.unfollowMessage')}
+        confirmLabel={t('study.unfollowConfirm')}
+        cancelLabel={t('study.cancel')}
         dangerous
         onConfirm={doUnfollow}
         onCancel={() => setConfirmUnfollowId(null)}
