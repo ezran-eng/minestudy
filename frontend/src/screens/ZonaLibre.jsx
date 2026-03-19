@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Lottie from 'lottie-react';
-import mascotaData from '../assets/lotties/mascota.json';
+import RedoMini from '../components/RedoMini';
 import ZonaLibreOnboarding from './ZonaLibreOnboarding';
 import ZonaLibreUpload from '../components/ZonaLibreUpload';
 import ZonaLibreFileCard from '../components/ZonaLibreFileCard';
 import { useTelegram } from '../hooks/useTelegram';
 import { zonaLibreList, zonaLibreUpload, zonaLibreReport } from '../services/api';
-
-const SEG_IDLE = [67, 89];
 
 const REPORT_MOTIVOS = [
   { id: 'inapropiado', label: 'Contenido inapropiado' },
@@ -129,14 +126,7 @@ export default function ZonaLibre() {
           display: 'flex', alignItems: 'center', gap: '12px',
           marginBottom: '16px',
         }}>
-          <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
-            <Lottie
-              animationData={mascotaData}
-              loop autoplay
-              initialSegment={SEG_IDLE}
-              style={{ width: '100%', height: '100%' }}
-            />
-          </div>
+          <RedoMini size={40} />
           <div style={{
             fontFamily: "'Outfit', sans-serif",
             fontSize: '12px', color: '#999', lineHeight: 1.5,

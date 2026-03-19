@@ -1,8 +1,5 @@
 import React, { useState, useRef } from 'react';
-import Lottie from 'lottie-react';
-import mascotaData from '../assets/lotties/mascota.json';
-
-const SEG_IDLE = [67, 89];
+import RedoMini from './RedoMini';
 
 function formatSize(bytes) {
   if (!bytes) return '—';
@@ -92,10 +89,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
             padding: '16px',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
-            <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
-              <Lottie animationData={mascotaData} loop autoplay initialSegment={SEG_IDLE}
-                style={{ width: '100%', height: '100%' }} />
-            </div>
+            <RedoMini size={40} />
             <div style={{
               fontFamily: "'Outfit', sans-serif",
               fontSize: '13px', color: '#e0e0e0', lineHeight: 1.5,
@@ -114,10 +108,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
             padding: '16px',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
-            <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
-              <Lottie animationData={mascotaData} loop autoplay initialSegment={SEG_IDLE}
-                style={{ width: '100%', height: '100%' }} />
-            </div>
+            <RedoMini size={40} />
             <div style={{
               fontFamily: "'Outfit', sans-serif",
               fontSize: '13px', color: '#e0e0e0', lineHeight: 1.5,

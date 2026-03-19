@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
-import Lottie from 'lottie-react';
-import mascotaData from '../assets/lotties/mascota.json';
-
-const SEG_FULL = [60, 240];
-const SEG_IDLE = [67, 89];
+import RedoMini from '../components/RedoMini';
 
 const SLIDES = [
-  { seg: SEG_FULL, text: 'Bienvenido a la Zona Libre.' },
-  { seg: SEG_IDLE, text: 'En internet, cualquier archivo puede desaparecer. Un servidor se cae, alguien lo censura, un link se rompe.' },
-  { seg: SEG_IDLE, text: 'Acá es diferente. Los archivos que subas viajan a la red TON — miles de nodos en todo el mundo los guardan.' },
-  { seg: SEG_IDLE, text: 'Nadie puede borrarlos. Ni yo, ni DaathApp, ni ningún gobierno. Son tuyos para siempre.' },
-  { seg: SEG_IDLE, text: 'Una sola regla: respetá a la comunidad. Podés reportar contenido inapropiado. Yo me encargo del resto.' },
-  { seg: SEG_FULL, text: '¿Listo para la resistencia digital? 👁', isFinal: true },
+  { mode: 'full', text: 'Bienvenido a la Zona Libre.' },
+  { mode: 'idle', text: 'En internet, cualquier archivo puede desaparecer. Un servidor se cae, alguien lo censura, un link se rompe.' },
+  { mode: 'idle', text: 'Acá es diferente. Los archivos que subas viajan a la red TON — miles de nodos en todo el mundo los guardan.' },
+  { mode: 'idle', text: 'Nadie puede borrarlos. Ni yo, ni DaathApp, ni ningún gobierno. Son tuyos para siempre.' },
+  { mode: 'idle', text: 'Una sola regla: respetá a la comunidad. Podés reportar contenido inapropiado. Yo me encargo del resto.' },
+  { mode: 'full', text: '¿Listo para la resistencia digital? 👁', isFinal: true },
 ];
 
 export default function ZonaLibreOnboarding({ onEnter }) {
@@ -63,18 +59,10 @@ export default function ZonaLibreOnboarding({ onEnter }) {
 
       {/* Redo */}
       <div style={{
-        width: '120px', height: '120px',
         marginBottom: '32px',
         animation: 'ob-fade-up 0.4s ease-out',
       }}>
-        <Lottie
-          key={step}
-          animationData={mascotaData}
-          loop
-          autoplay
-          initialSegment={slide.seg}
-          style={{ width: '100%', height: '100%' }}
-        />
+        <RedoMini key={step} size={120} mode={slide.mode} />
       </div>
 
       {/* Text */}
