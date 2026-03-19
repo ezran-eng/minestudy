@@ -15,4 +15,4 @@ RUN mkdir -p /app/db /app/files
 
 EXPOSE 8192
 
-CMD ["./tonutils-storage", "--api", "0.0.0.0:8192", "--api-login", "admin", "--api-password", "secret123"]
+CMD ["./tonutils-storage", "--daemon", "--api", "0.0.0.0:8192", "--api-login", "admin", "--api-password", "secret123", "--db", "/app/db"]
