@@ -2,11 +2,14 @@ import httpx
 import os
 
 TONUTILS_URL = os.environ.get("TONUTILS_URL", "http://localhost:8090")
+_LOGIN = os.environ.get("TONUTILS_LOGIN")
+_PASSWORD = os.environ.get("TONUTILS_PASSWORD")
+_AUTH = (_LOGIN, _PASSWORD) if _LOGIN and _PASSWORD else None
 
 
 async def upload_to_ton(file_bytes: bytes, filename: str) -> str:
     """Sube un archivo a TON Storage y retorna el Bag ID."""
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=60.0, auth=_AUTH) as client:
         response = await client.post(
             f"{TONUTILS_URL}/api/v1/add",
             files={"file": (filename, file_bytes)},
