@@ -26,9 +26,11 @@
     "recentActivity": "Actividad reciente",
     "noActivity": "Sin actividad registrada aún",
     "communityTitle": "Nuevos en Telegram",
-    "communityTotal": "estudiantes llegaron a Telegram por DaathApp",
+    "communityRecent": "usuarios con cuenta de Telegram 2023 o más reciente",
+    "communityTotal": "usuarios en total",
     "communityWeek": "esta semana",
-    "communityToday": "hoy"
+    "communityToday": "hoy",
+    "communityNote": "Estimado por ID de Telegram · igual que Fragment"
   },
 
   "study": {

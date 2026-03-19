@@ -280,6 +280,24 @@ body {
   0%,100%{opacity:1;}
   50%{opacity:0.6;}
 }
+.community-divider{
+  width:100%;height:1px;
+  background:var(--border);
+  margin:10px 0 8px;
+}
+.community-total-row{
+  display:flex;align-items:center;gap:6px;
+}
+.community-total-num{
+  font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text2);
+}
+.community-total-lbl{
+  font-size:11px;color:var(--text2);
+}
+.community-note{
+  font-size:10px;color:var(--text2);opacity:0.5;margin-top:4px;
+  font-style:italic;
+}
 
 /* ── ACTIVITY ── */
 .activity-list {

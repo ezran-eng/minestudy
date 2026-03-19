@@ -394,23 +394,64 @@ def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)
         print(f"[auth] 403: initData hash invalid. initData[:60]={x_telegram_init_data[:60]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
+# Telegram IDs are sequential — these breakpoints map ID ranges to approximate
+# account creation years based on community research (Fragment, tgstat, etc.)
+_TG_ID_BREAKPOINTS = [
+    (100_000,       2013),
+    (10_000_000,    2014),
+    (100_000_000,   2016),
+    (500_000_000,   2018),
+    (1_000_000_000, 2019),
+    (2_000_000_000, 2020),
+    (3_500_000_000, 2021),
+    (5_000_000_000, 2022),
+    (6_000_000_000, 2023),
+    (7_000_000_000, 2024),
+]
+
+def _estimate_tg_year(id_telegram: int) -> int:
+    for threshold, year in _TG_ID_BREAKPOINTS:
+        if id_telegram < threshold:
+            return year
+    return 2025  # IDs >= 7B → 2025
+
+
 @app.get("/community-counter")
 def community_counter(db: Session = Depends(get_db)):
-    """Public counter: total users attracted to Telegram via the mini-app."""
+    """Public counter of users and Telegram account age distribution."""
     from datetime import datetime, timedelta, timezone
     total = db.query(models.User).count()
+
+    # Growth by registration in DaathApp
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     new_this_week = db.query(models.User).filter(
         models.User.fecha_registro >= week_ago
     ).count()
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     new_today = db.query(models.User).filter(
-        models.User.fecha_registro >= today
+        models.User.fecha_registro >= today_start
     ).count()
+
+    # Users with Telegram account estimated 2023+ (ID >= 6B)
+    # These are likely people who joined Telegram recently — possibly because of DaathApp
+    RECENT_TG_THRESHOLD = 6_000_000_000
+    recent_tg = db.query(models.User).filter(
+        models.User.id_telegram >= RECENT_TG_THRESHOLD
+    ).count()
+
+    # Breakdown by estimated Telegram year for all users
+    all_users = db.query(models.User.id_telegram).all()
+    year_dist: dict[int, int] = {}
+    for (uid,) in all_users:
+        y = _estimate_tg_year(uid)
+        year_dist[y] = year_dist.get(y, 0) + 1
+
     return {
         "total": total,
         "new_this_week": new_this_week,
         "new_today": new_today,
+        "recent_tg_accounts": recent_tg,   # accounts estimated 2023+
+        "year_distribution": year_dist,
     }
 
 

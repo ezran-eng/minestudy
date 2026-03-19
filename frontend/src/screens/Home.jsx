@@ -155,19 +155,31 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Community Counter — nuevos usuarios en Telegram */}
+      {/* Community Counter — usuarios con cuenta de Telegram reciente */}
       {community && community.total > 0 && (
         <div className="community-counter">
           <div className="community-counter-inner">
+            {/* Icono Telegram */}
             <div className="community-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="var(--gold)"/>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z" fill="#2AABEE"/>
               </svg>
             </div>
+
+            {/* Número principal: cuentas Telegram recientes (2023+) */}
             <div className="community-big-number">
-              <AnimatedNumber value={community.total} />
+              <AnimatedNumber value={community.recent_tg_accounts ?? community.total} />
             </div>
-            <div className="community-label">{t('home.communityTotal')}</div>
+            <div className="community-label">{t('home.communityRecent')}</div>
+
+            {/* Separador + total */}
+            <div className="community-divider" />
+            <div className="community-total-row">
+              <span className="community-total-num">{community.total}</span>
+              <span className="community-total-lbl">{t('home.communityTotal')}</span>
+            </div>
+
+            {/* Pills de crecimiento */}
             <div className="community-pills">
               {community.new_this_week > 0 && (
                 <span className="community-pill">+{community.new_this_week} {t('home.communityWeek')}</span>
@@ -176,6 +188,8 @@ const Home = () => {
                 <span className="community-pill community-pill--hot">+{community.new_today} {t('home.communityToday')}</span>
               )}
             </div>
+
+            <div className="community-note">{t('home.communityNote')}</div>
           </div>
         </div>
       )}
