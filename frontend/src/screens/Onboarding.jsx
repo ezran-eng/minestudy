@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { completeOnboarding } from '../services/api';
 
-const STEPS = 4;
+const STEPS = 5; // includes language step
+
+const LANGS = [
+  { code: 'es', flag: '🇦🇷', label: 'Español' },
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+];
 
 const Toggle = ({ label, description, value, onChange }) => (
   <div style={{
@@ -64,8 +70,49 @@ const Onboarding = ({ user, onComplete }) => {
     }
   };
 
+  const [selectedLang, setSelectedLang] = useState(i18n.language?.slice(0, 2) || 'es');
+
+  const handleLangSelect = (code) => {
+    setSelectedLang(code);
+    i18n.changeLanguage(code);
+    localStorage.setItem('daathapp_lang', code);
+  };
+
   const steps = [
-    // Step 0 — Bienvenida
+    // Step 0 — Idioma / Language
+    <div key="language" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}>
+      <div style={{ fontSize: '56px', marginBottom: '20px' }}>🌐</div>
+      <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', marginBottom: '8px', lineHeight: 1.2 }}>
+        {t('onboarding.chooseLanguage')}
+      </div>
+      <div style={{ fontSize: '14px', color: 'var(--text2)', marginBottom: '32px' }}>
+        {t('onboarding.chooseLanguageDesc')}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '280px' }}>
+        {LANGS.map(lang => (
+          <button
+            key={lang.code}
+            onClick={() => handleLangSelect(lang.code)}
+            style={{
+              padding: '16px 20px',
+              borderRadius: '14px',
+              border: selectedLang === lang.code ? '2px solid var(--gold)' : '2px solid var(--border)',
+              background: selectedLang === lang.code ? 'rgba(212,168,71,0.12)' : 'var(--s2)',
+              color: selectedLang === lang.code ? 'var(--gold)' : 'var(--text)',
+              fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{ fontSize: '24px' }}>{lang.flag}</span>
+            <span>{lang.label}</span>
+            {selectedLang === lang.code && <span style={{ marginLeft: 'auto', fontSize: '18px' }}>✓</span>}
+          </button>
+        ))}
+      </div>
+    </div>,
+
+    // Step 1 — Bienvenida
     <div key="welcome" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' }}>
       <div style={{ fontSize: '64px', marginBottom: '24px' }}>📚</div>
       <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text)', marginBottom: '12px', lineHeight: 1.2 }}>
