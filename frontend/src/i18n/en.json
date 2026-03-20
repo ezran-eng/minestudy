@@ -26,11 +26,11 @@
     "recentActivity": "Recent activity",
     "noActivity": "No activity registered yet",
     "communityTitle": "New on Telegram",
-    "communityRecent": "users with a Telegram account from 2023 or newer",
+    "communityRecent": "joined Telegram because of DaathApp",
     "communityTotal": "total users",
     "communityWeek": "this week",
     "communityToday": "today",
-    "communityNote": "Estimated by Telegram ID · same method as Fragment"
+    "communityNote": "New accounts (2025+) · estimated by Telegram ID"
   },
 
   "study": {

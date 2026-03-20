@@ -397,23 +397,24 @@ def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)
 # Telegram IDs are sequential — these breakpoints map ID ranges to approximate
 # account creation years based on community research (Fragment, tgstat, etc.)
 _TG_ID_BREAKPOINTS = [
-    (100_000,       2013),
-    (10_000_000,    2014),
-    (100_000_000,   2016),
-    (500_000_000,   2018),
-    (1_000_000_000, 2019),
-    (2_000_000_000, 2020),
-    (3_500_000_000, 2021),
-    (5_000_000_000, 2022),
-    (6_000_000_000, 2023),
-    (7_000_000_000, 2024),
+    (100_000,        2013),
+    (10_000_000,     2014),
+    (100_000_000,    2016),
+    (500_000_000,    2018),
+    (1_000_000_000,  2019),
+    (2_000_000_000,  2020),
+    (3_500_000_000,  2021),
+    (5_000_000_000,  2022),
+    (6_000_000_000,  2023),
+    (7_000_000_000,  2024),
+    (8_000_000_000,  2025),
 ]
 
 def _estimate_tg_year(id_telegram: int) -> int:
     for threshold, year in _TG_ID_BREAKPOINTS:
         if id_telegram < threshold:
             return year
-    return 2025  # IDs >= 7B → 2025
+    return 2026  # IDs >= 8B → 2026
 
 
 @app.get("/community-counter")
@@ -432,9 +433,9 @@ def community_counter(db: Session = Depends(get_db)):
         models.User.fecha_registro >= today_start
     ).count()
 
-    # Users with Telegram account estimated 2023+ (ID >= 6B)
-    # These are likely people who joined Telegram recently — possibly because of DaathApp
-    RECENT_TG_THRESHOLD = 6_000_000_000
+    # Users with Telegram account estimated 2025+ (ID >= 8B)
+    # These are accounts created recently — likely joined Telegram for DaathApp
+    RECENT_TG_THRESHOLD = 8_000_000_000
     recent_tg = db.query(models.User).filter(
         models.User.id_telegram >= RECENT_TG_THRESHOLD
     ).count()
