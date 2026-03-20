@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import Lottie from 'lottie-react';
 import mascotaData from '../assets/lotties/mascota.json';
 import { completeOnboarding, updateNotificaciones } from '../services/api';
@@ -29,7 +30,8 @@ function useTypewriter(text, id, speed = 20) {
 
 // ── Slide themes ─────────────────────────────────────────────────────────────
 const THEMES = [
-  'radial-gradient(ellipse at 50% 30%, rgba(139,92,246,0.18) 0%, transparent 60%)',
+  'radial-gradient(ellipse at 50% 40%, rgba(42,171,238,0.16) 0%, transparent 60%)',            // language
+  'radial-gradient(ellipse at 50% 30%, rgba(139,92,246,0.18) 0%, transparent 60%)',             // welcome
   'radial-gradient(ellipse at 40% 40%, rgba(96,165,250,0.14) 0%, transparent 55%), radial-gradient(ellipse at 70% 70%, rgba(139,92,246,0.08) 0%, transparent 50%)',
   'radial-gradient(ellipse at 60% 40%, rgba(167,139,250,0.13) 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(96,165,250,0.08) 0%, transparent 50%)',
   'radial-gradient(ellipse at 50% 50%, rgba(96,165,250,0.16) 0%, transparent 60%)',
@@ -38,22 +40,29 @@ const THEMES = [
   'radial-gradient(ellipse at 50% 30%, rgba(139,92,246,0.22) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(96,165,250,0.12) 0%, transparent 50%)',
 ];
 
+// ── Language options ──────────────────────────────────────────────────────────
+const LANGS = [
+  { code: 'es', flag: '🇦🇷', label: 'Español' },
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+];
+
 // ── Slide definitions ────────────────────────────────────────────────────────
-// Texts that use {name} are resolved at render time
 const SLIDES = [
-  // 0 — Welcome
+  // 0 — Language
+  { text: null, segment: 'full', type: 'language' },
+  // 1 — Welcome
   { text: null, segment: 'full', type: 'welcome' },
-  // 1 — AI capabilities
-  { text: 'Puedo explicarte temas, generar flashcards y analizar tu progreso para decirte exactamente qué repasar.', segment: 'idle', type: 'ai' },
-  // 2 — Features
-  { text: 'Estas son tus herramientas de estudio.', segment: 'idle', type: 'features' },
-  // 3 — Drag demo
-  { text: 'Arrastrame sobre cualquier materia y te cuento todo sobre ella.', segment: 'idle', type: 'drag' },
-  // 4 — Privacy
-  { text: 'Tu perfil es público por defecto. Elegí qué querés que vean los demás.', segment: 'idle', type: 'privacy' },
-  // 5 — Notifications
-  { text: 'Puedo avisarte por Telegram para que no pierdas el ritmo.', segment: 'idle', type: 'notifications' },
-  // 6 — Final (includes beta note)
+  // 2 — AI capabilities
+  { text: null, segment: 'idle', type: 'ai' },
+  // 3 — Features
+  { text: null, segment: 'idle', type: 'features' },
+  // 4 — Drag demo
+  { text: null, segment: 'idle', type: 'drag' },
+  // 5 — Privacy
+  { text: null, segment: 'idle', type: 'privacy' },
+  // 6 — Notifications
+  { text: null, segment: 'idle', type: 'notifications' },
+  // 7 — Final (includes beta note)
   { text: null, segment: 'full', type: 'final', isFinal: true },
 ];
 
@@ -188,15 +197,24 @@ export default function CinematicOnboarding({ user, onComplete }) {
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
 
+  const [selectedLang, setSelectedLang] = useState(i18n.language?.slice(0, 2) || 'es');
+
+  const handleLangSelect = useCallback((code) => {
+    setSelectedLang(code);
+    i18n.changeLanguage(code);
+    localStorage.setItem('daathapp_lang', code);
+  }, []);
+
   // ── Slide text (dynamic for welcome & final) ──────────────────────────────
   const slideTexts = useMemo(() => [
-    t('onboarding.helloRedo', { name: firstName }),
-    t('onboarding.redoAiDesc'),
-    t('onboarding.redoFeatures'),
-    t('onboarding.redoDragDemo'),
-    t('onboarding.redoPrivacy'),
-    t('onboarding.redoNotifications'),
-    t('onboarding.redoFinal', { name: firstName }),
+    t('onboarding.chooseLanguageDesc'),    // 0 — language
+    t('onboarding.helloRedo', { name: firstName }),  // 1 — welcome
+    t('onboarding.redoAiDesc'),            // 2 — ai
+    t('onboarding.redoFeatures'),          // 3 — features
+    t('onboarding.redoDragDemo'),          // 4 — drag
+    t('onboarding.redoPrivacy'),           // 5 — privacy
+    t('onboarding.redoNotifications'),     // 6 — notifications
+    t('onboarding.redoFinal', { name: firstName }), // 7 — final
   ], [t, firstName]);
   const slideText = slideTexts[step];
 
@@ -292,10 +310,11 @@ export default function CinematicOnboarding({ user, onComplete }) {
 
   // ── Hint text ─────────────────────────────────────────────────────────────
   const hintText = useMemo(() => {
+    if (slide.type === 'language') return null; // language slide: just pick, then tap right
     if (!isComplete) return t('onboarding.tapToSkip');
-    if (step === 0) return null; // no back hint on first
+    if (step <= 1) return null; // no back hint on language/welcome
     return t('onboarding.backNext');
-  }, [isComplete, step, t]);
+  }, [isComplete, step, slide.type, t]);
 
   return (
     <div
@@ -400,7 +419,41 @@ export default function CinematicOnboarding({ user, onComplete }) {
 
         {/* ── Slide-specific content ──────────────────────────────────── */}
 
-        {/* AI capabilities (slide 1) */}
+        {/* Language selector (slide 0) */}
+        {slide.type === 'language' && (
+          <div data-interactive style={{
+            display: 'flex', flexDirection: 'column', gap: '10px', width: '100%',
+            animation: 'ob-fade-up 0.4s ease-out',
+          }}>
+            {LANGS.map(lang => (
+              <button
+                key={lang.code}
+                onClick={() => handleLangSelect(lang.code)}
+                style={{
+                  padding: '14px 18px', borderRadius: '14px',
+                  border: selectedLang === lang.code
+                    ? '2px solid rgba(42,171,238,0.8)'
+                    : '1px solid rgba(255,255,255,0.08)',
+                  background: selectedLang === lang.code
+                    ? 'rgba(42,171,238,0.12)'
+                    : 'rgba(255,255,255,0.04)',
+                  color: '#fff', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '14px',
+                  transition: 'all 0.2s ease',
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >
+                <span style={{ fontSize: '28px' }}>{lang.flag}</span>
+                <span style={{ fontSize: '15px', fontWeight: 600, flex: 1, textAlign: 'left' }}>{lang.label}</span>
+                {selectedLang === lang.code && (
+                  <span style={{ fontSize: '18px', color: '#2AABEE' }}>✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* AI capabilities (slide 2) */}
         {slide.type === 'ai' && isComplete && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
             <AiPill icon="💬" text={t('onboarding.aiExplainTopics')} delay={0} />
