@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';
 
@@ -204,125 +204,12 @@ const ElementCell = React.memo(({ el, cellSize, onSelect, isActive }) => {
   );
 });
 
-/* ── Pinch-zoom + pan hook for mobile ── */
-function usePinchPan(ref, { minScale = 0.5, maxScale = 3 } = {}) {
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const stateRef = useRef({ x: 0, y: 0, scale: 1 });
-  const gestureRef = useRef(null);
-
-  // Clamp position so grid stays partially visible
-  const clamp = useCallback((x, y, scale) => {
-    const el = ref.current;
-    if (!el) return { x, y };
-    const parent = el.parentElement;
-    if (!parent) return { x, y };
-    const pw = parent.clientWidth;
-    const ph = parent.clientHeight;
-    const gw = el.scrollWidth * scale;
-    const gh = el.scrollHeight * scale;
-    // Allow panning but keep at least 30% visible
-    const margin = 0.3;
-    const minX = pw - gw * (1 - margin);
-    const maxX = gw * margin - gw + pw * margin;
-    const minY = ph - gh * (1 - margin);
-    const maxY = gh * margin - gh + ph * margin;
-    return {
-      x: gw > pw ? Math.min(Math.max(x, minX), Math.max(maxX, 0)) : (pw - gw) / 2,
-      y: gh > ph ? Math.min(Math.max(y, minY), Math.max(maxY, 0)) : (ph - gh) / 2,
-    };
-  }, [ref]);
-
-  const apply = useCallback((x, y, scale) => {
-    const clamped = clamp(x, y, scale);
-    stateRef.current = { x: clamped.x, y: clamped.y, scale };
-    setTransform({ x: clamped.x, y: clamped.y, scale });
-  }, [clamp]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const parent = el.parentElement;
-    if (!parent) return;
-
-    const handleTouchStart = (e) => {
-      if (e.touches.length === 1) {
-        const t = e.touches[0];
-        gestureRef.current = {
-          type: 'pan',
-          startX: t.clientX - stateRef.current.x,
-          startY: t.clientY - stateRef.current.y,
-        };
-      } else if (e.touches.length === 2) {
-        e.preventDefault();
-        const t1 = e.touches[0], t2 = e.touches[1];
-        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        const cx = (t1.clientX + t2.clientX) / 2;
-        const cy = (t1.clientY + t2.clientY) / 2;
-        gestureRef.current = {
-          type: 'pinch',
-          initialDist: dist,
-          initialScale: stateRef.current.scale,
-          cx, cy,
-          startX: stateRef.current.x,
-          startY: stateRef.current.y,
-        };
-      }
-    };
-
-    const handleTouchMove = (e) => {
-      const g = gestureRef.current;
-      if (!g) return;
-
-      if (g.type === 'pan' && e.touches.length === 1) {
-        const t = e.touches[0];
-        const x = t.clientX - g.startX;
-        const y = t.clientY - g.startY;
-        apply(x, y, stateRef.current.scale);
-      } else if (g.type === 'pinch' && e.touches.length === 2) {
-        e.preventDefault();
-        const t1 = e.touches[0], t2 = e.touches[1];
-        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        let newScale = g.initialScale * (dist / g.initialDist);
-        newScale = Math.min(maxScale, Math.max(minScale, newScale));
-
-        // Zoom towards pinch center
-        const ratio = newScale / g.initialScale;
-        const parentRect = parent.getBoundingClientRect();
-        const cx = g.cx - parentRect.left;
-        const cy = g.cy - parentRect.top;
-        const x = cx - ratio * (cx - g.startX);
-        const y = cy - ratio * (cy - g.startY);
-        apply(x, y, newScale);
-      }
-    };
-
-    const handleTouchEnd = () => {
-      gestureRef.current = null;
-    };
-
-    parent.addEventListener('touchstart', handleTouchStart, { passive: false });
-    parent.addEventListener('touchmove', handleTouchMove, { passive: false });
-    parent.addEventListener('touchend', handleTouchEnd);
-    parent.addEventListener('touchcancel', handleTouchEnd);
-
-    return () => {
-      parent.removeEventListener('touchstart', handleTouchStart);
-      parent.removeEventListener('touchmove', handleTouchMove);
-      parent.removeEventListener('touchend', handleTouchEnd);
-      parent.removeEventListener('touchcancel', handleTouchEnd);
-    };
-  }, [ref, minScale, maxScale, apply]);
-
-  return { transform, setTransform: apply };
-}
+/* ── Mobile cell size: fit height, scroll horizontally ── */
+const MOBILE_CELL = 42;
 
 /* ── Main screen ── */
-const CELL_BASE = 50; // fixed cell size for the grid, zoom handles scaling
-
 const PeriodicTable = () => {
   const navigate = useNavigate();
-  const gridRef = useRef(null);
-  const viewportRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -335,37 +222,9 @@ const PeriodicTable = () => {
     setIsMobile(window.innerWidth < 768);
   }, []);
 
-  // Grid natural size: 18 cols * (50+2) + 2 = ~938px wide, ~490px tall
-  const gridW = 18 * (CELL_BASE + 2);
-  const gridH = 9.4 * (CELL_BASE + 2); // 7 rows + 0.4 gap + 2 f-block rows
-
-  const { transform, setTransform } = usePinchPan(gridRef, {
-    minScale: 0.3,
-    maxScale: 4,
-  });
-
-  // On mount: fit the whole table in the viewport
-  useEffect(() => {
-    if (!isMobile) return;
-    const vp = viewportRef.current;
-    if (!vp) return;
-    // Small delay to let layout settle
-    const timer = setTimeout(() => {
-      const vpW = vp.clientWidth;
-      const vpH = vp.clientHeight;
-      const scaleX = vpW / gridW;
-      const scaleY = vpH / gridH;
-      const fitScale = Math.min(scaleX, scaleY) * 0.95;
-      const x = (vpW - gridW * fitScale) / 2;
-      const y = (vpH - gridH * fitScale) / 2;
-      setTransform(x, y, fitScale);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [isMobile]); // eslint-disable-line
-
   const selCat = selected ? CAT_COLORS[selected.cat] : null;
 
-  // Desktop: same as before (scroll-based, auto cell sizing)
+  // Desktop: same as before
   if (!isMobile) {
     return (
       <div className="pt-screen-root">
@@ -387,7 +246,7 @@ const PeriodicTable = () => {
     );
   }
 
-  // Mobile: pinch-zoom + pan experience
+  // Mobile: native scroll, simple and smooth
   return (
     <div className="pt-screen-root" style={{ paddingTop: safeTop + 4, paddingBottom: safeBottom + 4 }}>
       {/* Header */}
@@ -398,38 +257,7 @@ const PeriodicTable = () => {
           </svg>
         </button>
         <div className="pt-title">Tabla Periódica</div>
-        {/* Zoom controls */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button className="pt-zoom-btn" onClick={() => {
-            const vp = viewportRef.current;
-            if (!vp) return;
-            const vpW = vp.clientWidth;
-            const vpH = vp.clientHeight;
-            const fitScale = Math.min(vpW / gridW, vpH / gridH) * 0.95;
-            setTransform((vpW - gridW * fitScale) / 2, (vpH - gridH * fitScale) / 2, fitScale);
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="9" y1="12" x2="15" y2="12" />
-            </svg>
-          </button>
-          <button className="pt-zoom-btn" onClick={() => {
-            const ns = Math.min(4, transform.scale * 1.5);
-            const vp = viewportRef.current;
-            if (!vp) return;
-            const cx = vp.clientWidth / 2;
-            const cy = vp.clientHeight / 2;
-            const ratio = ns / transform.scale;
-            setTransform(cx - ratio * (cx - transform.x), cy - ratio * (cy - transform.y), ns);
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="8" y1="11" x2="14" y2="11" />
-              <line x1="11" y1="8" x2="11" y2="14" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
-        </div>
+        <div style={{ width: 32 }} />
       </div>
 
       {/* Info bar */}
@@ -445,30 +273,26 @@ const PeriodicTable = () => {
           </>
         ) : (
           <span style={{ fontSize: '11px', color: 'var(--text2)', fontStyle: 'italic' }}>
-            Pellizca para hacer zoom · Toca un elemento
+            Desliza para explorar · Toca un elemento
           </span>
         )}
       </div>
 
-      {/* Viewport (touch zone) */}
-      <div className="pt-viewport" ref={viewportRef} onClick={() => setSelected(null)}>
+      {/* Scrollable area — native scroll in both directions */}
+      <div className="pt-mobile-scroll">
         <div
-          ref={gridRef}
           className="pt-grid"
           style={{
-            gridTemplateColumns: `repeat(18, ${CELL_BASE}px)`,
-            gridTemplateRows: `repeat(7, ${CELL_BASE}px) ${CELL_BASE * 0.4}px repeat(2, ${CELL_BASE}px)`,
+            gridTemplateColumns: `repeat(18, ${MOBILE_CELL}px)`,
+            gridTemplateRows: `repeat(7, ${MOBILE_CELL}px) ${MOBILE_CELL * 0.4}px repeat(2, ${MOBILE_CELL}px)`,
             gap: '2px',
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-            transformOrigin: '0 0',
-            willChange: 'transform',
           }}
         >
           {ELEMENTS.map(el => (
             <ElementCell
               key={el.symbol}
               el={el}
-              cellSize={CELL_BASE}
+              cellSize={MOBILE_CELL}
               onSelect={setSelected}
               isActive={selected?.symbol === el.symbol}
             />
