@@ -1197,7 +1197,12 @@ body {
   display: flex;
   flex-direction: column;
   padding: 8px;
-  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .pt-screen-root { overflow: visible; }
+}
+@media (max-width: 767px) {
+  .pt-screen-root { overflow: hidden; }
 }
 
 /* Mobile viewport for pinch-zoom + pan */
@@ -1297,9 +1302,7 @@ body {
 
 /* Scroll wrapper for the grid */
 .pt-scroll-wrapper {
-  overflow-x: auto;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
   padding-bottom: 4px;
   flex: 1;
   min-height: 0;
