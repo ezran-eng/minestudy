@@ -204,14 +204,12 @@ const ElementCell = React.memo(({ el, cellSize, onSelect, isActive }) => {
   );
 });
 
-/* ── Mobile cell size: fit height, scroll horizontally ── */
-const MOBILE_CELL = 42;
-
 /* ── Main screen ── */
 const PeriodicTable = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [mobileCellSize, setMobileCellSize] = useState(42);
 
   // Telegram safe areas
   const tg = window.Telegram?.WebApp;
@@ -219,8 +217,18 @@ const PeriodicTable = () => {
   const safeBottom = (tg?.contentSafeAreaInset?.bottom ?? 0) + (tg?.safeAreaInset?.bottom ?? 0);
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []);
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    if (mobile) {
+      // Calculate cell size to fill available height
+      // Reserve space: safeTop(~60) + header(~36) + infobar(~36) + legend(~50) + padding(~20)
+      const reservedH = safeTop + safeBottom + 36 + 36 + 50 + 20;
+      const availH = window.innerHeight - reservedH;
+      // Grid has 9.4 row-equivalents (7 + 0.4 gap + 2 f-block) with 2px gaps
+      const sizeFromH = Math.floor((availH - 9 * 2) / 9.4);
+      setMobileCellSize(Math.max(32, Math.min(sizeFromH, 58)));
+    }
+  }, [safeTop, safeBottom]);
 
   const selCat = selected ? CAT_COLORS[selected.cat] : null;
 
@@ -283,8 +291,8 @@ const PeriodicTable = () => {
         <div
           className="pt-grid"
           style={{
-            gridTemplateColumns: `repeat(18, ${MOBILE_CELL}px)`,
-            gridTemplateRows: `repeat(7, ${MOBILE_CELL}px) ${MOBILE_CELL * 0.4}px repeat(2, ${MOBILE_CELL}px)`,
+            gridTemplateColumns: `repeat(18, ${mobileCellSize}px)`,
+            gridTemplateRows: `repeat(7, ${mobileCellSize}px) ${mobileCellSize * 0.4}px repeat(2, ${mobileCellSize}px)`,
             gap: '2px',
           }}
         >
@@ -292,7 +300,7 @@ const PeriodicTable = () => {
             <ElementCell
               key={el.symbol}
               el={el}
-              cellSize={MOBILE_CELL}
+              cellSize={mobileCellSize}
               onSelect={setSelected}
               isActive={selected?.symbol === el.symbol}
             />
