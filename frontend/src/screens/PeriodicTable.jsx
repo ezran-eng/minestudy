@@ -265,20 +265,6 @@ const PeriodicTable = () => {
             gap: '2px',
           }}
         >
-          {/* Period numbers on the left (row labels) */}
-          {[1,2,3,4,5,6,7].map(p => (
-            <div key={`p${p}`} className="pt-period-label" style={{ gridRow: p, gridColumn: 1, width: cellSize, height: cellSize, lineHeight: `${cellSize}px` }}>
-            </div>
-          ))}
-
-          {/* Lanthanide/Actinide connector arrows */}
-          <div className="pt-lan-label" style={{ gridRow: 6, gridColumn: 3, width: cellSize, height: cellSize }}>
-            <span style={{ fontSize: '7px', color: CAT_COLORS.lanthanide.text }}>57-71</span>
-          </div>
-          <div className="pt-lan-label" style={{ gridRow: 7, gridColumn: 3, width: cellSize, height: cellSize }}>
-            <span style={{ fontSize: '7px', color: CAT_COLORS.actinide.text }}>89-103</span>
-          </div>
-
           {/* Elements */}
           {ELEMENTS.map(el => (
             <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} isActive={hovered?.symbol === el.symbol} />
