@@ -1395,3 +1395,28 @@ body {
   font-weight: 500;
   white-space: nowrap;
 }
+
+@media (max-width: 767px) {
+  .pt-legend {
+    gap: 4px 8px;
+    padding: 6px 4px 4px;
+  }
+  .pt-legend-dot {
+    width: 6px;
+    height: 6px;
+  }
+  .pt-legend-label {
+    font-size: 8px;
+  }
+  .pt-header {
+    padding: 2px 0 4px;
+  }
+  .pt-title {
+    font-size: 16px;
+  }
+  .pt-info-bar {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    min-height: 28px;
+  }
+}

@@ -326,6 +326,11 @@ const PeriodicTable = () => {
   const [selected, setSelected] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Telegram safe areas
+  const tg = window.Telegram?.WebApp;
+  const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
+  const safeBottom = (tg?.contentSafeAreaInset?.bottom ?? 0) + (tg?.safeAreaInset?.bottom ?? 0);
+
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
   }, []);
@@ -384,7 +389,7 @@ const PeriodicTable = () => {
 
   // Mobile: pinch-zoom + pan experience
   return (
-    <div className="pt-screen-root">
+    <div className="pt-screen-root" style={{ paddingTop: safeTop + 4, paddingBottom: safeBottom + 4 }}>
       {/* Header */}
       <div className="pt-header">
         <button className="pt-back" onClick={() => navigate(-1)}>
