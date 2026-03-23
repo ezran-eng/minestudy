@@ -450,6 +450,23 @@ export default function CinematicOnboarding({ user, onComplete }) {
                 )}
               </button>
             ))}
+            <button
+              onClick={goNext}
+              style={{
+                marginTop: '6px', width: '100%', padding: '14px',
+                borderRadius: '14px', border: 'none',
+                background: 'linear-gradient(135deg, #2AABEE, #1e90d0)',
+                color: '#fff', fontFamily: "'Outfit', sans-serif",
+                fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(42,171,238,0.3)',
+                transition: 'transform 100ms ease',
+              }}
+              onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
+              onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+              onPointerLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              {t('onboarding.continue', 'Continuar')} →
+            </button>
           </div>
         )}
 
