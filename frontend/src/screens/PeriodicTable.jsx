@@ -214,11 +214,17 @@ const PeriodicTable = () => {
   const containerRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [cellSize, setCellSize] = useState(42);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const resize = () => {
-      const w = window.innerWidth - 16; // 8px padding each side
-      const size = Math.floor((w - 17 * 2) / 18); // 18 cols, 2px gap
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // On mobile (rotated): use screen height as the "width" for the table
+      const availableW = mobile
+        ? window.innerHeight - 16
+        : window.innerWidth - 16;
+      const size = Math.floor((availableW - 17 * 2) / 18);
       setCellSize(Math.max(16, Math.min(size, 52)));
     };
     resize();
@@ -229,57 +235,59 @@ const PeriodicTable = () => {
   const hovCat = hovered ? CAT_COLORS[hovered.cat] : null;
 
   return (
-    <div className="screen active screen-container pt-screen" id="screen-periodic">
-      {/* Header */}
-      <div className="pt-header">
-        <button className="pt-back" onClick={() => navigate(-1)}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <div className="pt-title">Tabla Periódica</div>
-        <div style={{ width: 32 }} />
-      </div>
+    <div className={`pt-screen-root ${isMobile ? 'pt-mobile' : ''}`}>
+      <div className="pt-rotated-content">
+        {/* Header */}
+        <div className="pt-header">
+          <button className="pt-back" onClick={() => navigate(-1)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <div className="pt-title">Tabla Periódica</div>
+          <div style={{ width: 32 }} />
+        </div>
 
-      {/* Hovered element info bar */}
-      <div className="pt-info-bar" style={{ opacity: hovered ? 1 : 0 }}>
-        {hovered && (
-          <>
-            <span className="pt-info-z" style={{ color: hovCat?.text }}>{hovered.Z}</span>
-            <span className="pt-info-symbol" style={{ color: hovCat?.text }}>{hovered.symbol}</span>
-            <span className="pt-info-name">{hovered.name}</span>
-            <span className="pt-info-cat" style={{ background: hovCat?.bg, borderColor: hovCat?.border, color: hovCat?.text }}>
-              {hovCat?.label}
-            </span>
-          </>
-        )}
-      </div>
+        {/* Hovered element info bar */}
+        <div className="pt-info-bar" style={{ opacity: hovered ? 1 : 0 }}>
+          {hovered && (
+            <>
+              <span className="pt-info-z" style={{ color: hovCat?.text }}>{hovered.Z}</span>
+              <span className="pt-info-symbol" style={{ color: hovCat?.text }}>{hovered.symbol}</span>
+              <span className="pt-info-name">{hovered.name}</span>
+              <span className="pt-info-cat" style={{ background: hovCat?.bg, borderColor: hovCat?.border, color: hovCat?.text }}>
+                {hovCat?.label}
+              </span>
+            </>
+          )}
+        </div>
 
-      {/* The grid */}
-      <div className="pt-scroll-wrapper" ref={containerRef}>
-        <div
-          className="pt-grid"
-          style={{
-            gridTemplateColumns: `repeat(18, ${cellSize}px)`,
-            gridTemplateRows: `repeat(7, ${cellSize}px) ${cellSize * 0.4}px repeat(2, ${cellSize}px)`,
-            gap: '2px',
-          }}
-        >
-          {/* Elements */}
-          {ELEMENTS.map(el => (
-            <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} isActive={hovered?.symbol === el.symbol} />
+        {/* The grid */}
+        <div className="pt-scroll-wrapper" ref={containerRef}>
+          <div
+            className="pt-grid"
+            style={{
+              gridTemplateColumns: `repeat(18, ${cellSize}px)`,
+              gridTemplateRows: `repeat(7, ${cellSize}px) ${cellSize * 0.4}px repeat(2, ${cellSize}px)`,
+              gap: '2px',
+            }}
+          >
+            {/* Elements */}
+            {ELEMENTS.map(el => (
+              <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} isActive={hovered?.symbol === el.symbol} />
+            ))}
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="pt-legend">
+          {Object.entries(CAT_COLORS).map(([key, val]) => (
+            <div key={key} className="pt-legend-item">
+              <div className="pt-legend-dot" style={{ background: val.text }} />
+              <span className="pt-legend-label">{val.label}</span>
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Legend */}
-      <div className="pt-legend">
-        {Object.entries(CAT_COLORS).map(([key, val]) => (
-          <div key={key} className="pt-legend-item">
-            <div className="pt-legend-dot" style={{ background: val.text }} />
-            <span className="pt-legend-label">{val.label}</span>
-          </div>
-        ))}
       </div>
     </div>
   );

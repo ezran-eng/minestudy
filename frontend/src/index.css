@@ -1185,10 +1185,47 @@ body {
    PERIODIC TABLE
    ═══════════════════════════════════════════════════ */
 
-.pt-screen {
-  padding: 8px 8px 80px !important;
+/* Root wrapper — fullscreen on mobile */
+.pt-screen-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+/* On desktop, just scroll normally */
+.pt-screen-root:not(.pt-mobile) {
+  position: relative;
+  width: auto;
+  height: auto;
+  z-index: auto;
+  overflow: visible;
+  padding: 8px 8px 80px;
+}
+
+.pt-screen-root:not(.pt-mobile) .pt-rotated-content {
+  /* no rotation on desktop */
+}
+
+/* On mobile: rotate the inner content 90° to landscape */
+.pt-mobile .pt-rotated-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vh;
+  height: 100vw;
+  transform: rotate(90deg);
+  transform-origin: top left;
+  translate: 100vw 0;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  padding: 8px;
+  background: var(--bg);
 }
 
 .pt-header {
