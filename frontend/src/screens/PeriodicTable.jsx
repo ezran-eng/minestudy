@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';
 
@@ -66,7 +66,6 @@ const ELEMENTS = [
   // Period 6
   { symbol: 'Cs', Z: 55,  name: 'Cesio',         cat: 'alkali',      row: 6, col: 1 },
   { symbol: 'Ba', Z: 56,  name: 'Bario',         cat: 'alkaline',    row: 6, col: 2 },
-  // La-Lu → lanthanides (row 9)
   { symbol: 'La', Z: 57,  name: 'Lantano',       cat: 'lanthanide',  row: 9, col: 3 },
   { symbol: 'Ce', Z: 58,  name: 'Cerio',         cat: 'lanthanide',  row: 9, col: 4 },
   { symbol: 'Pr', Z: 59,  name: 'Praseodimio',   cat: 'lanthanide',  row: 9, col: 5 },
@@ -82,7 +81,6 @@ const ELEMENTS = [
   { symbol: 'Tm', Z: 69,  name: 'Tulio',         cat: 'lanthanide',  row: 9, col: 15 },
   { symbol: 'Yb', Z: 70,  name: 'Iterbio',       cat: 'lanthanide',  row: 9, col: 16 },
   { symbol: 'Lu', Z: 71,  name: 'Lutecio',       cat: 'lanthanide',  row: 9, col: 17 },
-  // Hf onwards
   { symbol: 'Hf', Z: 72,  name: 'Hafnio',        cat: 'transition',  row: 6, col: 4 },
   { symbol: 'Ta', Z: 73,  name: 'Tantalio',      cat: 'transition',  row: 6, col: 5 },
   { symbol: 'W',  Z: 74,  name: 'Wolframio',     cat: 'transition',  row: 6, col: 6 },
@@ -101,7 +99,6 @@ const ELEMENTS = [
   // Period 7
   { symbol: 'Fr', Z: 87,  name: 'Francio',       cat: 'alkali',      row: 7, col: 1 },
   { symbol: 'Ra', Z: 88,  name: 'Radio',         cat: 'alkaline',    row: 7, col: 2 },
-  // Ac-Lr → actinides (row 10)
   { symbol: 'Ac', Z: 89,  name: 'Actinio',       cat: 'actinide',    row: 10, col: 3 },
   { symbol: 'Th', Z: 90,  name: 'Torio',         cat: 'actinide',    row: 10, col: 4 },
   { symbol: 'Pa', Z: 91,  name: 'Protactinio',   cat: 'actinide',    row: 10, col: 5 },
@@ -117,7 +114,6 @@ const ELEMENTS = [
   { symbol: 'Md', Z: 101, name: 'Mendelevio',    cat: 'actinide',    row: 10, col: 15 },
   { symbol: 'No', Z: 102, name: 'Nobelio',       cat: 'actinide',    row: 10, col: 16 },
   { symbol: 'Lr', Z: 103, name: 'Lawrencio',     cat: 'actinide',    row: 10, col: 17 },
-  // Rf onwards
   { symbol: 'Rf', Z: 104, name: 'Rutherfordio',  cat: 'transition',  row: 7, col: 4 },
   { symbol: 'Db', Z: 105, name: 'Dubnio',        cat: 'transition',  row: 7, col: 5 },
   { symbol: 'Sg', Z: 106, name: 'Seaborgio',     cat: 'transition',  row: 7, col: 6 },
@@ -164,12 +160,11 @@ function useLottieData(symbol) {
 }
 
 /* ── Single element cell ── */
-const ElementCell = React.memo(({ el, cellSize, onHover, isActive }) => {
+const ElementCell = React.memo(({ el, cellSize, onSelect, isActive }) => {
   const lottieData = useLottieData(el.symbol);
   const lottieRef = useRef(null);
   const cat = CAT_COLORS[el.cat] || CAT_COLORS['nonmetal'];
 
-  // Play/stop based on active state
   useEffect(() => {
     if (!lottieRef.current) return;
     if (isActive) {
@@ -181,7 +176,7 @@ const ElementCell = React.memo(({ el, cellSize, onHover, isActive }) => {
 
   return (
     <div
-      className="pt-cell"
+      className={`pt-cell ${isActive ? 'pt-cell-active' : ''}`}
       style={{
         gridRow: el.row,
         gridColumn: el.col,
@@ -190,8 +185,9 @@ const ElementCell = React.memo(({ el, cellSize, onHover, isActive }) => {
         background: cat.bg,
         borderColor: cat.border,
       }}
-      onPointerEnter={() => onHover(el)}
-      onPointerLeave={() => onHover(null)}
+      onPointerEnter={() => onSelect(el)}
+      onPointerLeave={() => onSelect(null)}
+      onClick={(e) => { e.stopPropagation(); onSelect(el); }}
     >
       {lottieData ? (
         <Lottie
@@ -208,38 +204,185 @@ const ElementCell = React.memo(({ el, cellSize, onHover, isActive }) => {
   );
 });
 
-/* ── Main screen ── */
-const PeriodicTable = () => {
-  const navigate = useNavigate();
-  const containerRef = useRef(null);
-  const [hovered, setHovered] = useState(null);
-  const [cellSize, setCellSize] = useState(42);
+/* ── Pinch-zoom + pan hook for mobile ── */
+function usePinchPan(ref, { minScale = 0.5, maxScale = 3 } = {}) {
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const stateRef = useRef({ x: 0, y: 0, scale: 1 });
+  const gestureRef = useRef(null);
+
+  // Clamp position so grid stays partially visible
+  const clamp = useCallback((x, y, scale) => {
+    const el = ref.current;
+    if (!el) return { x, y };
+    const parent = el.parentElement;
+    if (!parent) return { x, y };
+    const pw = parent.clientWidth;
+    const ph = parent.clientHeight;
+    const gw = el.scrollWidth * scale;
+    const gh = el.scrollHeight * scale;
+    // Allow panning but keep at least 30% visible
+    const margin = 0.3;
+    const minX = pw - gw * (1 - margin);
+    const maxX = gw * margin - gw + pw * margin;
+    const minY = ph - gh * (1 - margin);
+    const maxY = gh * margin - gh + ph * margin;
+    return {
+      x: gw > pw ? Math.min(Math.max(x, minX), Math.max(maxX, 0)) : (pw - gw) / 2,
+      y: gh > ph ? Math.min(Math.max(y, minY), Math.max(maxY, 0)) : (ph - gh) / 2,
+    };
+  }, [ref]);
+
+  const apply = useCallback((x, y, scale) => {
+    const clamped = clamp(x, y, scale);
+    stateRef.current = { x: clamped.x, y: clamped.y, scale };
+    setTransform({ x: clamped.x, y: clamped.y, scale });
+  }, [clamp]);
 
   useEffect(() => {
-    const resize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const isMobile = w < 768;
-      if (isMobile) {
-        // Mobile: fit 10 rows (7 periods + gap + 2 f-block) in screen height
-        // Reserve 90px for header + info bar + legend
-        const availH = h - 90;
-        // 10 row-equivalents: 7 + 0.4 + 2 = 9.4 cells + 9 gaps of 2px
-        const sizeFromH = Math.floor((availH - 9 * 2) / 9.4);
-        // Also check width: 18 cols need to scroll, but let's not go too small
-        setCellSize(Math.max(28, Math.min(sizeFromH, 48)));
-      } else {
-        const size = Math.floor((w - 16 - 17 * 2) / 18);
-        setCellSize(Math.max(16, Math.min(size, 52)));
+    const el = ref.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        gestureRef.current = {
+          type: 'pan',
+          startX: t.clientX - stateRef.current.x,
+          startY: t.clientY - stateRef.current.y,
+        };
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0], t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const cx = (t1.clientX + t2.clientX) / 2;
+        const cy = (t1.clientY + t2.clientY) / 2;
+        gestureRef.current = {
+          type: 'pinch',
+          initialDist: dist,
+          initialScale: stateRef.current.scale,
+          cx, cy,
+          startX: stateRef.current.x,
+          startY: stateRef.current.y,
+        };
       }
     };
-    resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+
+    const handleTouchMove = (e) => {
+      const g = gestureRef.current;
+      if (!g) return;
+
+      if (g.type === 'pan' && e.touches.length === 1) {
+        const t = e.touches[0];
+        const x = t.clientX - g.startX;
+        const y = t.clientY - g.startY;
+        apply(x, y, stateRef.current.scale);
+      } else if (g.type === 'pinch' && e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0], t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        let newScale = g.initialScale * (dist / g.initialDist);
+        newScale = Math.min(maxScale, Math.max(minScale, newScale));
+
+        // Zoom towards pinch center
+        const ratio = newScale / g.initialScale;
+        const parentRect = parent.getBoundingClientRect();
+        const cx = g.cx - parentRect.left;
+        const cy = g.cy - parentRect.top;
+        const x = cx - ratio * (cx - g.startX);
+        const y = cy - ratio * (cy - g.startY);
+        apply(x, y, newScale);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      gestureRef.current = null;
+    };
+
+    parent.addEventListener('touchstart', handleTouchStart, { passive: false });
+    parent.addEventListener('touchmove', handleTouchMove, { passive: false });
+    parent.addEventListener('touchend', handleTouchEnd);
+    parent.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      parent.removeEventListener('touchstart', handleTouchStart);
+      parent.removeEventListener('touchmove', handleTouchMove);
+      parent.removeEventListener('touchend', handleTouchEnd);
+      parent.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [ref, minScale, maxScale, apply]);
+
+  return { transform, setTransform: apply };
+}
+
+/* ── Main screen ── */
+const CELL_BASE = 50; // fixed cell size for the grid, zoom handles scaling
+
+const PeriodicTable = () => {
+  const navigate = useNavigate();
+  const gridRef = useRef(null);
+  const viewportRef = useRef(null);
+  const [selected, setSelected] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
   }, []);
 
-  const hovCat = hovered ? CAT_COLORS[hovered.cat] : null;
+  // Grid natural size: 18 cols * (50+2) + 2 = ~938px wide, ~490px tall
+  const gridW = 18 * (CELL_BASE + 2);
+  const gridH = 9.4 * (CELL_BASE + 2); // 7 rows + 0.4 gap + 2 f-block rows
 
+  const { transform, setTransform } = usePinchPan(gridRef, {
+    minScale: 0.3,
+    maxScale: 4,
+  });
+
+  // On mount: fit the whole table in the viewport
+  useEffect(() => {
+    if (!isMobile) return;
+    const vp = viewportRef.current;
+    if (!vp) return;
+    // Small delay to let layout settle
+    const timer = setTimeout(() => {
+      const vpW = vp.clientWidth;
+      const vpH = vp.clientHeight;
+      const scaleX = vpW / gridW;
+      const scaleY = vpH / gridH;
+      const fitScale = Math.min(scaleX, scaleY) * 0.95;
+      const x = (vpW - gridW * fitScale) / 2;
+      const y = (vpH - gridH * fitScale) / 2;
+      setTransform(x, y, fitScale);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isMobile]); // eslint-disable-line
+
+  const selCat = selected ? CAT_COLORS[selected.cat] : null;
+
+  // Desktop: same as before (scroll-based, auto cell sizing)
+  if (!isMobile) {
+    return (
+      <div className="pt-screen-root">
+        <div className="pt-header">
+          <button className="pt-back" onClick={() => navigate(-1)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <div className="pt-title">Tabla Periódica</div>
+          <div style={{ width: 32 }} />
+        </div>
+        <DesktopInfoBar selected={selected} selCat={selCat} />
+        <div className="pt-scroll-wrapper">
+          <DesktopGrid selected={selected} setSelected={setSelected} />
+        </div>
+        <Legend />
+      </div>
+    );
+  }
+
+  // Mobile: pinch-zoom + pan experience
   return (
     <div className="pt-screen-root">
       {/* Header */}
@@ -250,51 +393,154 @@ const PeriodicTable = () => {
           </svg>
         </button>
         <div className="pt-title">Tabla Periódica</div>
-        <div style={{ width: 32 }} />
+        {/* Zoom controls */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button className="pt-zoom-btn" onClick={() => {
+            const vp = viewportRef.current;
+            if (!vp) return;
+            const vpW = vp.clientWidth;
+            const vpH = vp.clientHeight;
+            const fitScale = Math.min(vpW / gridW, vpH / gridH) * 0.95;
+            setTransform((vpW - gridW * fitScale) / 2, (vpH - gridH * fitScale) / 2, fitScale);
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="12" x2="15" y2="12" />
+            </svg>
+          </button>
+          <button className="pt-zoom-btn" onClick={() => {
+            const ns = Math.min(4, transform.scale * 1.5);
+            const vp = viewportRef.current;
+            if (!vp) return;
+            const cx = vp.clientWidth / 2;
+            const cy = vp.clientHeight / 2;
+            const ratio = ns / transform.scale;
+            setTransform(cx - ratio * (cx - transform.x), cy - ratio * (cy - transform.y), ns);
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {/* Hovered element info bar */}
-      <div className="pt-info-bar" style={{ opacity: hovered ? 1 : 0 }}>
-        {hovered && (
+      {/* Info bar */}
+      <div className="pt-info-bar" style={{ opacity: selected ? 1 : 0.4 }}>
+        {selected ? (
           <>
-            <span className="pt-info-z" style={{ color: hovCat?.text }}>{hovered.Z}</span>
-            <span className="pt-info-symbol" style={{ color: hovCat?.text }}>{hovered.symbol}</span>
-            <span className="pt-info-name">{hovered.name}</span>
-            <span className="pt-info-cat" style={{ background: hovCat?.bg, borderColor: hovCat?.border, color: hovCat?.text }}>
-              {hovCat?.label}
+            <span className="pt-info-z" style={{ color: selCat?.text }}>{selected.Z}</span>
+            <span className="pt-info-symbol" style={{ color: selCat?.text }}>{selected.symbol}</span>
+            <span className="pt-info-name">{selected.name}</span>
+            <span className="pt-info-cat" style={{ background: selCat?.bg, borderColor: selCat?.border, color: selCat?.text }}>
+              {selCat?.label}
             </span>
           </>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--text2)', fontStyle: 'italic' }}>
+            Pellizca para hacer zoom · Toca un elemento
+          </span>
         )}
       </div>
 
-      {/* The grid */}
-      <div className="pt-scroll-wrapper" ref={containerRef}>
+      {/* Viewport (touch zone) */}
+      <div className="pt-viewport" ref={viewportRef} onClick={() => setSelected(null)}>
         <div
+          ref={gridRef}
           className="pt-grid"
           style={{
-            gridTemplateColumns: `repeat(18, ${cellSize}px)`,
-            gridTemplateRows: `repeat(7, ${cellSize}px) ${cellSize * 0.4}px repeat(2, ${cellSize}px)`,
+            gridTemplateColumns: `repeat(18, ${CELL_BASE}px)`,
+            gridTemplateRows: `repeat(7, ${CELL_BASE}px) ${CELL_BASE * 0.4}px repeat(2, ${CELL_BASE}px)`,
             gap: '2px',
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: '0 0',
+            willChange: 'transform',
           }}
         >
-          {/* Elements */}
           {ELEMENTS.map(el => (
-            <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} isActive={hovered?.symbol === el.symbol} />
+            <ElementCell
+              key={el.symbol}
+              el={el}
+              cellSize={CELL_BASE}
+              onSelect={setSelected}
+              isActive={selected?.symbol === el.symbol}
+            />
           ))}
         </div>
       </div>
 
       {/* Legend */}
-      <div className="pt-legend">
-        {Object.entries(CAT_COLORS).map(([key, val]) => (
-          <div key={key} className="pt-legend-item">
-            <div className="pt-legend-dot" style={{ background: val.text }} />
-            <span className="pt-legend-label">{val.label}</span>
-          </div>
-        ))}
-      </div>
+      <Legend />
     </div>
   );
 };
+
+/* ── Desktop subcomponents ── */
+function DesktopInfoBar({ selected, selCat }) {
+  return (
+    <div className="pt-info-bar" style={{ opacity: selected ? 1 : 0 }}>
+      {selected && (
+        <>
+          <span className="pt-info-z" style={{ color: selCat?.text }}>{selected.Z}</span>
+          <span className="pt-info-symbol" style={{ color: selCat?.text }}>{selected.symbol}</span>
+          <span className="pt-info-name">{selected.name}</span>
+          <span className="pt-info-cat" style={{ background: selCat?.bg, borderColor: selCat?.border, color: selCat?.text }}>
+            {selCat?.label}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DesktopGrid({ selected, setSelected }) {
+  const [cellSize, setCellSize] = useState(42);
+  useEffect(() => {
+    const resize = () => {
+      const w = window.innerWidth - 16;
+      const size = Math.floor((w - 17 * 2) / 18);
+      setCellSize(Math.max(16, Math.min(size, 52)));
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+
+  return (
+    <div
+      className="pt-grid"
+      style={{
+        gridTemplateColumns: `repeat(18, ${cellSize}px)`,
+        gridTemplateRows: `repeat(7, ${cellSize}px) ${cellSize * 0.4}px repeat(2, ${cellSize}px)`,
+        gap: '2px',
+      }}
+    >
+      {ELEMENTS.map(el => (
+        <ElementCell
+          key={el.symbol}
+          el={el}
+          cellSize={cellSize}
+          onSelect={setSelected}
+          isActive={selected?.symbol === el.symbol}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="pt-legend">
+      {Object.entries(CAT_COLORS).map(([key, val]) => (
+        <div key={key} className="pt-legend-item">
+          <div className="pt-legend-dot" style={{ background: val.text }} />
+          <span className="pt-legend-label">{val.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default PeriodicTable;

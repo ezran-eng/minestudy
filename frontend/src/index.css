@@ -1200,6 +1200,32 @@ body {
   overflow: hidden;
 }
 
+/* Mobile viewport for pinch-zoom + pan */
+.pt-viewport {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  border-radius: 8px;
+}
+
+/* Zoom buttons */
+.pt-zoom-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.pt-zoom-btn:active { opacity: 0.5; }
+
 .pt-header {
   display: flex;
   align-items: center;
@@ -1320,10 +1346,14 @@ body {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .pt-cell:hover,
-.pt-cell:active {
-  transform: scale(1.25);
+.pt-cell-active {
   z-index: 10;
   box-shadow: 0 0 12px rgba(255,255,255,0.15);
+}
+@media (min-width: 768px) {
+  .pt-cell:hover, .pt-cell-active {
+    transform: scale(1.25);
+  }
 }
 
 .pt-cell-symbol {
