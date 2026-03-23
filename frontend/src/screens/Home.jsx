@@ -84,6 +84,53 @@ const Home = () => {
         </div>
       </div>
 
+      {/* Tabla Periódica */}
+      <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+        <button
+          onClick={() => navigate('/tabla-periodica')}
+          style={{
+            width: '100%',
+            padding: '14px 16px',
+            background: 'linear-gradient(135deg, rgba(100,180,255,0.1) 0%, rgba(130,120,255,0.1) 50%, rgba(200,100,255,0.1) 100%)',
+            border: '1px solid rgba(130,120,255,0.25)',
+            borderRadius: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}
+          onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+          onPointerUp={e => { e.currentTarget.style.transform = ''; }}
+          onPointerLeave={e => { e.currentTarget.style.transform = ''; }}
+        >
+          <div style={{
+            width: '38px', height: '38px', borderRadius: '10px',
+            background: 'rgba(130,120,255,0.15)', border: '1px solid rgba(130,120,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '18px', flexShrink: 0,
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8278ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.2px' }}>
+              Tabla Periódica
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
+              118 elementos con animaciones Lottie
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+
       {/* Tutorial para usuarios sin materias */}
       {sinMaterias && (
         <div style={{

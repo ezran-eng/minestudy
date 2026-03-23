@@ -29,7 +29,8 @@ import schemas
 from database import engine, get_db
 from mascota_ai import get_mascota_message
 from tutor_chat import tutor_respond
-from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_practica, accion_explicar_tema
+from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_practica, accion_explicar_tema, accion_elemento
+from periodic_table import lookup_element, search_elements, element_context_for_llm
 from ai_generate import generate_flashcards, generate_quiz
 from ton_storage import upload_to_ton, get_download_url
 import sentry_sdk
@@ -1791,6 +1792,10 @@ async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(g
             if not body.tema_nombre:
                 raise HTTPException(status_code=400, detail="tema_nombre required")
             resp = await accion_explicar_tema(body.unidad_id, body.tema_nombre, db)
+        elif body.accion == "elemento":
+            if not body.tema_nombre:
+                raise HTTPException(status_code=400, detail="tema_nombre (symbol) required")
+            resp = await accion_elemento(body.tema_nombre)
         else:
             raise HTTPException(status_code=400, detail=f"Acción desconocida: {body.accion}")
         logger.info("[tutor/accion] %s OK — user=%s unidad=%s", body.accion, body.user_id, body.unidad_id)
@@ -2073,3 +2078,24 @@ def zona_libre_report(request: Request, body: dict, db: Session = Depends(get_db
         logger.info("[zona-libre] archivo %d oculto por %d reportes", archivo_id, count)
 
     return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TABLA PERIÓDICA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/elementos/{symbol}")
+def get_element(symbol: str):
+    """Look up a single element by symbol or name."""
+    el = lookup_element(symbol)
+    if not el:
+        raise HTTPException(status_code=404, detail="Elemento no encontrado")
+    return el
+
+
+@app.get("/elementos")
+def search_elements_endpoint(q: str = ""):
+    """Search elements by name, symbol, category, or mining application."""
+    if not q or len(q) < 1:
+        raise HTTPException(status_code=400, detail="Parámetro 'q' requerido")
+    return search_elements(q)

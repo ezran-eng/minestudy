@@ -24,6 +24,7 @@ from sqlalchemy import func
 
 import models
 from llm import chat_completion
+from periodic_table import search_elements
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -41,6 +42,8 @@ TUTOR_SYSTEM_PROMPT = (
     "- Si el estudiante pregunta algo fuera de la materia, respondé brevemente "
     "y sugerí volver al tema\n"
     "- Podés usar emojis con moderación (máximo 2)\n"
+    "- Si preguntan sobre un elemento químico, tenés datos de la tabla periódica "
+    "con aplicaciones en minería. Usá ese contexto para dar respuestas relevantes\n"
     "- Usá el nombre del estudiante de vez en cuando\n"
     "- Formato: texto plano, sin markdown, sin bullets largos\n"
     "- Si la pregunta se puede responder con una flashcard existente, "
@@ -204,7 +207,19 @@ async def tutor_respond(
     for msg in trimmed:
         messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # 4. Append new question
+    # 4. Check if question references chemical elements — inject context
+    element_hits = search_elements(question)
+    if element_hits:
+        el_ctx = " | ".join(
+            f"{e['symbol']}(Z={e['Z']}) {e['name']}: {e['mining']}"
+            for e in element_hits[:3]
+        )
+        messages.append({
+            "role": "user",
+            "content": f"[elementos relevantes] {el_ctx}",
+        })
+
+    # 5. Append new question
     messages.append({"role": "user", "content": question})
 
     logger.info(

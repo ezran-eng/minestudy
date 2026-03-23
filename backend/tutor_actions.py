@@ -6,6 +6,7 @@ Estimated cost per action: ~150-280 tokens (vs ~1750 for open chat).
 import models
 from llm import chat_completion
 from datetime import datetime, timezone
+from periodic_table import lookup_element, element_context_for_llm
 
 _SYS = (
     "Sos Redo, tutor de ingeniería minera. "
@@ -149,3 +150,21 @@ async def accion_explicar_tema(unidad_id: int, tema_nombre: str, db) -> str:
         )},
     ]
     return await chat_completion(msgs, max_tokens=130, timeout=10.0)
+
+
+async def accion_elemento(symbol: str) -> str:
+    """Explain a chemical element with mining context."""
+    el = lookup_element(symbol)
+    if not el:
+        return f"No encontré el elemento '{symbol}'."
+
+    ctx = element_context_for_llm(symbol)
+    msgs = [
+        {"role": "system", "content": _SYS},
+        {"role": "user", "content": (
+            f"Dato del elemento: {ctx}\n"
+            "Explicame este elemento en el contexto de ingeniería minera. "
+            "Incluí su importancia, mineral principal y aplicación. 3-4 oraciones."
+        )},
+    ]
+    return await chat_completion(msgs, max_tokens=150, timeout=10.0)

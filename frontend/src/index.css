@@ -1180,3 +1180,183 @@ body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.4; transform: scale(0.7); }
 }
+
+/* ═══════════════════════════════════════════════════
+   PERIODIC TABLE
+   ═══════════════════════════════════════════════════ */
+
+.pt-screen {
+  padding: 8px 8px 80px !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 8px;
+}
+
+.pt-back {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pt-back:active { opacity: 0.5; }
+
+.pt-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+/* Info bar on hover/touch */
+.pt-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  min-height: 34px;
+  background: var(--s2);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: opacity 0.15s;
+}
+.pt-info-z {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+.pt-info-symbol {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+.pt-info-name {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.pt-info-cat {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* Scroll wrapper for the grid */
+.pt-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+/* Grid */
+.pt-grid {
+  display: grid;
+  position: relative;
+  margin: 0 auto;
+  width: fit-content;
+}
+
+/* Period labels */
+.pt-period-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text2);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Lanthanide/actinide label cells */
+.pt-lan-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Individual cell */
+.pt-cell {
+  position: relative;
+  border-radius: 4px;
+  border: 1px solid;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.pt-cell:hover,
+.pt-cell:active {
+  transform: scale(1.25);
+  z-index: 10;
+  box-shadow: 0 0 12px rgba(255,255,255,0.15);
+}
+
+.pt-cell-z {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 6px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.pt-cell-symbol {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+/* Legend */
+.pt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 10px 4px 8px;
+  justify-content: center;
+}
+.pt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pt-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.pt-legend-label {
+  font-size: 9px;
+  color: var(--text2);
+  font-weight: 500;
+  white-space: nowrap;
+}

@@ -21,6 +21,7 @@ const Profile = lazy(() => import('./screens/Profile'));
 const UserProfile = lazy(() => import('./screens/UserProfile'));
 const ZonaLibre = lazy(() => import('./screens/ZonaLibre'));
 const CinematicOnboarding = lazy(() => import('./components/Onboarding'));
+const PeriodicTable = lazy(() => import('./screens/PeriodicTable'));
 
 const LoadingBar = () => (
   <div style={{
@@ -54,6 +55,7 @@ const AppContent = ({ user }) => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/perfil/:id" element={<UserProfile />} />
             <Route path="/zona-libre" element={<ZonaLibre />} />
+            <Route path="/tabla-periodica" element={<PeriodicTable />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
