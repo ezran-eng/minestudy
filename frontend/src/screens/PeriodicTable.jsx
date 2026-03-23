@@ -164,9 +164,20 @@ function useLottieData(symbol) {
 }
 
 /* ── Single element cell ── */
-const ElementCell = React.memo(({ el, cellSize, onHover }) => {
+const ElementCell = React.memo(({ el, cellSize, onHover, isActive }) => {
   const lottieData = useLottieData(el.symbol);
+  const lottieRef = useRef(null);
   const cat = CAT_COLORS[el.cat] || CAT_COLORS['nonmetal'];
+
+  // Play/stop based on active state
+  useEffect(() => {
+    if (!lottieRef.current) return;
+    if (isActive) {
+      lottieRef.current.goToAndPlay(0);
+    } else {
+      lottieRef.current.goToAndStop(0);
+    }
+  }, [isActive]);
 
   return (
     <div
@@ -182,12 +193,12 @@ const ElementCell = React.memo(({ el, cellSize, onHover }) => {
       onPointerEnter={() => onHover(el)}
       onPointerLeave={() => onHover(null)}
     >
-      <span className="pt-cell-z">{el.Z}</span>
       {lottieData ? (
         <Lottie
+          lottieRef={lottieRef}
           animationData={lottieData}
           loop
-          autoplay
+          autoplay={false}
           style={{ width: '80%', height: '80%', position: 'absolute', top: '10%', left: '10%' }}
         />
       ) : (
@@ -270,7 +281,7 @@ const PeriodicTable = () => {
 
           {/* Elements */}
           {ELEMENTS.map(el => (
-            <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} />
+            <ElementCell key={el.symbol} el={el} cellSize={cellSize} onHover={setHovered} isActive={hovered?.symbol === el.symbol} />
           ))}
         </div>
       </div>

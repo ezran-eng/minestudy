@@ -1315,18 +1315,6 @@ body {
   box-shadow: 0 0 12px rgba(255,255,255,0.15);
 }
 
-.pt-cell-z {
-  position: absolute;
-  top: 1px;
-  left: 2px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 6px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.5);
-  pointer-events: none;
-  line-height: 1;
-}
-
 .pt-cell-symbol {
   font-family: 'Bebas Neue', cursive;
   font-size: 14px;
