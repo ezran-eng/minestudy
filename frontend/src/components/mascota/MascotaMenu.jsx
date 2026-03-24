@@ -4,6 +4,7 @@ const OPCIONES = [
   { emoji: '💬', label: 'PREGUNTARLE ALGO',  id: 'chat' },
   { emoji: '🍅', label: 'POMODORO',          id: 'pomodoro' },
   { emoji: '🔔', label: 'NOTIFICACIONES',    id: 'notificaciones' },
+  { emoji: '🧬', label: 'SINAPSIS',          id: 'sinapsis' },
   { emoji: '🔴', label: 'APAGAR ASISTENTE',  id: 'apagar' },
 ];
 
@@ -53,7 +54,7 @@ function NavButton({ dir, onPress }) {
   );
 }
 
-export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, onChat, onProximamente, above, left }) {
+export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, onChat, onSinapsis, onProximamente, above, left }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideClass, setSlideClass] = useState('');
   const [animKey, setAnimKey] = useState(0);
@@ -75,6 +76,7 @@ export default function MascotaMenu({ onApagar, onPomodoro, onNotificaciones, on
     else if (id === 'apagar') onApagar();
     else if (id === 'pomodoro') onPomodoro?.();
     else if (id === 'notificaciones') onNotificaciones();
+    else if (id === 'sinapsis') onSinapsis?.();
     else onProximamente?.();
   };
 

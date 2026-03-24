@@ -504,6 +504,7 @@ export default function Mascota({ userId }) {
             onChat={() => { setMenuOpen(false); setChatOpen(true); }}
             onPomodoro={() => { setMenuOpen(false); setTimeout(openPomodoro, 80); }}
             onNotificaciones={() => { setMenuOpen(false); navigate('/profile'); }}
+            onSinapsis={() => { setMenuOpen(false); navigate('/sinapsis'); }}
             onProximamente={() => { setMenuOpen(false); showBubble('Próximamente 👀'); }}
             above={menuAbove}
             left={menuLeft}
