@@ -12,35 +12,57 @@ const CATEGORIES = {
   screen:   { color: '#fb923c', label: 'Pantallas' },
 };
 
-/* ─── Nodes — positions as % of container (0-100) ─────────────────────────── */
+/* ─── Canvas size — large enough to scroll around ─────────────────────────── */
+const CW = 900;  // canvas width
+const CH = 1100; // canvas height
+
+/* ─── Nodes — absolute pixel positions on the virtual canvas ──────────────── */
+/* Organized in clear groups: External → Backend → Core → Frontend → Screens → Data */
 
 const NODES = [
-  { id: 'redo',           label: 'Redo AI',          cat: 'core',     px: 50,  py: 42,  size: 64, icon: '🤖' },
+  // ── External (top center) ──
+  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', x: 450, y: 80,   size: 56, icon: '🧠' },
 
-  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', px: 14,  py: 14,  size: 52, icon: '🧠' },
-  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  px: 32,  py: 18,  size: 48, icon: '⚡' },
+  // ── Backend (upper ring) ──
+  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  x: 250, y: 210,  size: 50, icon: '⚡' },
+  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  x: 450, y: 210,  size: 50, icon: '💬' },
+  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  x: 650, y: 210,  size: 50, icon: '🎯' },
 
-  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  px: 62,  py: 12,  size: 48, icon: '💬' },
-  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  px: 82,  py: 22,  size: 48, icon: '🎯' },
-  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  px: 84,  py: 48,  size: 48, icon: '✨' },
+  // ── Core (center) ──
+  { id: 'redo',           label: 'Redo AI',          cat: 'core',     x: 450, y: 420,  size: 72, icon: '🤖' },
 
-  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  px: 12,  py: 44,  size: 48, icon: '⚗️' },
-  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  px: 68,  py: 68,  size: 48, icon: '🧬' },
+  // ── Backend (flanks of center) ──
+  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  x: 140, y: 400,  size: 50, icon: '⚗️' },
+  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  x: 760, y: 400,  size: 50, icon: '✨' },
+  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  x: 700, y: 570,  size: 50, icon: '🧬' },
 
-  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', px: 36,  py: 55,  size: 44, icon: '🎭' },
-  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', px: 18,  py: 68,  size: 40, icon: '📋' },
-  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', px: 48,  py: 22,  size: 40, icon: '🖥️' },
-  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', px: 26,  py: 40,  size: 40, icon: '💭' },
-  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', px: 40,  py: 76,  size: 40, icon: '🔗' },
-  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', px: 86,  py: 68,  size: 40, icon: '🍅' },
+  // ── Frontend (lower area) ──
+  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', x: 350, y: 580,  size: 46, icon: '🖥️' },
+  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', x: 200, y: 580,  size: 46, icon: '🎭' },
+  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', x: 100, y: 660,  size: 42, icon: '💭' },
+  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', x: 260, y: 700,  size: 42, icon: '📋' },
+  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', x: 420, y: 710,  size: 42, icon: '🔗' },
+  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', x: 570, y: 680,  size: 42, icon: '🍅' },
 
-  { id: 'home',           label: 'Home',             cat: 'screen',   px: 8,   py: 26,  size: 40, icon: '🏠' },
-  { id: 'study',          label: 'Study',            cat: 'screen',   px: 90,  py: 12,  size: 40, icon: '📚' },
-  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   px: 92,  py: 36,  size: 40, icon: '📖' },
+  // ── Screens (right side) ──
+  { id: 'home',           label: 'Home',             cat: 'screen',   x: 100, y: 250,  size: 44, icon: '🏠' },
+  { id: 'study',          label: 'Study',            cat: 'screen',   x: 800, y: 250,  size: 44, icon: '📚' },
+  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   x: 820, y: 540,  size: 44, icon: '📖' },
 
-  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     px: 50,  py: 88,  size: 52, icon: '🗄️' },
-  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     px: 72,  py: 84,  size: 40, icon: '🔌' },
-  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     px: 28,  py: 88,  size: 40, icon: '☁️' },
+  // ── Data (bottom) ──
+  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     x: 450, y: 900,  size: 54, icon: '🗄️' },
+  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     x: 640, y: 880,  size: 44, icon: '🔌' },
+  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     x: 260, y: 880,  size: 44, icon: '☁️' },
+];
+
+/* ─── Category zones — subtle background regions ──────────────────────────── */
+const ZONES = [
+  { cat: 'external', label: 'EXTERNO',    x: 340, y: 30,   w: 220, h: 110 },
+  { cat: 'backend',  label: 'BACKEND',    x: 100, y: 155,  w: 710, h: 130 },
+  { cat: 'core',     label: 'NÚCLEO IA',  x: 340, y: 345,  w: 220, h: 150 },
+  { cat: 'frontend', label: 'FRONTEND',   x: 50,  y: 530,  w: 600, h: 240 },
+  { cat: 'screen',   label: 'PANTALLAS',  x: 700, y: 195,  w: 170, h: 440 },
+  { cat: 'data',     label: 'DATOS',      x: 180, y: 830,  w: 540, h: 130 },
 ];
 
 const CONNECTIONS = [
@@ -90,10 +112,9 @@ function getConnectedIds(nodeId) {
 export default function Sinapsis() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
-  const containerRef = useRef(null);
+  const scrollRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [animPhase, setAnimPhase] = useState(0);
-  const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight });
   const rafRef = useRef(null);
 
   useEffect(() => {
@@ -101,28 +122,32 @@ export default function Sinapsis() {
     return () => clearTimeout(t);
   }, []);
 
+  // Center scroll on Redo node initially
   useEffect(() => {
-    const onResize = () => setDims({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const el = scrollRef.current;
+    if (!el) return;
+    const redo = NODES.find(n => n.id === 'redo');
+    const t = setTimeout(() => {
+      el.scrollTo({
+        left: redo.x - el.clientWidth / 2,
+        top: redo.y - el.clientHeight / 2 + 30,
+        behavior: 'instant',
+      });
+    }, 10);
+    return () => clearTimeout(t);
   }, []);
 
   const connectedSet = useMemo(() => selected ? getConnectedIds(selected) : new Set(), [selected]);
 
-  // Get pixel position of a node
-  const getPos = useCallback((node) => ({
-    x: (node.px / 100) * dims.w,
-    y: (node.py / 100) * dims.h,
-  }), [dims]);
-
-  // Canvas connection lines
+  // Animated canvas lines — redraws on scroll
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = CW * dpr;
+    canvas.height = CH * dpr;
     const ctx = canvas.getContext('2d');
-    canvas.width = dims.w * window.devicePixelRatio;
-    canvas.height = dims.h * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.scale(dpr, dpr);
 
     let offset = 0;
     let lastTime = 0;
@@ -130,44 +155,41 @@ export default function Sinapsis() {
     const draw = (time) => {
       const dt = time - lastTime;
       lastTime = time;
-      offset -= dt * 0.02;
+      offset -= dt * 0.015;
 
-      ctx.clearRect(0, 0, dims.w, dims.h);
+      ctx.clearRect(0, 0, CW, CH);
 
       CONNECTIONS.forEach(conn => {
         const fromNode = NODES.find(n => n.id === conn.from);
         const toNode = NODES.find(n => n.id === conn.to);
         if (!fromNode || !toNode) return;
 
-        const from = getPos(fromNode);
-        const to = getPos(toNode);
         const cat = CATEGORIES[fromNode.cat];
         const color = cat?.color || '#666';
-
-        const isHighlighted = !selected ||
-          conn.from === selected || conn.to === selected;
+        const isHL = !selected || conn.from === selected || conn.to === selected;
 
         ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
+        ctx.moveTo(fromNode.x, fromNode.y);
+        ctx.lineTo(toNode.x, toNode.y);
         ctx.strokeStyle = color;
-        ctx.globalAlpha = isHighlighted ? 0.4 : 0.06;
-        ctx.lineWidth = isHighlighted ? 2 : 1;
+        ctx.globalAlpha = isHL ? 0.35 : 0.05;
+        ctx.lineWidth = isHL ? 2 : 0.8;
         ctx.setLineDash([8, 6]);
         ctx.lineDashOffset = offset;
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
 
-        // Draw connection label when selected
-        if (isHighlighted && selected && conn.label) {
-          const mx = (from.x + to.x) / 2;
-          const my = (from.y + to.y) / 2;
-          ctx.font = "9px 'Silkscreen', monospace";
-          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        // Label
+        if (isHL && selected && conn.label) {
+          const mx = (fromNode.x + toNode.x) / 2;
+          const my = (fromNode.y + toNode.y) / 2;
+          ctx.globalAlpha = 0.5;
+          ctx.font = "10px 'Silkscreen', monospace";
+          ctx.fillStyle = '#fff';
           ctx.textAlign = 'center';
-          ctx.fillText(conn.label, mx, my - 5);
+          ctx.fillText(conn.label, mx, my - 6);
         }
+        ctx.globalAlpha = 1;
       });
 
       rafRef.current = requestAnimationFrame(draw);
@@ -175,205 +197,238 @@ export default function Sinapsis() {
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [dims, selected, getPos]);
+  }, [selected]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed', inset: 0, background: '#050510',
-        overflow: 'hidden', zIndex: 9999,
-        fontFamily: "'Silkscreen', cursive",
-      }}
-      onClick={() => setSelected(null)}
-    >
-      {/* Background grid */}
+    <div style={{
+      position: 'fixed', inset: 0, background: '#050510',
+      zIndex: 9999, fontFamily: "'Silkscreen', cursive",
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Header — fixed */}
       <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: `
-          radial-gradient(circle at 50% 42%, rgba(139,92,246,0.08) 0%, transparent 60%),
-          linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
-        `,
-        backgroundSize: '100% 100%, 50px 50px, 50px 50px',
-        opacity: animPhase ? 1 : 0,
-        transition: 'opacity 1.2s ease',
-      }} />
-
-      {/* Canvas for animated connection lines */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute', inset: 0,
-          width: dims.w, height: dims.h,
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Header */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-        padding: '14px 20px 20px',
-        background: 'linear-gradient(to bottom, rgba(5,5,16,0.95) 50%, transparent)',
-        display: 'flex', alignItems: 'center', gap: '12px',
+        padding: '12px 16px',
+        background: 'rgba(5,5,16,0.95)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', gap: '10px',
+        zIndex: 10, flexShrink: 0,
       }}>
         <button
-          onClick={(e) => { e.stopPropagation(); navigate(-1); }}
+          onClick={() => navigate(-1)}
           style={{
             background: 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '12px', padding: '8px 14px',
+            borderRadius: '10px', padding: '7px 12px',
             color: '#fff', cursor: 'pointer',
-            fontFamily: "'Silkscreen', cursive", fontSize: '11px',
+            fontFamily: "'Silkscreen', cursive", fontSize: '10px',
           }}
         >
           ← VOLVER
         </button>
         <div style={{ flex: 1 }}>
           <div style={{
-            fontSize: '14px', fontWeight: 700,
+            fontSize: '13px', fontWeight: 700,
             letterSpacing: '2px',
             background: 'linear-gradient(90deg, #a78bfa, #60a5fa)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>
             SINAPSIS
           </div>
-          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', letterSpacing: '1px' }}>
+          <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.35)', marginTop: '1px', letterSpacing: '1px' }}>
             MAPA NEURAL DE REDO
           </div>
         </div>
-        <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
-          {NODES.length} nodos<br />{CONNECTIONS.length} conexiones
+        <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.25)', textAlign: 'right' }}>
+          {NODES.length} nodos<br />{CONNECTIONS.length} conex.
         </div>
       </div>
 
-      {/* Nodes — HTML divs at percentage positions */}
-      {NODES.map((node, i) => {
-        const cat = CATEGORIES[node.cat];
-        const isSelected = selected === node.id;
-        const isCenter = node.id === 'redo';
-        const highlighted = !selected || node.id === selected || connectedSet.has(node.id);
+      {/* Scrollable area */}
+      <div
+        ref={scrollRef}
+        onClick={() => setSelected(null)}
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {/* Virtual canvas — larger than viewport */}
+        <div style={{
+          position: 'relative',
+          width: CW,
+          height: CH,
+          minWidth: CW,
+          minHeight: CH,
+        }}>
+          {/* Background grid */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `
+              radial-gradient(circle at 450px 420px, rgba(139,92,246,0.06) 0%, transparent 50%),
+              linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 50px 50px, 50px 50px',
+          }} />
 
-        return (
-          <div
-            key={node.id}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelected(prev => prev === node.id ? null : node.id);
-            }}
+          {/* Canvas for connection lines */}
+          <canvas
+            ref={canvasRef}
             style={{
-              position: 'absolute',
-              left: `${node.px}%`,
-              top: `${node.py}%`,
-              transform: 'translate(-50%, -50%)',
-              width: node.size,
-              height: node.size,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              opacity: animPhase ? (highlighted ? 1 : 0.2) : 0,
-              transition: 'opacity 0.4s ease, transform 0.3s ease',
-              animation: animPhase ? `sinapsis-enter 0.6s ease-out ${i * 0.05}s both` : 'none',
-              zIndex: isSelected ? 5 : 2,
+              position: 'absolute', top: 0, left: 0,
+              width: CW, height: CH,
+              pointerEvents: 'none',
             }}
-          >
-            {/* Glow background */}
-            <div style={{
-              position: 'absolute',
-              width: node.size,
-              height: node.size,
-              borderRadius: '50%',
-              background: `radial-gradient(circle, ${cat.color}${isSelected ? '30' : '12'} 0%, transparent 70%)`,
-              filter: isCenter ? 'blur(8px)' : (isSelected ? 'blur(6px)' : 'blur(4px)'),
-              animation: isCenter && !selected ? 'sinapsis-pulse 2.5s ease-in-out infinite' : 'none',
-            }} />
+          />
 
-            {/* Circle border */}
-            <div style={{
-              position: 'absolute',
-              width: node.size * 0.75,
-              height: node.size * 0.75,
-              borderRadius: '50%',
-              border: `${isCenter ? 2.5 : 1.5}px solid ${cat.color}`,
-              borderColor: isSelected ? cat.color : `${cat.color}99`,
-              background: `${cat.color}10`,
-              boxShadow: isSelected
-                ? `0 0 20px ${cat.color}40, inset 0 0 15px ${cat.color}15`
-                : 'none',
-              transition: 'border-color 0.3s, box-shadow 0.3s',
-            }} />
-
-            {/* Rotating dashed ring when selected */}
-            {isSelected && (
-              <div style={{
+          {/* Category zones — subtle bordered regions */}
+          {ZONES.map(zone => {
+            const cat = CATEGORIES[zone.cat];
+            return (
+              <div key={zone.cat} style={{
                 position: 'absolute',
-                width: node.size * 0.92,
-                height: node.size * 0.92,
-                borderRadius: '50%',
-                border: `1.5px dashed ${cat.color}88`,
-                animation: 'sinapsis-rotate 8s linear infinite',
-              }} />
-            )}
+                left: zone.x, top: zone.y,
+                width: zone.w, height: zone.h,
+                borderRadius: '20px',
+                border: `1px solid ${cat.color}15`,
+                background: `${cat.color}06`,
+                pointerEvents: 'none',
+              }}>
+                <span style={{
+                  position: 'absolute', top: 6, left: 12,
+                  fontSize: '7px', letterSpacing: '2px',
+                  color: `${cat.color}50`,
+                  fontWeight: 700,
+                }}>
+                  {zone.label}
+                </span>
+              </div>
+            );
+          })}
 
-            {/* Icon */}
-            <span style={{
-              fontSize: isCenter ? 26 : 20,
-              zIndex: 1,
-              filter: highlighted ? 'none' : 'grayscale(0.8)',
-              transition: 'filter 0.3s',
-            }}>
-              {node.icon}
-            </span>
+          {/* Nodes */}
+          {NODES.map((node, i) => {
+            const cat = CATEGORIES[node.cat];
+            const isSelected = selected === node.id;
+            const isCenter = node.id === 'redo';
+            const highlighted = !selected || node.id === selected || connectedSet.has(node.id);
 
-            {/* Label below */}
-            <span style={{
-              position: 'absolute',
-              bottom: -4,
-              whiteSpace: 'nowrap',
-              fontSize: isCenter ? '9px' : '7px',
-              fontWeight: isCenter ? 700 : 400,
-              color: highlighted ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)',
-              textShadow: highlighted ? '0 0 8px rgba(0,0,0,0.8)' : 'none',
-              letterSpacing: '0.5px',
-              transition: 'color 0.3s',
-              zIndex: 1,
-            }}>
-              {node.label}
-            </span>
-          </div>
-        );
-      })}
+            return (
+              <div
+                key={node.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelected(prev => prev === node.id ? null : node.id);
+                }}
+                style={{
+                  position: 'absolute',
+                  left: node.x,
+                  top: node.y,
+                  transform: 'translate(-50%, -50%)',
+                  width: node.size,
+                  height: node.size,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  opacity: animPhase ? (highlighted ? 1 : 0.2) : 0,
+                  transition: 'opacity 0.4s ease',
+                  animation: animPhase ? `sinapsis-node-in 0.5s ease-out ${i * 0.04}s both` : 'none',
+                  zIndex: isSelected ? 5 : 2,
+                }}
+              >
+                {/* Glow */}
+                <div style={{
+                  position: 'absolute',
+                  width: node.size * 1.2,
+                  height: node.size * 1.2,
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, ${cat.color}${isSelected ? '28' : '10'} 0%, transparent 70%)`,
+                  filter: isCenter ? 'blur(10px)' : 'blur(5px)',
+                  animation: isCenter && !selected ? 'sinapsis-pulse 2.5s ease-in-out infinite' : 'none',
+                }} />
 
-      {/* Legend */}
+                {/* Circle */}
+                <div style={{
+                  position: 'absolute',
+                  width: node.size * 0.72,
+                  height: node.size * 0.72,
+                  borderRadius: '50%',
+                  border: `${isCenter ? 2.5 : 1.5}px solid ${isSelected ? cat.color : `${cat.color}88`}`,
+                  background: isSelected ? `${cat.color}18` : `${cat.color}08`,
+                  boxShadow: isSelected ? `0 0 24px ${cat.color}30, inset 0 0 12px ${cat.color}10` : 'none',
+                  transition: 'all 0.3s ease',
+                }} />
+
+                {/* Selected ring */}
+                {isSelected && (
+                  <div style={{
+                    position: 'absolute',
+                    width: node.size * 0.9,
+                    height: node.size * 0.9,
+                    borderRadius: '50%',
+                    border: `1.5px dashed ${cat.color}66`,
+                    animation: 'sinapsis-rotate 8s linear infinite',
+                  }} />
+                )}
+
+                {/* Emoji */}
+                <span style={{
+                  fontSize: isCenter ? 28 : 20,
+                  zIndex: 1,
+                  filter: highlighted ? 'none' : 'grayscale(0.8)',
+                  transition: 'filter 0.3s',
+                }}>
+                  {node.icon}
+                </span>
+
+                {/* Label */}
+                <span style={{
+                  position: 'absolute',
+                  bottom: isCenter ? -6 : -2,
+                  whiteSpace: 'nowrap',
+                  fontSize: isCenter ? '9px' : '7px',
+                  fontWeight: isCenter ? 700 : 400,
+                  color: highlighted ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)',
+                  textShadow: '0 0 10px rgba(0,0,0,0.9)',
+                  letterSpacing: '0.3px',
+                  transition: 'color 0.3s',
+                  zIndex: 1,
+                }}>
+                  {node.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend — fixed bottom */}
       <div style={{
-        position: 'absolute', bottom: 12, left: 12, right: 12,
-        display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center',
-        zIndex: 10,
-        opacity: animPhase ? 1 : 0,
-        transition: 'opacity 0.8s ease 0.6s',
+        padding: '8px 12px',
+        background: 'rgba(5,5,16,0.95)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', flexWrap: 'wrap', gap: '5px', justifyContent: 'center',
+        zIndex: 10, flexShrink: 0,
       }}>
         {Object.entries(CATEGORIES).map(([key, { color, label }]) => (
           <div key={key} style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
-            padding: '4px 10px',
-            background: 'rgba(5,5,16,0.7)',
-            border: `1px solid ${color}33`,
-            borderRadius: '8px',
+            display: 'flex', alignItems: 'center', gap: '4px',
+            padding: '3px 8px',
+            background: `${color}0a`,
+            border: `1px solid ${color}22`,
+            borderRadius: '6px',
           }}>
             <div style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: color, boxShadow: `0 0 6px ${color}80`,
+              width: 6, height: 6, borderRadius: '50%',
+              background: color, boxShadow: `0 0 4px ${color}80`,
             }} />
-            <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.6)' }}>
-              {label}
-            </span>
+            <span style={{ fontSize: '7px', color: 'rgba(255,255,255,0.55)' }}>{label}</span>
           </div>
         ))}
       </div>
 
-      {/* Detail panel */}
+      {/* Detail panel — fixed */}
       {selected && (() => {
         const node = NODES.find(n => n.id === selected);
         if (!node) return null;
@@ -382,28 +437,28 @@ export default function Sinapsis() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'absolute', bottom: 52, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(10,10,30,0.92)',
+              position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(10,10,30,0.94)',
               backdropFilter: 'blur(20px)',
               border: `1px solid ${cat.color}44`,
-              borderRadius: '16px',
-              padding: '12px 18px',
-              maxWidth: '320px', width: '88%',
-              zIndex: 20,
-              animation: 'sinapsis-enter 0.25s ease-out',
+              borderRadius: '14px',
+              padding: '11px 16px',
+              maxWidth: '300px', width: '85%',
+              zIndex: 30,
+              animation: 'sinapsis-pop 0.2s ease-out',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '22px' }}>{node.icon}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+              <span style={{ fontSize: '20px' }}>{node.icon}</span>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: cat.color }}>{node.label}</div>
-                <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', marginTop: '1px' }}>{cat.label}</div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: cat.color }}>{node.label}</div>
+                <div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>{cat.label}</div>
               </div>
             </div>
             <div style={{
-              fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-              borderTop: '1px solid rgba(255,255,255,0.08)',
-              paddingTop: '6px', lineHeight: 1.5,
+              fontSize: '8px', color: 'rgba(255,255,255,0.45)',
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              paddingTop: '5px', lineHeight: 1.5,
             }}>
               {connectedSet.size} conexión{connectedSet.size !== 1 ? 'es' : ''} →{' '}
               {[...connectedSet].map(id => NODES.find(n => n.id === id)?.label).filter(Boolean).join(', ')}
@@ -414,16 +469,20 @@ export default function Sinapsis() {
 
       {/* Keyframes */}
       <style>{`
-        @keyframes sinapsis-enter {
-          from { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+        @keyframes sinapsis-node-in {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
           to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         @keyframes sinapsis-pulse {
-          0%, 100% { opacity: 0.8; transform: scale(1); }
+          0%, 100% { opacity: 0.7; transform: scale(1); }
           50%      { opacity: 1;   transform: scale(1.3); }
         }
         @keyframes sinapsis-rotate {
           to { transform: rotate(360deg); }
+        }
+        @keyframes sinapsis-pop {
+          from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+          to   { opacity: 1; transform: translateX(-50%) scale(1); }
         }
       `}</style>
     </div>
