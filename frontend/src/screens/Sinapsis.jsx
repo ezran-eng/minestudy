@@ -199,15 +199,20 @@ export default function Sinapsis() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [selected]);
 
+  // Telegram safe area — push content below the "X Cerrar" button
+  const tg = window.Telegram?.WebApp;
+  const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
+
   return (
     <div style={{
       position: 'fixed', inset: 0, background: '#050510',
       zIndex: 9999, fontFamily: "'Silkscreen', cursive",
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Header — fixed */}
+      {/* Header — fixed, below Telegram safe area */}
       <div style={{
-        padding: '12px 16px',
+        paddingTop: safeTop + 12,
+        paddingLeft: 16, paddingRight: 16, paddingBottom: 12,
         background: 'rgba(5,5,16,0.95)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', alignItems: 'center', gap: '10px',
