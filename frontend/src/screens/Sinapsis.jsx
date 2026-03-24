@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-/* ─── Node & connection data ──────────────────────────────────────────────── */
+/* ─── Categories ──────────────────────────────────────────────────────────── */
 
 const CATEGORIES = {
   core:     { color: '#a78bfa', label: 'Núcleo IA' },
@@ -12,44 +12,38 @@ const CATEGORIES = {
   screen:   { color: '#fb923c', label: 'Pantallas' },
 };
 
+/* ─── Nodes — positions as % of container (0-100) ─────────────────────────── */
+
 const NODES = [
-  // Center — Redo AI hub
-  { id: 'redo',           label: 'Redo AI',          cat: 'core',     x: 0,    y: 0,    r: 32, icon: '🤖' },
+  { id: 'redo',           label: 'Redo AI',          cat: 'core',     px: 50,  py: 42,  size: 64, icon: '🤖' },
 
-  // Top-left — External AI
-  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', x: -320, y: -240, r: 24, icon: '🧠' },
-  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  x: -150, y: -200, r: 22, icon: '⚡' },
+  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', px: 14,  py: 14,  size: 52, icon: '🧠' },
+  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  px: 32,  py: 18,  size: 48, icon: '⚡' },
 
-  // Top-right — Tutor system
-  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  x: 160,  y: -260, r: 22, icon: '💬' },
-  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  x: 340,  y: -140, r: 22, icon: '🎯' },
-  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  x: 330,  y: 80,   r: 22, icon: '✨' },
+  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  px: 62,  py: 12,  size: 48, icon: '💬' },
+  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  px: 82,  py: 22,  size: 48, icon: '🎯' },
+  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  px: 84,  py: 48,  size: 48, icon: '✨' },
 
-  // Left — Knowledge
-  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  x: -340, y: 20,   r: 22, icon: '⚗️' },
-  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  x: 160,  y: 240,  r: 22, icon: '🧬' },
+  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  px: 12,  py: 44,  size: 48, icon: '⚗️' },
+  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  px: 68,  py: 68,  size: 48, icon: '🧬' },
 
-  // Inner ring — Frontend components
-  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', x: -100, y: 120,  r: 20, icon: '🎭' },
-  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', x: -260, y: 180,  r: 18, icon: '📋' },
-  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', x: 30,   y: -130, r: 18, icon: '🖥️' },
-  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', x: -180, y: 80,   r: 18, icon: '💭' },
-  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', x: -50,  y: 260,  r: 18, icon: '🔗' },
-  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', x: 260,  y: 200,  r: 18, icon: '🍅' },
+  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', px: 36,  py: 55,  size: 44, icon: '🎭' },
+  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', px: 18,  py: 68,  size: 40, icon: '📋' },
+  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', px: 48,  py: 22,  size: 40, icon: '🖥️' },
+  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', px: 26,  py: 40,  size: 40, icon: '💭' },
+  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', px: 40,  py: 76,  size: 40, icon: '🔗' },
+  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', px: 86,  py: 68,  size: 40, icon: '🍅' },
 
-  // Far edges — Screens
-  { id: 'home',           label: 'Home',             cat: 'screen',   x: -380, y: -140, r: 18, icon: '🏠' },
-  { id: 'study',          label: 'Study',            cat: 'screen',   x: 400,  y: -240, r: 18, icon: '📚' },
-  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   x: 420,  y: -20,  r: 18, icon: '📖' },
+  { id: 'home',           label: 'Home',             cat: 'screen',   px: 8,   py: 26,  size: 40, icon: '🏠' },
+  { id: 'study',          label: 'Study',            cat: 'screen',   px: 90,  py: 12,  size: 40, icon: '📚' },
+  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   px: 92,  py: 36,  size: 40, icon: '📖' },
 
-  // Bottom — Data layer
-  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     x: 0,    y: 380,  r: 24, icon: '🗄️' },
-  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     x: 220,  y: 360,  r: 18, icon: '🔌' },
-  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     x: -220, y: 360,  r: 18, icon: '☁️' },
+  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     px: 50,  py: 88,  size: 52, icon: '🗄️' },
+  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     px: 72,  py: 84,  size: 40, icon: '🔌' },
+  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     px: 28,  py: 88,  size: 40, icon: '☁️' },
 ];
 
 const CONNECTIONS = [
-  // Redo core connections
   { from: 'redo', to: 'llm',            label: 'prompts' },
   { from: 'redo', to: 'tutor_chat',     label: 'conversación' },
   { from: 'redo', to: 'tutor_actions',  label: 'acciones' },
@@ -57,26 +51,21 @@ const CONNECTIONS = [
   { from: 'redo', to: 'memoria',        label: 'recuerdos' },
   { from: 'redo', to: 'mascota_fe',     label: 'renderiza' },
   { from: 'redo', to: 'periodic',       label: 'elementos' },
-  // LLM → DeepSeek
   { from: 'llm',  to: 'deepseek',       label: 'API calls' },
-  // Tutor system
   { from: 'tutor_chat',    to: 'llm',           label: 'genera respuesta' },
   { from: 'tutor_actions', to: 'llm',           label: 'decide acción' },
   { from: 'tutor_actions', to: 'ai_generate',   label: 'flashcards/quiz' },
   { from: 'tutor_chat',    to: 'periodic',      label: 'contexto elementos' },
-  // Frontend wiring
   { from: 'mascota_fe',    to: 'speech_bubble',  label: 'muestra texto' },
   { from: 'mascota_fe',    to: 'mascota_menu',   label: 'abre menú' },
   { from: 'mascota_fe',    to: 'tutor_chat_ui',  label: 'abre chat' },
   { from: 'mascota_fe',    to: 'mascota_ctx',    label: 'contexto' },
   { from: 'mascota_fe',    to: 'pomodoro',       label: 'timer' },
   { from: 'tutor_chat_ui', to: 'tutor_chat',     label: 'fetch' },
-  // Screens
   { from: 'mascota_fe',    to: 'home',           label: 'navega' },
   { from: 'tutor_actions', to: 'study',          label: 'redirige' },
   { from: 'tutor_actions', to: 'unidad',         label: 'redirige' },
   { from: 'ai_generate',   to: 'unidad',         label: 'contenido' },
-  // Data
   { from: 'memoria',       to: 'postgres',       label: 'persiste' },
   { from: 'ai_generate',   to: 'postgres',       label: 'guarda' },
   { from: 'tutor_chat',    to: 'postgres',       label: 'historial' },
@@ -100,134 +89,136 @@ function getConnectedIds(nodeId) {
 
 export default function Sinapsis() {
   const navigate = useNavigate();
-  const svgRef = useRef(null);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const [selected, setSelected] = useState(null);
-  const [dimensions, setDimensions] = useState({ w: window.innerWidth, h: window.innerHeight });
-  const [animPhase, setAnimPhase] = useState(0); // 0=entering, 1=ready
-  const touchRef = useRef({ startX: 0, startY: 0, ox: 0, oy: 0, pinchDist: 0, pinchScale: 1 });
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
-  const isPanning = useRef(false);
+  const [animPhase, setAnimPhase] = useState(0);
+  const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setAnimPhase(1), 100);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setAnimPhase(1), 50);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    const onResize = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
+    const onResize = () => setDims({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const cx = dimensions.w / 2;
-  const cy = dimensions.h / 2;
-
-  // Auto-scale: fit all nodes within 85% of viewport, with padding for labels
-  const autoScale = useMemo(() => {
-    const pad = 60; // space for labels around outermost nodes
-    let maxX = 0, maxY = 0;
-    NODES.forEach(n => { maxX = Math.max(maxX, Math.abs(n.x) + n.r + pad); maxY = Math.max(maxY, Math.abs(n.y) + n.r + pad); });
-    const availW = dimensions.w * 0.85;
-    const availH = (dimensions.h - 120) * 0.85; // subtract header+legend height
-    return Math.min(availW / (maxX * 2), availH / (maxY * 2), 1);
-  }, [dimensions]);
-
   const connectedSet = useMemo(() => selected ? getConnectedIds(selected) : new Set(), [selected]);
 
-  const isHighlighted = useCallback((id) => {
-    if (!selected) return true;
-    return id === selected || connectedSet.has(id);
-  }, [selected, connectedSet]);
+  // Get pixel position of a node
+  const getPos = useCallback((node) => ({
+    x: (node.px / 100) * dims.w,
+    y: (node.py / 100) * dims.h,
+  }), [dims]);
 
-  const isConnectionHighlighted = useCallback((from, to) => {
-    if (!selected) return true;
-    return (from === selected || to === selected);
-  }, [selected]);
-
-  /* ── Touch / mouse pan & zoom ─────────────────────────────────────────── */
-
-  const onPointerDown = useCallback((e) => {
-    if (e.target.closest('.sinapsis-node')) return;
-    isPanning.current = true;
-    touchRef.current.startX = e.clientX;
-    touchRef.current.startY = e.clientY;
-    touchRef.current.ox = pan.x;
-    touchRef.current.oy = pan.y;
-  }, [pan]);
-
-  const onPointerMove = useCallback((e) => {
-    if (!isPanning.current) return;
-    const dx = e.clientX - touchRef.current.startX;
-    const dy = e.clientY - touchRef.current.startY;
-    setPan({ x: touchRef.current.ox + dx, y: touchRef.current.oy + dy });
-  }, []);
-
-  const onPointerUp = useCallback(() => { isPanning.current = false; }, []);
-
-  const onWheel = useCallback((e) => {
-    e.preventDefault();
-    setScale(s => Math.max(0.4, Math.min(2.5, s - e.deltaY * 0.001)));
-  }, []);
-
+  // Canvas connection lines
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    svg.addEventListener('wheel', onWheel, { passive: false });
-    return () => svg.removeEventListener('wheel', onWheel);
-  }, [onWheel]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = dims.w * window.devicePixelRatio;
+    canvas.height = dims.h * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  /* ── Pinch zoom ───────────────────────────────────────────────────────── */
+    let offset = 0;
+    let lastTime = 0;
 
-  const onTouchStart = useCallback((e) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      touchRef.current.pinchDist = Math.sqrt(dx * dx + dy * dy);
-      touchRef.current.pinchScale = scale;
-    }
-  }, [scale]);
+    const draw = (time) => {
+      const dt = time - lastTime;
+      lastTime = time;
+      offset -= dt * 0.02;
 
-  const onTouchMove = useCallback((e) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const ratio = dist / touchRef.current.pinchDist;
-      setScale(Math.max(0.4, Math.min(2.5, touchRef.current.pinchScale * ratio)));
-    }
-  }, []);
+      ctx.clearRect(0, 0, dims.w, dims.h);
 
-  const selectedNode = selected ? NODES.find(n => n.id === selected) : null;
+      CONNECTIONS.forEach(conn => {
+        const fromNode = NODES.find(n => n.id === conn.from);
+        const toNode = NODES.find(n => n.id === conn.to);
+        if (!fromNode || !toNode) return;
+
+        const from = getPos(fromNode);
+        const to = getPos(toNode);
+        const cat = CATEGORIES[fromNode.cat];
+        const color = cat?.color || '#666';
+
+        const isHighlighted = !selected ||
+          conn.from === selected || conn.to === selected;
+
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = isHighlighted ? 0.4 : 0.06;
+        ctx.lineWidth = isHighlighted ? 2 : 1;
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = offset;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        // Draw connection label when selected
+        if (isHighlighted && selected && conn.label) {
+          const mx = (from.x + to.x) / 2;
+          const my = (from.y + to.y) / 2;
+          ctx.font = "9px 'Silkscreen', monospace";
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.textAlign = 'center';
+          ctx.fillText(conn.label, mx, my - 5);
+        }
+      });
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [dims, selected, getPos]);
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: '#050510',
-      overflow: 'hidden', zIndex: 9999,
-      fontFamily: "'Silkscreen', cursive",
-    }}>
-      {/* Animated background grid */}
+    <div
+      ref={containerRef}
+      style={{
+        position: 'fixed', inset: 0, background: '#050510',
+        overflow: 'hidden', zIndex: 9999,
+        fontFamily: "'Silkscreen', cursive",
+      }}
+      onClick={() => setSelected(null)}
+    >
+      {/* Background grid */}
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `
-          radial-gradient(circle at 50% 50%, rgba(139,92,246,0.06) 0%, transparent 70%),
-          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
+          radial-gradient(circle at 50% 42%, rgba(139,92,246,0.08) 0%, transparent 60%),
+          linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
         `,
-        backgroundSize: '100% 100%, 40px 40px, 40px 40px',
+        backgroundSize: '100% 100%, 50px 50px, 50px 50px',
         opacity: animPhase ? 1 : 0,
-        transition: 'opacity 1s ease',
+        transition: 'opacity 1.2s ease',
       }} />
+
+      {/* Canvas for animated connection lines */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'absolute', inset: 0,
+          width: dims.w, height: dims.h,
+          pointerEvents: 'none',
+        }}
+      />
 
       {/* Header */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-        padding: '16px 20px 12px',
-        background: 'linear-gradient(to bottom, rgba(5,5,16,0.95) 60%, transparent)',
+        padding: '14px 20px 20px',
+        background: 'linear-gradient(to bottom, rgba(5,5,16,0.95) 50%, transparent)',
         display: 'flex', alignItems: 'center', gap: '12px',
       }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={(e) => { e.stopPropagation(); navigate(-1); }}
           style={{
             background: 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.12)',
@@ -240,7 +231,7 @@ export default function Sinapsis() {
         </button>
         <div style={{ flex: 1 }}>
           <div style={{
-            fontSize: '14px', fontWeight: 700, color: '#fff',
+            fontSize: '14px', fontWeight: 700,
             letterSpacing: '2px',
             background: 'linear-gradient(90deg, #a78bfa, #60a5fa)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
@@ -256,241 +247,185 @@ export default function Sinapsis() {
         </div>
       </div>
 
-      {/* SVG Canvas */}
-      <svg
-        ref={svgRef}
-        width={dimensions.w}
-        height={dimensions.h}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onClick={(e) => { if (!e.target.closest('.sinapsis-node')) setSelected(null); }}
-        style={{ touchAction: 'none', cursor: isPanning.current ? 'grabbing' : 'grab' }}
-      >
-        <defs>
-          {/* Glow filters */}
-          {Object.entries(CATEGORIES).map(([key, { color }]) => (
-            <filter key={key} id={`glow-${key}`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feFlood floodColor={color} floodOpacity="0.6" />
-              <feComposite in2="blur" operator="in" />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          ))}
-          {/* Pulse glow for center */}
-          <filter id="glow-pulse" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="8" result="blur" />
-            <feFlood floodColor="#a78bfa" floodOpacity="0.8" />
-            <feComposite in2="blur" operator="in" />
-            <feMerge>
-              <feMergeNode />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          {/* Animated dash */}
-          <style>{`
-            @keyframes dash-flow {
-              to { stroke-dashoffset: -20; }
-            }
-            @keyframes pulse-ring {
-              0% { r: 32; opacity: 0.6; }
-              100% { r: 52; opacity: 0; }
-            }
-            @keyframes node-enter {
-              from { opacity: 0; transform: scale(0); }
-              to { opacity: 1; transform: scale(1); }
-            }
-          `}</style>
-        </defs>
+      {/* Nodes — HTML divs at percentage positions */}
+      {NODES.map((node, i) => {
+        const cat = CATEGORIES[node.cat];
+        const isSelected = selected === node.id;
+        const isCenter = node.id === 'redo';
+        const highlighted = !selected || node.id === selected || connectedSet.has(node.id);
 
-        <g transform={`translate(${cx + pan.x}, ${cy + pan.y + 20}) scale(${scale * autoScale})`}>
-          {/* Connections */}
-          {CONNECTIONS.map((conn, i) => {
-            const fromNode = NODES.find(n => n.id === conn.from);
-            const toNode = NODES.find(n => n.id === conn.to);
-            if (!fromNode || !toNode) return null;
-            const highlighted = isConnectionHighlighted(conn.from, conn.to);
-            const color = CATEGORIES[fromNode.cat]?.color || '#666';
+        return (
+          <div
+            key={node.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelected(prev => prev === node.id ? null : node.id);
+            }}
+            style={{
+              position: 'absolute',
+              left: `${node.px}%`,
+              top: `${node.py}%`,
+              transform: 'translate(-50%, -50%)',
+              width: node.size,
+              height: node.size,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              opacity: animPhase ? (highlighted ? 1 : 0.2) : 0,
+              transition: 'opacity 0.4s ease, transform 0.3s ease',
+              animation: animPhase ? `sinapsis-enter 0.6s ease-out ${i * 0.05}s both` : 'none',
+              zIndex: isSelected ? 5 : 2,
+            }}
+          >
+            {/* Glow background */}
+            <div style={{
+              position: 'absolute',
+              width: node.size,
+              height: node.size,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${cat.color}${isSelected ? '30' : '12'} 0%, transparent 70%)`,
+              filter: isCenter ? 'blur(8px)' : (isSelected ? 'blur(6px)' : 'blur(4px)'),
+              animation: isCenter && !selected ? 'sinapsis-pulse 2.5s ease-in-out infinite' : 'none',
+            }} />
 
-            return (
-              <g key={i}>
-                <line
-                  x1={fromNode.x} y1={fromNode.y}
-                  x2={toNode.x} y2={toNode.y}
-                  stroke={color}
-                  strokeWidth={highlighted ? 1.5 : 0.5}
-                  strokeOpacity={highlighted ? 0.5 : 0.08}
-                  strokeDasharray="6 4"
-                  style={{
-                    animation: highlighted ? 'dash-flow 1s linear infinite' : 'none',
-                    transition: 'stroke-opacity 0.4s ease',
-                  }}
-                />
-                {/* Connection label on hover */}
-                {highlighted && selected && conn.label && (
-                  <text
-                    x={(fromNode.x + toNode.x) / 2}
-                    y={(fromNode.y + toNode.y) / 2 - 6}
-                    fill="rgba(255,255,255,0.5)"
-                    fontSize="9"
-                    textAnchor="middle"
-                    fontFamily="'Silkscreen', cursive"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {conn.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
+            {/* Circle border */}
+            <div style={{
+              position: 'absolute',
+              width: node.size * 0.75,
+              height: node.size * 0.75,
+              borderRadius: '50%',
+              border: `${isCenter ? 2.5 : 1.5}px solid ${cat.color}`,
+              borderColor: isSelected ? cat.color : `${cat.color}99`,
+              background: `${cat.color}10`,
+              boxShadow: isSelected
+                ? `0 0 20px ${cat.color}40, inset 0 0 15px ${cat.color}15`
+                : 'none',
+              transition: 'border-color 0.3s, box-shadow 0.3s',
+            }} />
 
-          {/* Pulse rings on center node */}
-          {!selected && (
-            <>
-              <circle cx={0} cy={0} r={32} fill="none" stroke="#a78bfa" strokeWidth="1.5"
-                style={{ animation: 'pulse-ring 2s ease-out infinite' }} />
-              <circle cx={0} cy={0} r={32} fill="none" stroke="#a78bfa" strokeWidth="1"
-                style={{ animation: 'pulse-ring 2s ease-out infinite 1s' }} />
-            </>
-          )}
+            {/* Rotating dashed ring when selected */}
+            {isSelected && (
+              <div style={{
+                position: 'absolute',
+                width: node.size * 0.92,
+                height: node.size * 0.92,
+                borderRadius: '50%',
+                border: `1.5px dashed ${cat.color}88`,
+                animation: 'sinapsis-rotate 8s linear infinite',
+              }} />
+            )}
 
-          {/* Nodes */}
-          {NODES.map((node, i) => {
-            const cat = CATEGORIES[node.cat];
-            const highlighted = isHighlighted(node.id);
-            const isSelected = selected === node.id;
-            const isCenter = node.id === 'redo';
+            {/* Icon */}
+            <span style={{
+              fontSize: isCenter ? 26 : 20,
+              zIndex: 1,
+              filter: highlighted ? 'none' : 'grayscale(0.8)',
+              transition: 'filter 0.3s',
+            }}>
+              {node.icon}
+            </span>
 
-            return (
-              <g
-                key={node.id}
-                className="sinapsis-node"
-                transform={`translate(${node.x}, ${node.y})`}
-                onClick={(e) => { e.stopPropagation(); setSelected(prev => prev === node.id ? null : node.id); }}
-                style={{
-                  cursor: 'pointer',
-                  opacity: animPhase ? (highlighted ? 1 : 0.15) : 0,
-                  transition: 'opacity 0.4s ease',
-                  animation: animPhase ? `node-enter 0.5s ease-out ${i * 0.04}s both` : 'none',
-                }}
-              >
-                {/* Outer glow ring when selected */}
-                {isSelected && (
-                  <circle r={node.r + 6} fill="none" stroke={cat.color} strokeWidth="2"
-                    strokeOpacity="0.6" strokeDasharray="4 3"
-                    style={{ animation: 'dash-flow 2s linear infinite' }}
-                  />
-                )}
-                {/* Main circle */}
-                <circle
-                  r={node.r}
-                  fill={`${cat.color}18`}
-                  stroke={cat.color}
-                  strokeWidth={isCenter ? 2 : 1.2}
-                  strokeOpacity={highlighted ? 0.8 : 0.2}
-                  filter={isCenter ? 'url(#glow-pulse)' : (isSelected ? `url(#glow-${node.cat})` : 'none')}
-                />
-                {/* Icon */}
-                <text
-                  y={node.r > 18 ? -3 : -1}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={node.r > 22 ? 20 : 15}
-                  style={{ pointerEvents: 'none' }}
-                >
-                  {node.icon}
-                </text>
-                {/* Label */}
-                <text
-                  y={node.r + 10}
-                  textAnchor="middle"
-                  fill={highlighted ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.2)'}
-                  fontSize={isCenter ? 11 : 9}
-                  fontFamily="'Silkscreen', cursive"
-                  fontWeight={isCenter ? 700 : 400}
-                  style={{ pointerEvents: 'none', transition: 'fill 0.3s ease' }}
-                >
-                  {node.label}
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      </svg>
+            {/* Label below */}
+            <span style={{
+              position: 'absolute',
+              bottom: -4,
+              whiteSpace: 'nowrap',
+              fontSize: isCenter ? '9px' : '7px',
+              fontWeight: isCenter ? 700 : 400,
+              color: highlighted ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)',
+              textShadow: highlighted ? '0 0 8px rgba(0,0,0,0.8)' : 'none',
+              letterSpacing: '0.5px',
+              transition: 'color 0.3s',
+              zIndex: 1,
+            }}>
+              {node.label}
+            </span>
+          </div>
+        );
+      })}
 
       {/* Legend */}
       <div style={{
-        position: 'absolute', bottom: 16, left: 16, right: 16,
-        display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center',
+        position: 'absolute', bottom: 12, left: 12, right: 12,
+        display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center',
+        zIndex: 10,
         opacity: animPhase ? 1 : 0,
-        transition: 'opacity 0.8s ease 0.5s',
+        transition: 'opacity 0.8s ease 0.6s',
       }}>
         {Object.entries(CATEGORIES).map(([key, { color, label }]) => (
           <div key={key} style={{
             display: 'flex', alignItems: 'center', gap: '5px',
             padding: '4px 10px',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'rgba(5,5,16,0.7)',
             border: `1px solid ${color}33`,
             borderRadius: '8px',
           }}>
             <div style={{
-              width: 8, height: 8, borderRadius: '50%',
+              width: 7, height: 7, borderRadius: '50%',
               background: color, boxShadow: `0 0 6px ${color}80`,
             }} />
-            <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.6)', fontFamily: "'Silkscreen', cursive" }}>
+            <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.6)' }}>
               {label}
             </span>
           </div>
         ))}
       </div>
 
-      {/* Selected node detail panel */}
-      {selectedNode && (
-        <div style={{
-          position: 'absolute', bottom: 60, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(10,10,30,0.92)',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${CATEGORIES[selectedNode.cat]?.color}44`,
-          borderRadius: '16px',
-          padding: '14px 20px',
-          maxWidth: '320px', width: '90%',
-          animation: 'mascota-pop 0.2s ease-out',
-          zIndex: 20,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '22px' }}>{selectedNode.icon}</span>
-            <div>
-              <div style={{
-                fontSize: '11px', fontWeight: 700, color: CATEGORIES[selectedNode.cat]?.color,
-                fontFamily: "'Silkscreen', cursive",
-              }}>
-                {selectedNode.label}
-              </div>
-              <div style={{
-                fontSize: '8px', color: 'rgba(255,255,255,0.4)',
-                fontFamily: "'Silkscreen', cursive", marginTop: '2px',
-              }}>
-                {CATEGORIES[selectedNode.cat]?.label}
+      {/* Detail panel */}
+      {selected && (() => {
+        const node = NODES.find(n => n.id === selected);
+        if (!node) return null;
+        const cat = CATEGORIES[node.cat];
+        return (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute', bottom: 52, left: '50%', transform: 'translateX(-50%)',
+              background: 'rgba(10,10,30,0.92)',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${cat.color}44`,
+              borderRadius: '16px',
+              padding: '12px 18px',
+              maxWidth: '320px', width: '88%',
+              zIndex: 20,
+              animation: 'sinapsis-enter 0.25s ease-out',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '22px' }}>{node.icon}</span>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: cat.color }}>{node.label}</div>
+                <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', marginTop: '1px' }}>{cat.label}</div>
               </div>
             </div>
+            <div style={{
+              fontSize: '9px', color: 'rgba(255,255,255,0.5)',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              paddingTop: '6px', lineHeight: 1.5,
+            }}>
+              {connectedSet.size} conexión{connectedSet.size !== 1 ? 'es' : ''} →{' '}
+              {[...connectedSet].map(id => NODES.find(n => n.id === id)?.label).filter(Boolean).join(', ')}
+            </div>
           </div>
-          <div style={{
-            fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-            fontFamily: "'Silkscreen', cursive",
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            paddingTop: '8px',
-          }}>
-            {connectedSet.size} conexión{connectedSet.size !== 1 ? 'es' : ''} →{' '}
-            {[...connectedSet].map(id => NODES.find(n => n.id === id)?.label).filter(Boolean).join(', ')}
-          </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Keyframes */}
+      <style>{`
+        @keyframes sinapsis-enter {
+          from { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+          to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes sinapsis-pulse {
+          0%, 100% { opacity: 0.8; transform: scale(1); }
+          50%      { opacity: 1;   transform: scale(1.3); }
+        }
+        @keyframes sinapsis-rotate {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
