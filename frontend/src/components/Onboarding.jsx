@@ -284,11 +284,12 @@ export default function CinematicOnboarding({ user, onComplete }) {
   // ── Tap handler ───────────────────────────────────────────────────────────
   const handleScreenTap = useCallback((e) => {
     if (e.target.closest('[data-interactive], button, input, label, a')) return;
-    if (!isComplete) { skip(); return; }
+    // Block navigation until typewriter finishes
+    if (!isComplete) return;
     const x = e.clientX / window.innerWidth;
     if (x < 0.3 && step > 0) goPrev();
     else if (x > 0.4 && !SLIDES[step].isFinal) goNext();
-  }, [isComplete, skip, step, goNext, goPrev]);
+  }, [isComplete, step, goNext, goPrev]);
 
   const slide = SLIDES[step];
 
@@ -310,9 +311,9 @@ export default function CinematicOnboarding({ user, onComplete }) {
 
   // ── Hint text ─────────────────────────────────────────────────────────────
   const hintText = useMemo(() => {
-    if (slide.type === 'language') return null; // language slide: just pick, then tap right
-    if (!isComplete) return t('onboarding.tapToSkip');
-    if (step <= 1) return null; // no back hint on language/welcome
+    if (slide.type === 'language') return null;
+    if (!isComplete) return null; // wait for typewriter to finish
+    if (step <= 1) return null;
     return t('onboarding.backNext');
   }, [isComplete, step, slide.type, t]);
 
