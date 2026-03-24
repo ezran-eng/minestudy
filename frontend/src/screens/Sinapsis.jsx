@@ -13,31 +13,39 @@ const CATEGORIES = {
 };
 
 const NODES = [
-  // Center
-  { id: 'redo',           label: 'Redo AI',          cat: 'core',     x: 0,    y: 0,    r: 28, icon: '🤖' },
-  // Inner ring — core systems
-  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', x: -160, y: -120, r: 20, icon: '🧠' },
-  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  x: -80,  y: -160, r: 18, icon: '⚡' },
-  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  x: 100,  y: -140, r: 18, icon: '💬' },
-  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  x: 180,  y: -60,  r: 18, icon: '🎯' },
-  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  x: 170,  y: 60,   r: 18, icon: '✨' },
-  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  x: 80,   y: 160,  r: 18, icon: '🧬' },
-  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  x: -170, y: 40,   r: 18, icon: '⚗️' },
-  // Frontend components
-  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', x: -60,  y: 100,  r: 16, icon: '🎭' },
-  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', x: -140, y: 140,  r: 14, icon: '📋' },
-  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', x: 20,   y: -90,  r: 14, icon: '🖥️' },
-  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', x: -100, y: 60,   r: 14, icon: '💭' },
-  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', x: -30,  y: 170,  r: 14, icon: '🔗' },
-  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', x: 140,  y: 140,  r: 14, icon: '🍅' },
-  // Screens
-  { id: 'home',           label: 'Home',             cat: 'screen',   x: -200, y: -60,  r: 14, icon: '🏠' },
-  { id: 'study',          label: 'Study',            cat: 'screen',   x: 200,  y: -120, r: 14, icon: '📚' },
-  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   x: 210,  y: 10,   r: 14, icon: '📖' },
-  // Data layer
-  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     x: 0,    y: 220,  r: 18, icon: '🗄️' },
-  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     x: 120,  y: 200,  r: 14, icon: '🔌' },
-  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     x: -120, y: 210,  r: 14, icon: '☁️' },
+  // Center — Redo AI hub
+  { id: 'redo',           label: 'Redo AI',          cat: 'core',     x: 0,    y: 0,    r: 32, icon: '🤖' },
+
+  // Top-left — External AI
+  { id: 'deepseek',       label: 'DeepSeek API',     cat: 'external', x: -320, y: -240, r: 24, icon: '🧠' },
+  { id: 'llm',            label: 'LLM Client',       cat: 'backend',  x: -150, y: -200, r: 22, icon: '⚡' },
+
+  // Top-right — Tutor system
+  { id: 'tutor_chat',     label: 'Tutor Chat',       cat: 'backend',  x: 160,  y: -260, r: 22, icon: '💬' },
+  { id: 'tutor_actions',  label: 'Tutor Actions',    cat: 'backend',  x: 340,  y: -140, r: 22, icon: '🎯' },
+  { id: 'ai_generate',    label: 'AI Generate',      cat: 'backend',  x: 330,  y: 80,   r: 22, icon: '✨' },
+
+  // Left — Knowledge
+  { id: 'periodic',       label: 'Tabla Periódica',  cat: 'backend',  x: -340, y: 20,   r: 22, icon: '⚗️' },
+  { id: 'memoria',        label: 'RedoMemoria',      cat: 'backend',  x: 160,  y: 240,  r: 22, icon: '🧬' },
+
+  // Inner ring — Frontend components
+  { id: 'mascota_fe',     label: 'Mascota.jsx',      cat: 'frontend', x: -100, y: 120,  r: 20, icon: '🎭' },
+  { id: 'mascota_menu',   label: 'MascotaMenu',      cat: 'frontend', x: -260, y: 180,  r: 18, icon: '📋' },
+  { id: 'tutor_chat_ui',  label: 'TutorChat UI',     cat: 'frontend', x: 30,   y: -130, r: 18, icon: '🖥️' },
+  { id: 'speech_bubble',  label: 'SpeechBubble',     cat: 'frontend', x: -180, y: 80,   r: 18, icon: '💭' },
+  { id: 'mascota_ctx',    label: 'MascotaContext',   cat: 'frontend', x: -50,  y: 260,  r: 18, icon: '🔗' },
+  { id: 'pomodoro',       label: 'Pomodoro',         cat: 'frontend', x: 260,  y: 200,  r: 18, icon: '🍅' },
+
+  // Far edges — Screens
+  { id: 'home',           label: 'Home',             cat: 'screen',   x: -380, y: -140, r: 18, icon: '🏠' },
+  { id: 'study',          label: 'Study',            cat: 'screen',   x: 400,  y: -240, r: 18, icon: '📚' },
+  { id: 'unidad',         label: 'UnidadDetail',     cat: 'screen',   x: 420,  y: -20,  r: 18, icon: '📖' },
+
+  // Bottom — Data layer
+  { id: 'postgres',       label: 'PostgreSQL',       cat: 'data',     x: 0,    y: 380,  r: 24, icon: '🗄️' },
+  { id: 'api_endpoints',  label: 'API Endpoints',    cat: 'data',     x: 220,  y: 360,  r: 18, icon: '🔌' },
+  { id: 'r2_storage',     label: 'Cloudflare R2',    cat: 'data',     x: -220, y: 360,  r: 18, icon: '☁️' },
 ];
 
 const CONNECTIONS = [
@@ -115,8 +123,15 @@ export default function Sinapsis() {
   const cx = dimensions.w / 2;
   const cy = dimensions.h / 2;
 
-  // Scale nodes to fit screen
-  const nodeScale = useMemo(() => Math.min(dimensions.w, dimensions.h) / 520, [dimensions]);
+  // Auto-scale: fit all nodes within 85% of viewport, with padding for labels
+  const autoScale = useMemo(() => {
+    const pad = 60; // space for labels around outermost nodes
+    let maxX = 0, maxY = 0;
+    NODES.forEach(n => { maxX = Math.max(maxX, Math.abs(n.x) + n.r + pad); maxY = Math.max(maxY, Math.abs(n.y) + n.r + pad); });
+    const availW = dimensions.w * 0.85;
+    const availH = (dimensions.h - 120) * 0.85; // subtract header+legend height
+    return Math.min(availW / (maxX * 2), availH / (maxY * 2), 1);
+  }, [dimensions]);
 
   const connectedSet = useMemo(() => selected ? getConnectedIds(selected) : new Set(), [selected]);
 
@@ -284,8 +299,8 @@ export default function Sinapsis() {
               to { stroke-dashoffset: -20; }
             }
             @keyframes pulse-ring {
-              0% { r: 28; opacity: 0.6; }
-              100% { r: 44; opacity: 0; }
+              0% { r: 32; opacity: 0.6; }
+              100% { r: 52; opacity: 0; }
             }
             @keyframes node-enter {
               from { opacity: 0; transform: scale(0); }
@@ -294,7 +309,7 @@ export default function Sinapsis() {
           `}</style>
         </defs>
 
-        <g transform={`translate(${cx + pan.x}, ${cy + pan.y}) scale(${scale * nodeScale})`}>
+        <g transform={`translate(${cx + pan.x}, ${cy + pan.y + 20}) scale(${scale * autoScale})`}>
           {/* Connections */}
           {CONNECTIONS.map((conn, i) => {
             const fromNode = NODES.find(n => n.id === conn.from);
@@ -323,7 +338,7 @@ export default function Sinapsis() {
                     x={(fromNode.x + toNode.x) / 2}
                     y={(fromNode.y + toNode.y) / 2 - 6}
                     fill="rgba(255,255,255,0.5)"
-                    fontSize="7"
+                    fontSize="9"
                     textAnchor="middle"
                     fontFamily="'Silkscreen', cursive"
                     style={{ pointerEvents: 'none' }}
@@ -338,9 +353,9 @@ export default function Sinapsis() {
           {/* Pulse rings on center node */}
           {!selected && (
             <>
-              <circle cx={0} cy={0} r={28} fill="none" stroke="#a78bfa" strokeWidth="1.5"
+              <circle cx={0} cy={0} r={32} fill="none" stroke="#a78bfa" strokeWidth="1.5"
                 style={{ animation: 'pulse-ring 2s ease-out infinite' }} />
-              <circle cx={0} cy={0} r={28} fill="none" stroke="#a78bfa" strokeWidth="1"
+              <circle cx={0} cy={0} r={32} fill="none" stroke="#a78bfa" strokeWidth="1"
                 style={{ animation: 'pulse-ring 2s ease-out infinite 1s' }} />
             </>
           )}
@@ -386,7 +401,7 @@ export default function Sinapsis() {
                   y={node.r > 18 ? -3 : -1}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={node.r > 20 ? 18 : 13}
+                  fontSize={node.r > 22 ? 20 : 15}
                   style={{ pointerEvents: 'none' }}
                 >
                   {node.icon}
@@ -396,7 +411,7 @@ export default function Sinapsis() {
                   y={node.r + 10}
                   textAnchor="middle"
                   fill={highlighted ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.2)'}
-                  fontSize={isCenter ? 8 : 6.5}
+                  fontSize={isCenter ? 11 : 9}
                   fontFamily="'Silkscreen', cursive"
                   fontWeight={isCenter ? 700 : 400}
                   style={{ pointerEvents: 'none', transition: 'fill 0.3s ease' }}
