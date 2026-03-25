@@ -33,7 +33,7 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      position: 'fixed', inset: 0, zIndex: 9500,
       background: '#1a1a1a',
       display: 'flex', flexDirection: 'column',
     }}>

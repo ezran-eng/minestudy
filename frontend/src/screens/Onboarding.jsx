@@ -187,7 +187,7 @@ const Onboarding = ({ user, onComplete }) => {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 10000,
+      position: 'fixed', inset: 0, zIndex: 9000,
       background: 'var(--bg)',
       display: 'flex', flexDirection: 'column',
       paddingTop: `${safeTop}px`,

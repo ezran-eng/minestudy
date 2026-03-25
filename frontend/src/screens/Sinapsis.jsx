@@ -206,7 +206,7 @@ export default function Sinapsis() {
   return (
     <div style={{
       position: 'fixed', inset: 0, background: '#050510',
-      zIndex: 9999, fontFamily: "'Silkscreen', cursive",
+      zIndex: 8000, fontFamily: "'Silkscreen', cursive",
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Header — fixed, below Telegram safe area */}

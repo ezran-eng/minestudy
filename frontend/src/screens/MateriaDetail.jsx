@@ -354,7 +354,7 @@ const MateriaDetail = () => {
           background: 'var(--s1)', border: '1px solid var(--border)',
           borderRadius: '10px', padding: '10px 18px',
           fontSize: '13px', color: 'var(--text)', fontWeight: 500,
-          zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          zIndex: 100, whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         }}>
           {t('materia.followToAccess')}
         </div>

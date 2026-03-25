@@ -37,7 +37,7 @@ export default function ZonaLibreOnboarding({ onEnter }) {
     <div style={{
       position: 'fixed', inset: 0,
       background: '#0a0a0a',
-      zIndex: 2500,
+      zIndex: 2800,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: `${safeTop + 20}px 24px 40px`,
