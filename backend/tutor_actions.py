@@ -2,18 +2,56 @@
 Focused AI study actions for Redo mascot.
 No conversation history — each action is a single targeted call.
 Estimated cost per action: ~150-280 tokens (vs ~1750 for open chat).
+
+Bloom's Taxonomy integration:
+- Quiz < 50%  → Recordar (memorización, definiciones)
+- Quiz 50-75% → Aplicar (uso práctico, resolución)
+- Quiz > 75%  → Analizar/Evaluar (comparación, juicio crítico)
 """
+import logging
 import models
 from llm import chat_completion_tracked
 from token_tracker import log_ai_call
 from datetime import datetime, timezone
+from sqlalchemy import func
 from periodic_table import lookup_element, element_context_for_llm
+
+logger = logging.getLogger("uvicorn.error")
 
 _SYS = (
     "Sos Redo, tutor de ingeniería minera. "
     "Respondé en español rioplatense, breve y claro. "
     "Nunca uses markdown ni asteriscos."
 )
+
+
+def _bloom_level(user_id: int | None, unidad_id: int, db) -> str:
+    """Determine cognitive level based on quiz performance (Bloom's taxonomy)."""
+    if not user_id:
+        return "recordar"
+
+    best_score = (
+        db.query(func.max((models.QuizResultado.correctas * 100) / models.QuizResultado.total))
+        .filter(
+            models.QuizResultado.id_usuario == user_id,
+            models.QuizResultado.id_unidad == unidad_id,
+        )
+        .scalar()
+    )
+
+    if best_score is None or best_score < 50:
+        return "recordar"
+    elif best_score < 75:
+        return "aplicar"
+    else:
+        return "analizar"
+
+
+_BLOOM_INSTRUCTIONS = {
+    "recordar": "Nivel RECORDAR: pregunta de memorización/definición. Simple y directo.",
+    "aplicar": "Nivel APLICAR: pregunta de aplicación práctica. El estudiante debe usar lo aprendido en un caso.",
+    "analizar": "Nivel ANALIZAR: pregunta de comparación, evaluación o juicio crítico. Desafiá al estudiante.",
+}
 
 
 def _unidad_ctx(unidad, materia, temas):
@@ -115,6 +153,10 @@ async def accion_practica(unidad_id: int, db, user_id: int = None) -> str:
         .all()
     )
 
+    # Bloom's taxonomy: adapt difficulty to student level
+    bloom = _bloom_level(user_id, unidad_id, db)
+    bloom_hint = _BLOOM_INSTRUCTIONS[bloom]
+
     ctx = _unidad_ctx(unidad, materia, temas)
     if flashcards:
         ctx += "\nContenido: " + " | ".join(
@@ -122,11 +164,11 @@ async def accion_practica(unidad_id: int, db, user_id: int = None) -> str:
         )
 
     msgs = [
-        {"role": "system", "content": _SYS + " Al generar una pregunta de práctica, terminá siempre con 'Respuesta: ...' en una línea aparte."},
+        {"role": "system", "content": _SYS + f" {bloom_hint} Al generar una pregunta de práctica, terminá siempre con 'Respuesta: ...' en una línea aparte."},
         {"role": "user", "content": f"{ctx}\nGenerame UNA pregunta de práctica sobre esta unidad con su respuesta."},
     ]
     r = await chat_completion_tracked(msgs, max_tokens=160, timeout=10.0)
-    log_ai_call(db, user_id, "tutor_accion", "practica", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    log_ai_call(db, user_id, "tutor_accion", f"practica_{bloom}", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
     return r["content"]
 
 
@@ -149,15 +191,23 @@ async def accion_explicar_tema(unidad_id: int, tema_nombre: str, db, user_id: in
         if relevant:
             fc_ctx = "\nContexto: " + " | ".join(f"{fc.pregunta}: {fc.respuesta}" for fc in relevant[:3])
 
+    # Bloom's: adjust explanation depth
+    bloom = _bloom_level(user_id, unidad_id, db)
+    if bloom == "recordar":
+        explain_prompt = f"Explicame el tema '{tema_nombre}' en 3 oraciones simples con un ejemplo concreto."
+    elif bloom == "aplicar":
+        explain_prompt = f"Explicame el tema '{tema_nombre}' con un ejemplo de aplicación real en minería. 3 oraciones."
+    else:
+        explain_prompt = f"Dame una explicación profunda de '{tema_nombre}': cómo se relaciona con otros conceptos y por qué importa en la práctica. 3-4 oraciones."
+
     msgs = [
         {"role": "system", "content": _SYS},
         {"role": "user", "content": (
-            f"Materia: {materia.nombre}. Unidad: {unidad.nombre}.{fc_ctx}\n"
-            f"Explicame el tema '{tema_nombre}' en 3 oraciones simples con un ejemplo concreto."
+            f"Materia: {materia.nombre}. Unidad: {unidad.nombre}.{fc_ctx}\n{explain_prompt}"
         )},
     ]
     r = await chat_completion_tracked(msgs, max_tokens=130, timeout=10.0)
-    log_ai_call(db, user_id, "tutor_accion", "explicar_tema", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    log_ai_call(db, user_id, "tutor_accion", f"explicar_{bloom}", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
     return r["content"]
 
 

@@ -260,6 +260,18 @@ class RedoMemoria(Base):
     usuario = relationship("User")
 
 
+class UserAIBudget(Base):
+    """Per-user AI usage limits and blocking."""
+    __tablename__ = "user_ai_budget"
+
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), primary_key=True)
+    daily_limit_calls = Column(Integer, default=50, nullable=False)
+    monthly_limit_usd = Column(Float, default=0.10, nullable=False)
+    is_blocked = Column(Boolean, default=False, nullable=False)
+
+    usuario = relationship("User")
+
+
 class AICallLog(Base):
     """Log de cada llamada a la IA — tracking de tokens, costos y rendimiento."""
     __tablename__ = "ai_call_log"

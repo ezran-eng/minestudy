@@ -32,6 +32,7 @@ from tutor_chat import tutor_respond
 from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_practica, accion_explicar_tema, accion_elemento
 from periodic_table import lookup_element, search_elements, element_context_for_llm
 from ai_generate import generate_flashcards, generate_quiz
+from quota_check import check_quota, get_quota_status
 from ton_storage import upload_to_ton, get_download_url
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -1748,6 +1749,12 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
     """Generate a context-aware mascota message using the configured LLM provider.
     No auth required — non-destructive read-only endpoint, userId in body suffices."""
     try:
+        # Quota check
+        if body.user_id:
+            allowed, reason = check_quota(body.user_id, db)
+            if not allowed:
+                msg = "Hoy ya charlamos bastante! Seguí con flashcards y quiz, nos vemos mañana 🐾" if reason == "daily_limit" else "Estuve muy activo este mes. Seguí estudiando por tu cuenta, ya te voy a volver a ayudar pronto!"
+                return {"mensaje": msg, "accion": None}
         result = await get_mascota_message(body.user_id, body.accion, body.datos, body.pantalla, db)
         logger.info(
             "[mascota/chat] OK — accion=%s pantalla=%s msg=%s decision=%s",
@@ -1765,6 +1772,10 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
 async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_db)):
     """Multi-turn tutor chat with Redo, scoped to a specific unidad."""
     try:
+        # Quota check
+        allowed, reason = check_quota(body.user_id, db)
+        if not allowed:
+            return {"respuesta": "Hoy ya tuvimos bastante charla! Seguí repasando con flashcards y quiz, mañana seguimos 🐾"}
         history = [{"role": m.role, "content": m.content} for m in body.messages]
         respuesta = await tutor_respond(
             body.user_id, body.unidad_id, history, body.question, db
@@ -1780,6 +1791,11 @@ async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_d
 async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(get_db)):
     """Single focused study action — no history, minimal tokens (~150-280/call)."""
     try:
+        # Quota check
+        if body.user_id:
+            allowed, reason = check_quota(body.user_id, db)
+            if not allowed:
+                return {"respuesta": "Hoy ya usamos bastante la IA. Seguí con flashcards y quiz!"}
         if not body.unidad_id:
             return {"respuesta": "Para usar esta acción, entrá a una unidad primero."}
         if body.accion == "concepto_clave":
@@ -2264,3 +2280,38 @@ def admin_ai_recent(db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+
+@app.get("/admin/ai/budget/{user_id}", dependencies=[Depends(require_admin)])
+def admin_ai_get_budget(user_id: int, db: Session = Depends(get_db)):
+    """Get budget + current usage for a user."""
+    return get_quota_status(user_id, db)
+
+
+@app.put("/admin/ai/budget/{user_id}", dependencies=[Depends(require_admin)])
+def admin_ai_set_budget(user_id: int, db: Session = Depends(get_db),
+                        daily_limit_calls: int = 50,
+                        monthly_limit_usd: float = 0.10,
+                        is_blocked: bool = False):
+    """Set custom AI budget for a user."""
+    budget = db.query(models.UserAIBudget).filter(
+        models.UserAIBudget.id_usuario == user_id
+    ).first()
+    if budget:
+        budget.daily_limit_calls = daily_limit_calls
+        budget.monthly_limit_usd = monthly_limit_usd
+        budget.is_blocked = is_blocked
+    else:
+        budget = models.UserAIBudget(
+            id_usuario=user_id,
+            daily_limit_calls=daily_limit_calls,
+            monthly_limit_usd=monthly_limit_usd,
+            is_blocked=is_blocked,
+        )
+        db.add(budget)
+    db.commit()
+    return {"ok": True, "budget": {
+        "daily_limit_calls": budget.daily_limit_calls,
+        "monthly_limit_usd": budget.monthly_limit_usd,
+        "is_blocked": budget.is_blocked,
+    }}

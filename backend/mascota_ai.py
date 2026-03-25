@@ -1,25 +1,20 @@
 """
 Redo — IA viva de DaathApp.
 
-Redo es un perrito-tutor que vive dentro de la app. Tiene acceso a:
-- Mapa completo de la app (todas las materias, unidades, contenido que existe)
-- Todos los datos del usuario (progreso, flashcards, quiz, privacidad)
-- Memoria persistente por usuario (observaciones entre sesiones)
-- Consciencia de ubicación (sabe en qué pantalla está el usuario)
-
 Arquitectura:
-1. Context Layer  — construye el mapa completo + datos del usuario
+1. Context Tiers  — carga solo lo necesario según la acción (ahorro 50-70%)
 2. Memory Layer   — carga/guarda observaciones de Redo por usuario
-3. Insight Layer  — pre-calcula diagnóstico pedagógico (debilidades, urgencias)
-4. Decision Layer — Redo puede sugerir acciones y guardar observaciones
+3. Insight Layer  — diagnóstico pedagógico (Bloom, spaced repetition, emocional)
+4. Decision Layer — Redo sugiere acciones y guarda observaciones
 5. Response Layer — parsea respuesta, extrae acción y memoria
 
 Token strategy:
-- System prompt FIJO → prefix-cached en DeepSeek (~200 tokens, pagados 1 vez)
-- Contexto compacto JSON → ~400-600 tokens por llamada
+- System prompt FIJO → prefix-cached en DeepSeek (~150 tokens, pagados 1 vez)
+- Context tiers: T0 (~50tok siempre), T1 (~150tok estudio), T2 (~300tok full)
 - Memoria: ~50 tokens (5 entries × 10 tokens)
 - Cache TTL por acción → misma situación = 0 tokens
-- max_tokens=100 → respuesta + acción + memoria
+- Emotional hint: ~15 tokens extra contextuales
+- Spaced repetition insights: ~30 tokens cuando hay cards vencidas
 """
 import json
 import logging
@@ -37,25 +32,17 @@ logger = logging.getLogger("uvicorn.error")
 MAX_MEMORIAS = 5
 
 # ── System prompt ─────────────────────────────────────────────────────────────
-# FIJO — DeepSeek lo prefix-cachea después de la primera llamada.
+# FIJO — DeepSeek prefix-cachea los primeros ~150 tokens. NO modificar el inicio.
 SYSTEM_PROMPT = (
-    "Sos Redo, un perrito-tutor IA que vive dentro de DaathApp (app de estudio para ingeniería minera). "
-    "Sos la IA de la app — tenés acceso a todo: el mapa completo de materias, "
-    "unidades, contenido, el progreso real del estudiante, sus flashcards pendientes, "
-    "resultados de quiz, configuración de privacidad, y tu propia memoria de conversaciones pasadas.\n"
-    "Tu misión: guiar al estudiante para que aprenda de verdad. "
-    "Analizá sus datos y recomendá qué estudiar, qué repasar, qué tiene abandonado. "
-    "Sabés qué unidades tienen contenido y cuáles están vacías. "
-    "Sabés en qué pantalla está el usuario ahora mismo.\n"
-    "Personalidad: cálido, honesto, directo. Motivás sin exagerar. "
-    "Español rioplatense informal. Nunca empieces con 'Che'. Sin '!!' dobles. "
-    "Máximo 2 oraciones. Máximo 1 emoji. "
-    "Usá el nombre del estudiante de vez en cuando (no siempre) para personalizar.\n"
-    "No te presentes. Solo respondé con el mensaje.\n"
-    "Podés agregar en líneas separadas al final (opcionales):\n"
-    "→repaso | →quiz | →explorar  (sugerir acción)\n"
-    "💭texto corto  (guardar observación sobre el estudiante para recordar después)\n"
-    "Solo si aportan. No siempre son necesarios."
+    "Sos Redo, perrito-tutor IA de DaathApp (estudio ingeniería minera). "
+    "Tenés acceso completo: materias, unidades, progreso, flashcards, quiz, memoria.\n"
+    "Misión: guiar al estudiante con datos reales. Recomendá qué estudiar/repasar.\n"
+    "Personalidad: cálido, directo. Rioplatense informal. Sin 'Che'. Sin '!!' dobles.\n"
+    "Max 2 oraciones. Max 1 emoji. Usá el nombre a veces. No te presentes.\n"
+    "Líneas opcionales al final:\n"
+    "→repaso|→quiz|→explorar (sugerir acción)\n"
+    "💭texto corto (guardar observación para recordar)\n"
+    "Solo si aportan."
 )
 
 # Actions Redo can suggest
@@ -191,66 +178,159 @@ def _save_memoria(user_id: int, contenido: str, db: Session):
     logger.info("[redo-mem] saved for user %s: %s", user_id, contenido[:50])
 
 
-# ── Context builder ───────────────────────────────────────────────────────────
+# ── Context Tier System ───────────────────────────────────────────────────────
+# Tier 0 (~50 tok): nombre, racha, due count — ALWAYS loaded
+# Tier 1 (~150 tok): progreso por materia, insights, quiz recientes — study actions
+# Tier 2 (~300 tok): mapa completo de la app — only when needed (admin/debug)
+#
+# Action → Tier mapping:
+_TIER_MAP = {
+    "app_open": 1, "idle": 1, "enter": 1,
+    "flashcard_complete": 1, "quiz_complete": 1,
+    "drop_materia": 0,
+}
 
-def _build_full_context(user_id: int, db: Session) -> dict:
-    """
-    Construye el contexto completo para Redo:
-    - Mapa de la app (TODAS las materias/unidades con conteo de contenido)
-    - Datos del usuario (progreso, flashcards, quiz, privacidad, notificaciones)
-    - Memoria de Redo sobre este usuario
-    - Insights pedagógicos pre-calculados
-    """
+def _get_tier(accion: str) -> int:
+    return _TIER_MAP.get(accion, 1)
+
+
+def _emotional_hint(racha: int, racha_perdida: bool, due_total: int, avg_quiz: float | None) -> str | None:
+    """Generate an emotional calibration hint (~15 tokens) for Redo's tone."""
+    hints = []
+    if racha >= 7:
+        hints.append("buen ritmo, mantené momentum")
+    if racha_perdida:
+        hints.append("perdió la racha, puede estar desmotivado, alentá")
+    if avg_quiz is not None and avg_quiz < 40:
+        hints.append("quizzes bajos, está luchando, no abrumar")
+    if due_total > 20:
+        hints.append("muchas cards atrasadas, priorizar repaso")
+    elif due_total > 10:
+        hints.append("cards acumulándose, sugerir repaso")
+    return " | ".join(hints) if hints else None
+
+
+def _spaced_repetition_insights(user_id: int, db: Session) -> dict | None:
+    """Calculate spaced repetition awareness data."""
+    from datetime import timedelta
     now = datetime.now(timezone.utc)
 
-    # ── Usuario ──────────────────────────────────────────────────────────────
+    # Cards with interval >= 7 days that are heavily overdue (due_date was > 14 days ago)
+    decay_threshold = now - timedelta(days=14)
+    decay_risk = (
+        db.query(func.count())
+        .select_from(models.CardReview)
+        .filter(
+            models.CardReview.id_usuario == user_id,
+            models.CardReview.interval >= 7,
+            models.CardReview.due_date <= decay_threshold,
+        )
+        .scalar()
+    ) or 0
+
+    # Cards due in next 2 hours
+    two_hours = now + timedelta(hours=2)
+    review_soon = (
+        db.query(func.count())
+        .select_from(models.CardReview)
+        .filter(
+            models.CardReview.id_usuario == user_id,
+            models.CardReview.due_date > now,
+            models.CardReview.due_date <= two_hours,
+        )
+        .scalar()
+    ) or 0
+
+    if not decay_risk and not review_soon:
+        return None
+
+    sr = {}
+    if decay_risk:
+        sr["decay_risk"] = decay_risk
+    if review_soon:
+        sr["review_soon"] = review_soon
+    return sr
+
+
+def _build_context(user_id: int, accion: str, db: Session) -> dict:
+    """
+    Tiered context builder — loads only what's needed per action.
+    Saves 50-70% tokens on common actions vs loading everything.
+    """
+    now = datetime.now(timezone.utc)
+    tier = _get_tier(accion)
+
+    # ── TIER 0: Always loaded (~50 tokens) ────────────────────────────────
     user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
     if not user:
-        return {"nombre": "estudiante", "racha": 0, "due": 0, "mapa": []}
+        return {"nombre": "estudiante", "racha": 0, "due": 0}
 
-    nombre = user.first_name
-    if user.last_name:
-        nombre += f" {user.last_name}"
+    nombre = user.first_name or "estudiante"
 
-    dias = None
-    if user.fecha_registro:
-        ts = user.fecha_registro
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        dias = max(0, (now - ts).days)
+    # Due total (quick count)
+    due_total = (
+        db.query(func.count())
+        .select_from(models.CardReview)
+        .filter(models.CardReview.id_usuario == user_id, models.CardReview.due_date <= now)
+        .scalar()
+    ) or 0
 
-    # ── Privacidad ───────────────────────────────────────────────────────────
-    priv = {
-        "foto": user.mostrar_foto, "nombre": user.mostrar_nombre,
-        "username": user.mostrar_username, "progreso": user.mostrar_progreso,
-        "cursos": user.mostrar_cursos,
-    }
-    todo_publico = all(priv.values())
-
-    # ── Notificaciones ───────────────────────────────────────────────────────
-    notif = db.query(models.NotificacionesConfig).filter(
-        models.NotificacionesConfig.id_usuario == user_id
-    ).first()
-    notif_data = None
-    if notif:
-        notif_data = {
-            "racha": notif.racha_activa,
-            "recordatorio": notif.recordatorio_activo,
-            "flashcards": notif.flashcards_activa,
-            "hora": notif.hora_recordatorio.strftime("%H:%M") if notif.hora_recordatorio else None,
-        }
-
-    # ── Última actividad ─────────────────────────────────────────────────────
-    mins_inactivo = None
+    # Racha perdida detection
+    racha = user.racha or 0
+    racha_perdida = False
     if user.ultima_actividad:
         ua = user.ultima_actividad
         if ua.tzinfo is None:
             ua = ua.replace(tzinfo=timezone.utc)
-        mins_inactivo = max(0, int((now - ua).total_seconds() / 60))
+        hours_inactive = (now - ua).total_seconds() / 3600
+        if hours_inactive > 48 and racha == 0:
+            racha_perdida = True
 
-    # ── Datos del usuario por unidad (batch queries) ─────────────────────────
+    ctx = {
+        "nombre": nombre,
+        "racha": racha,
+        "due": due_total,
+    }
 
-    # Flashcards vencidas por unidad
+    # Emotional calibration hint
+    avg_quiz = None
+    if tier >= 1:
+        avg_quiz_row = (
+            db.query(func.avg((models.QuizResultado.correctas * 100) / models.QuizResultado.total))
+            .filter(models.QuizResultado.id_usuario == user_id)
+            .scalar()
+        )
+        avg_quiz = round(float(avg_quiz_row)) if avg_quiz_row else None
+
+    emo = _emotional_hint(racha, racha_perdida, due_total, avg_quiz)
+    if emo:
+        ctx["hint"] = emo
+
+    # Memoria
+    memorias = _load_memorias(user_id, db)
+    if memorias:
+        ctx["mem"] = memorias
+
+    if tier == 0:
+        return ctx
+
+    # ── TIER 1: Study context (~150 tokens extra) ────────────────────────
+    # Materias seguidas + progreso
+    seguidas_ids = set(
+        r.id_materia for r in
+        db.query(models.MateriaSeguida.id_materia)
+        .filter(models.MateriaSeguida.id_usuario == user_id)
+        .all()
+    )
+
+    progreso_rows = (
+        db.query(models.Progreso.id_unidad, models.Progreso.id_materia, models.Progreso.porcentaje)
+        .filter(models.Progreso.id_usuario == user_id)
+        .all()
+    )
+    progreso_map = {r.id_unidad: r.porcentaje for r in progreso_rows}
+
+    # Due per unidad
     due_rows = (
         db.query(models.Flashcard.id_unidad, func.count().label("n"))
         .join(models.CardReview, models.CardReview.id_flashcard == models.Flashcard.id)
@@ -259,15 +339,12 @@ def _build_full_context(user_id: int, db: Session) -> dict:
         .all()
     )
     due_map = {r.id_unidad: r.n for r in due_rows}
-    due_total = sum(due_map.values())
 
-    # Mejor quiz score por unidad
+    # Quiz scores
     quiz_rows = (
         db.query(
             models.QuizResultado.id_unidad,
-            func.max(
-                (models.QuizResultado.correctas * 100) / models.QuizResultado.total
-            ).label("best"),
+            func.max((models.QuizResultado.correctas * 100) / models.QuizResultado.total).label("best"),
             func.count().label("intentos"),
         )
         .filter(models.QuizResultado.id_usuario == user_id)
@@ -276,167 +353,90 @@ def _build_full_context(user_id: int, db: Session) -> dict:
     )
     quiz_map = {r.id_unidad: {"s": round(r.best), "i": r.intentos} for r in quiz_rows}
 
-    # Progreso por unidad
-    progreso_rows = (
-        db.query(models.Progreso.id_unidad, models.Progreso.porcentaje)
-        .filter(models.Progreso.id_usuario == user_id)
-        .all()
-    )
-    progreso_map = {r.id_unidad: r.porcentaje for r in progreso_rows}
-
-    # Materias seguidas
-    seguidas_ids = set(
-        r.id_materia for r in
-        db.query(models.MateriaSeguida.id_materia)
-        .filter(models.MateriaSeguida.id_usuario == user_id)
-        .all()
-    )
-
-    # ── Mapa completo de la app ──────────────────────────────────────────────
-    # Todas las materias con sus unidades y conteo de contenido
+    # Build compact materia summaries (only followed)
     materias = (
         db.query(models.Materia)
-        .options(
-            joinedload(models.Materia.unidades)
-            .joinedload(models.Unidad.flashcards),
-            joinedload(models.Materia.unidades)
-            .joinedload(models.Unidad.quiz_preguntas),
-            joinedload(models.Materia.unidades)
-            .joinedload(models.Unidad.infografias),
-            joinedload(models.Materia.unidades)
-            .joinedload(models.Unidad.pdfs),
-            joinedload(models.Materia.unidades)
-            .joinedload(models.Unidad.temas),
-        )
+        .options(joinedload(models.Materia.unidades))
+        .filter(models.Materia.id.in_(seguidas_ids))
         .order_by(models.Materia.orden)
         .all()
-    )
+    ) if seguidas_ids else []
 
     mapa = []
     insights_urgente = []
     insights_debil = []
-    insights_sin_tocar = []
 
     for materia in materias:
-        seguida = materia.id in seguidas_ids
         unidades_data = []
-
         for unidad in sorted(materia.unidades, key=lambda u: u.orden or 0):
-            fc_count = len(unidad.flashcards)
-            qz_count = len(unidad.quiz_preguntas)
-            inf_count = len(unidad.infografias)
-            pdf_count = len(unidad.pdfs)
-            temas_count = len(unidad.temas)
-
             entry = {"n": unidad.nombre}
+            p = progreso_map.get(unidad.id, 0)
+            d = due_map.get(unidad.id, 0)
+            q = quiz_map.get(unidad.id)
+            if p > 0: entry["p"] = p
+            if d > 0: entry["due"] = d
+            if q: entry["quiz"] = q["s"]
 
-            # Content counts (solo si > 0 para ahorrar tokens)
-            if fc_count:
-                entry["fc"] = fc_count
-            if qz_count:
-                entry["qz"] = qz_count
-            if inf_count:
-                entry["inf"] = inf_count
-            if pdf_count:
-                entry["pdf"] = pdf_count
-            if temas_count:
-                entry["temas"] = temas_count
-
-            # User-specific data (solo si sigue la materia)
-            if seguida:
-                p = progreso_map.get(unidad.id, 0)
-                d = due_map.get(unidad.id, 0)
-                q = quiz_map.get(unidad.id)
-
-                if p > 0:
-                    entry["p"] = p
-                if d > 0:
-                    entry["due"] = d
-                if q:
-                    entry["quiz"] = q["s"]
-                    if q["i"] > 1:
-                        entry["qi"] = q["i"]  # quiz attempts
-
-                # ── Insights ─────────────────────────────────────────────
-                if d >= 5:
-                    insights_urgente.append(f"{materia.nombre}/{unidad.nombre}: {d} cards vencidas")
-                if q and q["s"] < 50 and q["i"] >= 2:
-                    insights_debil.append(f"{materia.nombre}/{unidad.nombre}: quiz {q['s']}%")
-                if p == 0 and fc_count > 0:
-                    insights_sin_tocar.append(f"{materia.nombre}/{unidad.nombre}")
+            if d >= 5:
+                insights_urgente.append(f"{materia.nombre}/{unidad.nombre}: {d} vencidas")
+            if q and q["s"] < 50 and q["i"] >= 2:
+                insights_debil.append(f"{materia.nombre}/{unidad.nombre}: quiz {q['s']}%")
 
             unidades_data.append(entry)
 
-        materia_entry = {"n": materia.nombre, "u": unidades_data}
-        if seguida:
-            materia_entry["seg"] = True
-            # Average progress for followed materias
-            progs = [progreso_map.get(u.id, 0) for u in materia.unidades]
-            if progs:
-                materia_entry["p"] = round(sum(progs) / len(progs))
+        progs = [progreso_map.get(u.id, 0) for u in materia.unidades]
+        mapa.append({
+            "n": materia.nombre, "seg": True, "u": unidades_data,
+            "p": round(sum(progs) / len(progs)) if progs else 0,
+        })
 
-        mapa.append(materia_entry)
+    if mapa:
+        ctx["mapa"] = mapa
 
-    # ── Quiz recientes ───────────────────────────────────────────────────────
-    recientes = (
-        db.query(
-            models.QuizResultado.correctas,
-            models.QuizResultado.total,
-            models.Unidad.nombre.label("unidad"),
-            models.Materia.nombre.label("materia"),
-        )
-        .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
-        .join(models.Materia, models.Unidad.id_materia == models.Materia.id)
-        .filter(models.QuizResultado.id_usuario == user_id)
-        .order_by(models.QuizResultado.fecha.desc())
-        .limit(4)
-        .all()
-    )
-    quiz_recientes = [
-        {"m": r.materia, "u": r.unidad, "s": round(r.correctas * 100 / r.total) if r.total else 0}
-        for r in recientes
-    ]
-
-    # ── Memoria de Redo ──────────────────────────────────────────────────────
-    memorias = _load_memorias(user_id, db)
-
-    # ── Build context ────────────────────────────────────────────────────────
-    ctx = {
-        "nombre": nombre,
-        "racha": user.racha or 0,
-        "dias": dias,
-        "due": due_total,
-        "mapa": mapa,
-    }
-
-    # Campos opcionales (solo si aportan info, ahorra tokens)
-    if quiz_recientes:
-        ctx["quiz_rec"] = quiz_recientes
-    if not todo_publico:
-        ctx["priv"] = priv
-    if notif_data:
-        ctx["notif"] = notif_data
-    if mins_inactivo is not None:
-        ctx["inactivo"] = mins_inactivo
-    if memorias:
-        ctx["mem"] = memorias
-
-    # Insights pre-calculados
+    # Insights
     insights = {}
     if insights_urgente:
         insights["urgente"] = insights_urgente[:3]
     if insights_debil:
         insights["debil"] = insights_debil[:3]
-    if insights_sin_tocar:
-        insights["sin_tocar"] = insights_sin_tocar[:3]
 
-    # Materias no seguidas
-    no_seguidas = [m.nombre for m in materias if m.id not in seguidas_ids]
-    if no_seguidas:
-        insights["no_sigue"] = no_seguidas
+    # Materias no seguidas (just names, minimal tokens)
+    all_materia_ids = set(m.id for m in db.query(models.Materia.id).all())
+    no_seguidas_ids = all_materia_ids - seguidas_ids
+    if no_seguidas_ids:
+        no_seg_names = [
+            m.nombre for m in
+            db.query(models.Materia.nombre).filter(models.Materia.id.in_(no_seguidas_ids)).all()
+        ]
+        if no_seg_names:
+            insights["no_sigue"] = no_seg_names
 
     if insights:
         ctx["insights"] = insights
+
+    # Quiz recientes
+    recientes = (
+        db.query(
+            models.QuizResultado.correctas,
+            models.QuizResultado.total,
+            models.Unidad.nombre.label("unidad"),
+        )
+        .join(models.Unidad, models.QuizResultado.id_unidad == models.Unidad.id)
+        .filter(models.QuizResultado.id_usuario == user_id)
+        .order_by(models.QuizResultado.fecha.desc())
+        .limit(3)
+        .all()
+    )
+    if recientes:
+        ctx["quiz_rec"] = [
+            {"u": r.unidad, "s": round(r.correctas * 100 / r.total) if r.total else 0}
+            for r in recientes
+        ]
+
+    # Spaced repetition awareness
+    sr = _spaced_repetition_insights(user_id, db)
+    if sr:
+        ctx["sr"] = sr
 
     return ctx
 
@@ -460,8 +460,8 @@ async def get_mascota_message(
         accion_obj = _pick_action_target(accion_sugerida, user_id, db) if accion_sugerida else None
         return {"mensaje": mensaje, "accion": accion_obj}
 
-    # 2. Build full context
-    ctx = _build_full_context(user_id, db)
+    # 2. Build tiered context (loads only what's needed)
+    ctx = _build_context(user_id, accion, db)
 
     # 3. Compact user message
     user_msg = json.dumps(
