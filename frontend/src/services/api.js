@@ -451,3 +451,34 @@ export const zonaLibreReport = async (archivoId, userId, motivo) => {
   if (!response.ok) throw new Error('Report failed');
   return response.json();
 };
+
+// ── Admin AI Analytics ─────────────────────────────────────────────────────
+export const getAdminAISummary = async () => {
+  const response = await fetch(`${API_URL}/admin/ai/summary`, { headers: { ...getAdminHeader() } });
+  if (!response.ok) throw new Error('Failed to get AI summary');
+  return response.json();
+};
+
+export const getAdminAIByModule = async (days = 7) => {
+  const response = await fetch(`${API_URL}/admin/ai/by-module?days=${days}`, { headers: { ...getAdminHeader() } });
+  if (!response.ok) throw new Error('Failed to get AI by module');
+  return response.json();
+};
+
+export const getAdminAIByUser = async (days = 7) => {
+  const response = await fetch(`${API_URL}/admin/ai/by-user?days=${days}`, { headers: { ...getAdminHeader() } });
+  if (!response.ok) throw new Error('Failed to get AI by user');
+  return response.json();
+};
+
+export const getAdminAITimeline = async (days = 14) => {
+  const response = await fetch(`${API_URL}/admin/ai/timeline?days=${days}`, { headers: { ...getAdminHeader() } });
+  if (!response.ok) throw new Error('Failed to get AI timeline');
+  return response.json();
+};
+
+export const getAdminAIRecent = async () => {
+  const response = await fetch(`${API_URL}/admin/ai/recent`, { headers: { ...getAdminHeader() } });
+  if (!response.ok) throw new Error('Failed to get AI recent');
+  return response.json();
+};

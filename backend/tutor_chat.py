@@ -23,7 +23,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 import models
-from llm import chat_completion
+from llm import chat_completion_tracked
+from token_tracker import log_ai_call
 from periodic_table import search_elements
 
 logger = logging.getLogger("uvicorn.error")
@@ -227,7 +228,14 @@ async def tutor_respond(
         user_id, unidad_id, len(context_msg), len(trimmed),
     )
 
-    # 5. Call LLM with higher token limit and timeout
-    response = await chat_completion(messages, max_tokens=350, timeout=15.0)
+    # 5. Call LLM with higher token limit and timeout (tracked)
+    llm_result = await chat_completion_tracked(messages, max_tokens=350, timeout=15.0)
 
-    return response
+    # 5b. Log AI call
+    log_ai_call(
+        db, user_id, "tutor_chat", None, llm_result["model"],
+        llm_result["tokens_in"], llm_result["tokens_out"],
+        llm_result["tokens_cached"], llm_result["latencia_ms"],
+    )
+
+    return llm_result["content"]

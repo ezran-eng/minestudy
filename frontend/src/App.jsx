@@ -23,6 +23,7 @@ const ZonaLibre = lazy(() => import('./screens/ZonaLibre'));
 const CinematicOnboarding = lazy(() => import('./components/Onboarding'));
 const PeriodicTable = lazy(() => import('./screens/PeriodicTable'));
 const Sinapsis = lazy(() => import('./screens/Sinapsis'));
+const AdminAI = lazy(() => import('./screens/AdminAI'));
 
 const LoadingBar = () => (
   <div style={{
@@ -58,6 +59,7 @@ const AppContent = ({ user }) => {
             <Route path="/zona-libre" element={<ZonaLibre />} />
             <Route path="/tabla-periodica" element={<PeriodicTable />} />
             <Route path="/sinapsis" element={<Sinapsis />} />
+            <Route path="/admin/ai" element={<AdminAI />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

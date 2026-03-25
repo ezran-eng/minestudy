@@ -10,7 +10,8 @@ import logging
 from sqlalchemy.orm import Session
 
 import models
-from llm import chat_completion
+from llm import chat_completion_tracked
+from token_tracker import log_ai_call
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -31,7 +32,7 @@ FLASHCARD_SYSTEM = (
 
 
 async def generate_flashcards(
-    unidad_id: int, count: int, db: Session
+    unidad_id: int, count: int, db: Session, user_id: int = None
 ) -> list[dict]:
     """Generate `count` new flashcards for a unidad using AI."""
     unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
@@ -61,7 +62,7 @@ async def generate_flashcards(
         f"{json.dumps(context, ensure_ascii=False, separators=(',', ':'))}"
     )
 
-    raw = await chat_completion(
+    llm_result = await chat_completion_tracked(
         messages=[
             {"role": "system", "content": FLASHCARD_SYSTEM},
             {"role": "user", "content": user_msg},
@@ -69,6 +70,8 @@ async def generate_flashcards(
         max_tokens=1500,
         timeout=20.0,
     )
+    raw = llm_result["content"]
+    log_ai_call(db, user_id, "ai_gen_fc", None, llm_result["model"], llm_result["tokens_in"], llm_result["tokens_out"], llm_result["tokens_cached"], llm_result["latencia_ms"])
 
     # Parse JSON from response
     cards = _parse_json_array(raw)
@@ -114,7 +117,7 @@ QUIZ_SYSTEM = (
 
 
 async def generate_quiz(
-    unidad_id: int, count: int, db: Session
+    unidad_id: int, count: int, db: Session, user_id: int = None
 ) -> list[dict]:
     """Generate `count` new quiz questions for a unidad using AI."""
     unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
@@ -152,7 +155,7 @@ async def generate_quiz(
         f"{json.dumps(context, ensure_ascii=False, separators=(',', ':'))}"
     )
 
-    raw = await chat_completion(
+    llm_result = await chat_completion_tracked(
         messages=[
             {"role": "system", "content": QUIZ_SYSTEM},
             {"role": "user", "content": user_msg},
@@ -160,6 +163,8 @@ async def generate_quiz(
         max_tokens=2000,
         timeout=25.0,
     )
+    raw = llm_result["content"]
+    log_ai_call(db, user_id, "ai_gen_quiz", None, llm_result["model"], llm_result["tokens_in"], llm_result["tokens_out"], llm_result["tokens_cached"], llm_result["latencia_ms"])
 
     questions = _parse_json_array(raw)
     if not questions:

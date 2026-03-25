@@ -4,7 +4,8 @@ No conversation history — each action is a single targeted call.
 Estimated cost per action: ~150-280 tokens (vs ~1750 for open chat).
 """
 import models
-from llm import chat_completion
+from llm import chat_completion_tracked
+from token_tracker import log_ai_call
 from datetime import datetime, timezone
 from periodic_table import lookup_element, element_context_for_llm
 
@@ -20,7 +21,7 @@ def _unidad_ctx(unidad, materia, temas):
     return f"Materia: {materia.nombre}. Unidad: {unidad.nombre}. Temas: {t}."
 
 
-async def accion_concepto_clave(unidad_id: int, db) -> str:
+async def accion_concepto_clave(unidad_id: int, db, user_id: int = None) -> str:
     unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
     if not unidad:
         return "No encontré la unidad."
@@ -47,7 +48,9 @@ async def accion_concepto_clave(unidad_id: int, db) -> str:
             "¿Cuál es el concepto más importante de esta unidad? Respondé en 2-3 oraciones."
         )},
     ]
-    return await chat_completion(msgs, max_tokens=110, timeout=10.0)
+    r = await chat_completion_tracked(msgs, max_tokens=110, timeout=10.0)
+    log_ai_call(db, user_id, "tutor_accion", "concepto_clave", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    return r["content"]
 
 
 async def accion_punto_debil(user_id: int, unidad_id: int, db) -> str:
@@ -94,10 +97,12 @@ async def accion_punto_debil(user_id: int, unidad_id: int, db) -> str:
             "¿Cuál es mi punto más débil en esta unidad? Dame un consejo concreto en 2 oraciones."
         )},
     ]
-    return await chat_completion(msgs, max_tokens=90, timeout=10.0)
+    r = await chat_completion_tracked(msgs, max_tokens=90, timeout=10.0)
+    log_ai_call(db, user_id, "tutor_accion", "punto_debil", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    return r["content"]
 
 
-async def accion_practica(unidad_id: int, db) -> str:
+async def accion_practica(unidad_id: int, db, user_id: int = None) -> str:
     unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
     if not unidad:
         return "No encontré la unidad."
@@ -120,10 +125,12 @@ async def accion_practica(unidad_id: int, db) -> str:
         {"role": "system", "content": _SYS + " Al generar una pregunta de práctica, terminá siempre con 'Respuesta: ...' en una línea aparte."},
         {"role": "user", "content": f"{ctx}\nGenerame UNA pregunta de práctica sobre esta unidad con su respuesta."},
     ]
-    return await chat_completion(msgs, max_tokens=160, timeout=10.0)
+    r = await chat_completion_tracked(msgs, max_tokens=160, timeout=10.0)
+    log_ai_call(db, user_id, "tutor_accion", "practica", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    return r["content"]
 
 
-async def accion_explicar_tema(unidad_id: int, tema_nombre: str, db) -> str:
+async def accion_explicar_tema(unidad_id: int, tema_nombre: str, db, user_id: int = None) -> str:
     unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
     if not unidad:
         return "No encontré la unidad."
@@ -149,10 +156,12 @@ async def accion_explicar_tema(unidad_id: int, tema_nombre: str, db) -> str:
             f"Explicame el tema '{tema_nombre}' en 3 oraciones simples con un ejemplo concreto."
         )},
     ]
-    return await chat_completion(msgs, max_tokens=130, timeout=10.0)
+    r = await chat_completion_tracked(msgs, max_tokens=130, timeout=10.0)
+    log_ai_call(db, user_id, "tutor_accion", "explicar_tema", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    return r["content"]
 
 
-async def accion_elemento(symbol: str) -> str:
+async def accion_elemento(symbol: str, db=None, user_id: int = None) -> str:
     """Explain a chemical element with mining context."""
     el = lookup_element(symbol)
     if not el:
@@ -167,4 +176,7 @@ async def accion_elemento(symbol: str) -> str:
             "Incluí su importancia, mineral principal y aplicación. 3-4 oraciones."
         )},
     ]
-    return await chat_completion(msgs, max_tokens=150, timeout=10.0)
+    r = await chat_completion_tracked(msgs, max_tokens=150, timeout=10.0)
+    if db:
+        log_ai_call(db, user_id, "tutor_accion", "elemento", r["model"], r["tokens_in"], r["tokens_out"], r["tokens_cached"], r["latencia_ms"])
+    return r["content"]

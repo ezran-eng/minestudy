@@ -28,7 +28,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 import models
-from llm import chat_completion, cache_get, cache_set
+from llm import chat_completion, chat_completion_tracked, cache_get, cache_set
+from token_tracker import log_ai_call
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -454,6 +455,7 @@ async def get_mascota_message(
     cached = cache_get(cache_key, accion)
     if cached:
         logger.info("[redo] cache HIT — %s", cache_key)
+        log_ai_call(db, user_id, "mascota", accion, "deepseek-chat", 0, 0, 0, 0, cache_hit=True)
         mensaje, accion_sugerida, _ = _parse_response(cached)
         accion_obj = _pick_action_target(accion_sugerida, user_id, db) if accion_sugerida else None
         return {"mensaje": mensaje, "accion": accion_obj}
@@ -470,13 +472,21 @@ async def get_mascota_message(
 
     logger.info("[redo] LLM call — key=%s payload=%d chars", cache_key, len(user_msg))
 
-    # 4. Call LLM
-    raw = await chat_completion(
+    # 4. Call LLM (tracked)
+    llm_result = await chat_completion_tracked(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
         ],
         max_tokens=100,
+    )
+    raw = llm_result["content"]
+
+    # 4b. Log AI call
+    log_ai_call(
+        db, user_id, "mascota", accion, llm_result["model"],
+        llm_result["tokens_in"], llm_result["tokens_out"],
+        llm_result["tokens_cached"], llm_result["latencia_ms"],
     )
 
     # 5. Parse response

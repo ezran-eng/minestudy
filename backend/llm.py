@@ -62,7 +62,11 @@ def cache_set(key: str, resp: str):
 
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
-async def chat_completion(messages: list[dict], max_tokens: int = 60, timeout: float = 8.0) -> str:
+async def chat_completion_tracked(messages: list[dict], max_tokens: int = 60, timeout: float = 8.0) -> dict:
+    """
+    Call LLM and return full usage data.
+    Returns: {content, model, tokens_in, tokens_out, tokens_cached, latencia_ms}
+    """
     provider = os.getenv("LLM_PROVIDER", "deepseek")
     cfg = _CONFIGS.get(provider, _CONFIGS["deepseek"])
     api_key = os.getenv(cfg["api_key_env"], "")
@@ -74,6 +78,7 @@ async def chat_completion(messages: list[dict], max_tokens: int = 60, timeout: f
     url = f"{cfg['base_url']}/chat/completions"
     logger.info("[llm] calling %s model=%s max_tokens=%d", provider, cfg["model"], max_tokens)
 
+    t0 = time.time()
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(
             url,
@@ -89,13 +94,28 @@ async def chat_completion(messages: list[dict], max_tokens: int = 60, timeout: f
             },
         )
         resp.raise_for_status()
+        latencia_ms = int((time.time() - t0) * 1000)
         data = resp.json()
         content = data["choices"][0]["message"]["content"].strip()
         usage = data.get("usage", {})
+        tokens_in = usage.get("prompt_tokens", 0)
+        tokens_out = usage.get("completion_tokens", 0)
+        tokens_cached = usage.get("prompt_cache_hit_tokens", 0)
         logger.info(
-            "[llm] response OK — tokens in=%d out=%d cached=%d",
-            usage.get("prompt_tokens", 0),
-            usage.get("completion_tokens", 0),
-            usage.get("prompt_cache_hit_tokens", 0),
+            "[llm] response OK — tokens in=%d out=%d cached=%d latency=%dms",
+            tokens_in, tokens_out, tokens_cached, latencia_ms,
         )
-        return content
+        return {
+            "content": content,
+            "model": cfg["model"],
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "tokens_cached": tokens_cached,
+            "latencia_ms": latencia_ms,
+        }
+
+
+async def chat_completion(messages: list[dict], max_tokens: int = 60, timeout: float = 8.0) -> str:
+    """Backward-compatible wrapper — returns only the content string."""
+    result = await chat_completion_tracked(messages, max_tokens, timeout)
+    return result["content"]

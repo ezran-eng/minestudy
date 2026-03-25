@@ -260,6 +260,30 @@ class RedoMemoria(Base):
     usuario = relationship("User")
 
 
+class AICallLog(Base):
+    """Log de cada llamada a la IA — tracking de tokens, costos y rendimiento."""
+    __tablename__ = "ai_call_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_usuario = Column(BigInteger, nullable=True)  # null for anonymous/system calls
+    modulo = Column(String(30), nullable=False)      # mascota | tutor_chat | tutor_accion | ai_gen_fc | ai_gen_quiz
+    accion = Column(String(50), nullable=True)       # sub-action (app_open, concepto_clave, etc)
+    modelo = Column(String(50), nullable=False)      # deepseek-chat, gpt-4o-mini, etc
+    tokens_in = Column(Integer, nullable=False, default=0)
+    tokens_out = Column(Integer, nullable=False, default=0)
+    tokens_cached = Column(Integer, nullable=False, default=0)
+    costo_usd = Column(Float, nullable=False, default=0.0)
+    latencia_ms = Column(Integer, nullable=False, default=0)
+    cache_hit = Column(Boolean, nullable=False, default=False)  # in-memory cache hit (0 tokens)
+    error = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_ai_call_log_usuario_created", "id_usuario", "created_at"),
+        Index("ix_ai_call_log_modulo_created", "modulo", "created_at"),
+    )
+
+
 class ZonaLibreArchivo(Base):
     __tablename__ = "zona_libre_archivos"
 

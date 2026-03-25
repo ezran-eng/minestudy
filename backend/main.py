@@ -1783,19 +1783,19 @@ async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(g
         if not body.unidad_id:
             return {"respuesta": "Para usar esta acción, entrá a una unidad primero."}
         if body.accion == "concepto_clave":
-            resp = await accion_concepto_clave(body.unidad_id, db)
+            resp = await accion_concepto_clave(body.unidad_id, db, user_id=body.user_id)
         elif body.accion == "punto_debil":
             resp = await accion_punto_debil(body.user_id, body.unidad_id, db)
         elif body.accion == "practica":
-            resp = await accion_practica(body.unidad_id, db)
+            resp = await accion_practica(body.unidad_id, db, user_id=body.user_id)
         elif body.accion == "explicar_tema":
             if not body.tema_nombre:
                 raise HTTPException(status_code=400, detail="tema_nombre required")
-            resp = await accion_explicar_tema(body.unidad_id, body.tema_nombre, db)
+            resp = await accion_explicar_tema(body.unidad_id, body.tema_nombre, db, user_id=body.user_id)
         elif body.accion == "elemento":
             if not body.tema_nombre:
                 raise HTTPException(status_code=400, detail="tema_nombre (symbol) required")
-            resp = await accion_elemento(body.tema_nombre)
+            resp = await accion_elemento(body.tema_nombre, db=db, user_id=body.user_id)
         else:
             raise HTTPException(status_code=400, detail=f"Acción desconocida: {body.accion}")
         logger.info("[tutor/accion] %s OK — user=%s unidad=%s", body.accion, body.user_id, body.unidad_id)
@@ -2099,3 +2099,168 @@ def search_elements_endpoint(q: str = ""):
     if not q or len(q) < 1:
         raise HTTPException(status_code=400, detail="Parámetro 'q' requerido")
     return search_elements(q)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN AI ANALYTICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/admin/ai/summary", dependencies=[Depends(require_admin)])
+def admin_ai_summary(db: Session = Depends(get_db)):
+    """Totals for today, this week, this month, and all-time."""
+    from datetime import datetime, timedelta, timezone as tz
+    now = datetime.now(tz.utc)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    def _stats(since=None):
+        q = db.query(
+            func.count(models.AICallLog.id).label("calls"),
+            func.coalesce(func.sum(models.AICallLog.tokens_in), 0).label("tokens_in"),
+            func.coalesce(func.sum(models.AICallLog.tokens_out), 0).label("tokens_out"),
+            func.coalesce(func.sum(models.AICallLog.tokens_cached), 0).label("tokens_cached"),
+            func.coalesce(func.sum(models.AICallLog.costo_usd), 0).label("costo"),
+            func.coalesce(func.avg(models.AICallLog.latencia_ms), 0).label("latencia_avg"),
+        )
+        if since:
+            q = q.filter(models.AICallLog.created_at >= since)
+        row = q.first()
+        return {
+            "calls": row.calls,
+            "tokens_in": int(row.tokens_in),
+            "tokens_out": int(row.tokens_out),
+            "tokens_cached": int(row.tokens_cached),
+            "costo_usd": round(float(row.costo), 6),
+            "latencia_avg_ms": round(float(row.latencia_avg)),
+        }
+
+    cache_hits = db.query(func.count(models.AICallLog.id)).filter(
+        models.AICallLog.cache_hit == True, models.AICallLog.created_at >= today
+    ).scalar()
+
+    return {
+        "today": _stats(today),
+        "week": _stats(week_ago),
+        "month": _stats(month_ago),
+        "total": _stats(),
+        "cache_hits_today": cache_hits,
+    }
+
+
+@app.get("/admin/ai/by-module", dependencies=[Depends(require_admin)])
+def admin_ai_by_module(days: int = 7, db: Session = Depends(get_db)):
+    """Breakdown by module for last N days."""
+    from datetime import datetime, timedelta, timezone as tz
+    since = datetime.now(tz.utc) - timedelta(days=days)
+    rows = (
+        db.query(
+            models.AICallLog.modulo,
+            func.count(models.AICallLog.id).label("calls"),
+            func.coalesce(func.sum(models.AICallLog.tokens_in + models.AICallLog.tokens_out), 0).label("tokens"),
+            func.coalesce(func.sum(models.AICallLog.costo_usd), 0).label("costo"),
+            func.coalesce(func.avg(models.AICallLog.latencia_ms), 0).label("latencia_avg"),
+        )
+        .filter(models.AICallLog.created_at >= since)
+        .group_by(models.AICallLog.modulo)
+        .order_by(desc(func.sum(models.AICallLog.costo_usd)))
+        .all()
+    )
+    return [
+        {
+            "modulo": r.modulo,
+            "calls": r.calls,
+            "tokens": int(r.tokens),
+            "costo_usd": round(float(r.costo), 6),
+            "latencia_avg_ms": round(float(r.latencia_avg)),
+        }
+        for r in rows
+    ]
+
+
+@app.get("/admin/ai/by-user", dependencies=[Depends(require_admin)])
+def admin_ai_by_user(days: int = 7, db: Session = Depends(get_db)):
+    """Top 20 users by cost in last N days."""
+    from datetime import datetime, timedelta, timezone as tz
+    since = datetime.now(tz.utc) - timedelta(days=days)
+    rows = (
+        db.query(
+            models.AICallLog.id_usuario,
+            func.count(models.AICallLog.id).label("calls"),
+            func.coalesce(func.sum(models.AICallLog.tokens_in + models.AICallLog.tokens_out), 0).label("tokens"),
+            func.coalesce(func.sum(models.AICallLog.costo_usd), 0).label("costo"),
+        )
+        .filter(models.AICallLog.created_at >= since, models.AICallLog.id_usuario.isnot(None))
+        .group_by(models.AICallLog.id_usuario)
+        .order_by(desc(func.sum(models.AICallLog.costo_usd)))
+        .limit(20)
+        .all()
+    )
+    result = []
+    for r in rows:
+        user = db.query(models.User).filter(models.User.id_telegram == r.id_usuario).first()
+        result.append({
+            "id_usuario": r.id_usuario,
+            "nombre": user.first_name if user else "?",
+            "calls": r.calls,
+            "tokens": int(r.tokens),
+            "costo_usd": round(float(r.costo), 6),
+        })
+    return result
+
+
+@app.get("/admin/ai/timeline", dependencies=[Depends(require_admin)])
+def admin_ai_timeline(days: int = 30, db: Session = Depends(get_db)):
+    """Daily series for charts — last N days."""
+    from datetime import datetime, timedelta, timezone as tz
+    since = datetime.now(tz.utc) - timedelta(days=days)
+    rows = (
+        db.query(
+            func.date_trunc('day', models.AICallLog.created_at).label("dia"),
+            func.count(models.AICallLog.id).label("calls"),
+            func.coalesce(func.sum(models.AICallLog.tokens_in + models.AICallLog.tokens_out), 0).label("tokens"),
+            func.coalesce(func.sum(models.AICallLog.costo_usd), 0).label("costo"),
+        )
+        .filter(models.AICallLog.created_at >= since)
+        .group_by(func.date_trunc('day', models.AICallLog.created_at))
+        .order_by(func.date_trunc('day', models.AICallLog.created_at))
+        .all()
+    )
+    return [
+        {
+            "dia": r.dia.strftime("%Y-%m-%d") if r.dia else "",
+            "calls": r.calls,
+            "tokens": int(r.tokens),
+            "costo_usd": round(float(r.costo), 6),
+        }
+        for r in rows
+    ]
+
+
+@app.get("/admin/ai/recent", dependencies=[Depends(require_admin)])
+def admin_ai_recent(db: Session = Depends(get_db)):
+    """Last 50 AI calls — live feed."""
+    rows = (
+        db.query(models.AICallLog)
+        .order_by(models.AICallLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "id_usuario": r.id_usuario,
+            "modulo": r.modulo,
+            "accion": r.accion,
+            "modelo": r.modelo,
+            "tokens_in": r.tokens_in,
+            "tokens_out": r.tokens_out,
+            "tokens_cached": r.tokens_cached,
+            "costo_usd": round(r.costo_usd, 6),
+            "latencia_ms": r.latencia_ms,
+            "cache_hit": r.cache_hit,
+            "error": r.error,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]

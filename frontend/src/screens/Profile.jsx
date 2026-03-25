@@ -516,6 +516,11 @@ const Profile = () => {
               setShowDevPanel(false);
             }} />
 
+            <DevBtn label="📊 AI Analytics" onClick={() => {
+              setShowDevPanel(false);
+              navigate('/admin/ai');
+            }} />
+
             {devLog && (
               <div style={{
                 marginTop: '4px', padding: '10px 12px',
