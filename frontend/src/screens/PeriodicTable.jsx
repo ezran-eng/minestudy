@@ -1,6 +1,202 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';
+
+/* ── Pinch-zoom + pan hook ── */
+function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {}) {
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const state = useRef({
+    scale: 1, tx: 0, ty: 0,
+    startScale: 1, startDist: 0, startTx: 0, startTy: 0,
+    pinchMidX: 0, pinchMidY: 0,
+    isPinching: false,
+    // Pan
+    isPanning: false, panStartX: 0, panStartY: 0, panTx: 0, panTy: 0,
+    // Double tap
+    lastTap: 0, lastTapX: 0, lastTapY: 0,
+    // Velocity
+    lastMoveTime: 0, velX: 0, velY: 0, lastPanX: 0, lastPanY: 0,
+    // Momentum RAF
+    momentumId: null,
+  });
+
+  const clampTranslate = useCallback((tx, ty, s) => {
+    const el = containerRef.current;
+    if (!el) return { x: tx, y: ty };
+    const parent = el.parentElement;
+    if (!parent) return { x: tx, y: ty };
+    const pw = parent.clientWidth, ph = parent.clientHeight;
+    const cw = el.scrollWidth * s, ch = el.scrollHeight * s;
+    if (cw <= pw) tx = (pw - cw) / 2;
+    else tx = Math.min(0, Math.max(pw - cw, tx));
+    if (ch <= ph) ty = (ph - ch) / 2;
+    else ty = Math.min(0, Math.max(ph - ch, ty));
+    return { x: tx, y: ty };
+  }, []);
+
+  const applyTransform = useCallback((s, tx, ty, animate = false) => {
+    const clamped = clampTranslate(tx, ty, s);
+    state.current.scale = s;
+    state.current.tx = clamped.x;
+    state.current.ty = clamped.y;
+    if (animate) setIsAnimating(true);
+    else setIsAnimating(false);
+    setScale(s);
+    setTranslate(clamped);
+    if (animate) setTimeout(() => setIsAnimating(false), 320);
+  }, [clampTranslate]);
+
+  const resetZoom = useCallback(() => {
+    applyTransform(1, 0, 0, true);
+  }, [applyTransform]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    const getDist = (t) => {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+    const getMid = (t) => ({
+      x: (t[0].clientX + t[1].clientX) / 2,
+      y: (t[0].clientY + t[1].clientY) / 2,
+    });
+
+    const onTouchStart = (e) => {
+      const s = state.current;
+      if (s.momentumId) { cancelAnimationFrame(s.momentumId); s.momentumId = null; }
+
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        s.isPinching = true;
+        s.isPanning = false;
+        s.startDist = getDist(e.touches);
+        s.startScale = s.scale;
+        s.startTx = s.tx;
+        s.startTy = s.ty;
+        const mid = getMid(e.touches);
+        const rect = parent.getBoundingClientRect();
+        s.pinchMidX = mid.x - rect.left;
+        s.pinchMidY = mid.y - rect.top;
+      } else if (e.touches.length === 1 && s.scale > 1.05) {
+        // Pan only when zoomed in
+        s.isPanning = true;
+        s.panStartX = e.touches[0].clientX;
+        s.panStartY = e.touches[0].clientY;
+        s.panTx = s.tx;
+        s.panTy = s.ty;
+        s.lastPanX = e.touches[0].clientX;
+        s.lastPanY = e.touches[0].clientY;
+        s.lastMoveTime = Date.now();
+        s.velX = 0;
+        s.velY = 0;
+      }
+
+      // Double-tap detection
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        const dx = e.touches[0].clientX - s.lastTapX;
+        const dy = e.touches[0].clientY - s.lastTapY;
+        const dist = Math.hypot(dx, dy);
+        if (now - s.lastTap < 300 && dist < 40) {
+          e.preventDefault();
+          s.isPanning = false;
+          if (s.scale > 1.05) {
+            applyTransform(1, 0, 0, true);
+          } else {
+            const rect = parent.getBoundingClientRect();
+            const px = e.touches[0].clientX - rect.left;
+            const py = e.touches[0].clientY - rect.top;
+            const ns = doubleTapScale;
+            const ntx = px - (px - s.tx) * (ns / s.scale);
+            const nty = py - (py - s.ty) * (ns / s.scale);
+            applyTransform(ns, ntx, nty, true);
+          }
+          s.lastTap = 0;
+        } else {
+          s.lastTap = now;
+          s.lastTapX = e.touches[0].clientX;
+          s.lastTapY = e.touches[0].clientY;
+        }
+      }
+    };
+
+    const onTouchMove = (e) => {
+      const s = state.current;
+      if (s.isPinching && e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getDist(e.touches);
+        const ratio = dist / s.startDist;
+        let ns = Math.min(maxScale, Math.max(minScale, s.startScale * ratio));
+        const ntx = s.pinchMidX - (s.pinchMidX - s.startTx) * (ns / s.startScale);
+        const nty = s.pinchMidY - (s.pinchMidY - s.startTy) * (ns / s.startScale);
+        applyTransform(ns, ntx, nty);
+      } else if (s.isPanning && e.touches.length === 1) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - s.panStartX;
+        const dy = e.touches[0].clientY - s.panStartY;
+        const now = Date.now();
+        const dt = now - s.lastMoveTime;
+        if (dt > 0) {
+          const alpha = 0.4;
+          s.velX = alpha * (e.touches[0].clientX - s.lastPanX) / dt * 16 + (1 - alpha) * s.velX;
+          s.velY = alpha * (e.touches[0].clientY - s.lastPanY) / dt * 16 + (1 - alpha) * s.velY;
+        }
+        s.lastPanX = e.touches[0].clientX;
+        s.lastPanY = e.touches[0].clientY;
+        s.lastMoveTime = now;
+        applyTransform(s.scale, s.panTx + dx, s.panTy + dy);
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      const s = state.current;
+      if (s.isPinching) {
+        s.isPinching = false;
+        // Snap back if below 1
+        if (s.scale < 1) applyTransform(1, 0, 0, true);
+      }
+      if (s.isPanning && e.touches.length === 0) {
+        s.isPanning = false;
+        // Momentum
+        const absVel = Math.hypot(s.velX, s.velY);
+        if (absVel > 0.5) {
+          let vx = s.velX, vy = s.velY;
+          const decel = 0.95;
+          const step = () => {
+            vx *= decel;
+            vy *= decel;
+            if (Math.hypot(vx, vy) < 0.3) { s.momentumId = null; return; }
+            applyTransform(s.scale, s.tx + vx, s.ty + vy);
+            s.momentumId = requestAnimationFrame(step);
+          };
+          s.momentumId = requestAnimationFrame(step);
+        }
+      }
+    };
+
+    parent.addEventListener('touchstart', onTouchStart, { passive: false });
+    parent.addEventListener('touchmove', onTouchMove, { passive: false });
+    parent.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      parent.removeEventListener('touchstart', onTouchStart);
+      parent.removeEventListener('touchmove', onTouchMove);
+      parent.removeEventListener('touchend', onTouchEnd);
+      if (state.current.momentumId) cancelAnimationFrame(state.current.momentumId);
+    };
+  }, [applyTransform, minScale, maxScale, doubleTapScale, clampTranslate]);
+
+  return { containerRef, scale, translate, isAnimating, resetZoom };
+}
 
 /* ── Element data: symbol → { Z, name, category, row, col } ── */
 const ELEMENTS = [
@@ -254,63 +450,17 @@ const PeriodicTable = () => {
     );
   }
 
-  // Mobile: native scroll, simple and smooth
+  // Mobile: pinch-zoom + pan
   return (
-    <div className="pt-screen-root" style={{ paddingTop: safeTop + 4, paddingBottom: safeBottom + 4 }}>
-      {/* Header */}
-      <div className="pt-header">
-        <button className="pt-back" onClick={() => navigate(-1)}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <div className="pt-title">Tabla Periódica</div>
-        <div style={{ width: 32 }} />
-      </div>
-
-      {/* Info bar */}
-      <div className="pt-info-bar" style={{ opacity: selected ? 1 : 0.4 }}>
-        {selected ? (
-          <>
-            <span className="pt-info-z" style={{ color: selCat?.text }}>{selected.Z}</span>
-            <span className="pt-info-symbol" style={{ color: selCat?.text }}>{selected.symbol}</span>
-            <span className="pt-info-name">{selected.name}</span>
-            <span className="pt-info-cat" style={{ background: selCat?.bg, borderColor: selCat?.border, color: selCat?.text }}>
-              {selCat?.label}
-            </span>
-          </>
-        ) : (
-          <span style={{ fontSize: '11px', color: 'var(--text2)', fontStyle: 'italic' }}>
-            Desliza para explorar · Toca un elemento
-          </span>
-        )}
-      </div>
-
-      {/* Scrollable area — native scroll in both directions */}
-      <div className="pt-mobile-scroll">
-        <div
-          className="pt-grid"
-          style={{
-            gridTemplateColumns: `repeat(18, ${mobileCellSize}px)`,
-            gridTemplateRows: `repeat(7, ${mobileCellSize}px) ${mobileCellSize * 0.4}px repeat(2, ${mobileCellSize}px)`,
-            gap: '2px',
-          }}
-        >
-          {ELEMENTS.map(el => (
-            <ElementCell
-              key={el.symbol}
-              el={el}
-              cellSize={mobileCellSize}
-              onSelect={setSelected}
-              isActive={selected?.symbol === el.symbol}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <Legend />
-    </div>
+    <MobilePeriodicTable
+      safeTop={safeTop}
+      safeBottom={safeBottom}
+      mobileCellSize={mobileCellSize}
+      selected={selected}
+      setSelected={setSelected}
+      selCat={selCat}
+      navigate={navigate}
+    />
   );
 };
 
@@ -363,6 +513,93 @@ function DesktopGrid({ selected, setSelected }) {
           isActive={selected?.symbol === el.symbol}
         />
       ))}
+    </div>
+  );
+}
+
+/* ── Mobile with pinch-zoom ── */
+function MobilePeriodicTable({ safeTop, safeBottom, mobileCellSize, selected, setSelected, selCat, navigate }) {
+  const { containerRef, scale, translate, isAnimating, resetZoom } = usePinchZoom({
+    minScale: 0.9,
+    maxScale: 4,
+    doubleTapScale: 2.4,
+  });
+
+  const showZoomBadge = scale > 1.05;
+
+  return (
+    <div className="pt-screen-root" style={{ paddingTop: safeTop + 4, paddingBottom: safeBottom + 4 }}>
+      {/* Header */}
+      <div className="pt-header">
+        <button className="pt-back" onClick={() => navigate(-1)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <div className="pt-title">Tabla Periódica</div>
+        <div style={{ width: 32 }} />
+      </div>
+
+      {/* Info bar */}
+      <div className="pt-info-bar" style={{ opacity: selected ? 1 : 0.4 }}>
+        {selected ? (
+          <>
+            <span className="pt-info-z" style={{ color: selCat?.text }}>{selected.Z}</span>
+            <span className="pt-info-symbol" style={{ color: selCat?.text }}>{selected.symbol}</span>
+            <span className="pt-info-name">{selected.name}</span>
+            <span className="pt-info-cat" style={{ background: selCat?.bg, borderColor: selCat?.border, color: selCat?.text }}>
+              {selCat?.label}
+            </span>
+          </>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--text2)', fontStyle: 'italic' }}>
+            Pellizca para zoom · Doble toque para ampliar
+          </span>
+        )}
+      </div>
+
+      {/* Zoom viewport */}
+      <div className="pt-zoom-viewport" style={{ touchAction: 'none' }}>
+        <div
+          ref={containerRef}
+          className="pt-grid"
+          style={{
+            gridTemplateColumns: `repeat(18, ${mobileCellSize}px)`,
+            gridTemplateRows: `repeat(7, ${mobileCellSize}px) ${mobileCellSize * 0.4}px repeat(2, ${mobileCellSize}px)`,
+            gap: '2px',
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+            transformOrigin: '0 0',
+            transition: isAnimating ? 'transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+            willChange: 'transform',
+          }}
+        >
+          {ELEMENTS.map(el => (
+            <ElementCell
+              key={el.symbol}
+              el={el}
+              cellSize={mobileCellSize}
+              onSelect={setSelected}
+              isActive={selected?.symbol === el.symbol}
+            />
+          ))}
+        </div>
+
+        {/* Zoom indicator */}
+        {showZoomBadge && (
+          <button
+            className="pt-zoom-badge"
+            onClick={resetZoom}
+          >
+            {Math.round(scale * 100)}%
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Legend */}
+      <Legend />
     </div>
   );
 }
