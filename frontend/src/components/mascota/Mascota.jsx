@@ -275,6 +275,14 @@ export default function Mascota({ userId }) {
       });
     });
 
+    // iOS: prevent Telegram Mini App swipe-to-minimize during drag
+    const onTouchMove = (ev) => {
+      if (dragging.current) {
+        ev.preventDefault();
+      }
+    };
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+
     const onMove = (ev) => {
       if (ev.pointerId !== activePointerId.current) return;
       const dx = ev.clientX - dragStart.current.px;
@@ -369,6 +377,7 @@ export default function Mascota({ userId }) {
       dragging.current = false;
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('touchmove', onTouchMove);
     };
 
     document.addEventListener('pointermove', onMove);
