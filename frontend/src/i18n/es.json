@@ -41,7 +41,14 @@
     "unfollowTitle": "⚠️ ¿Dejar de seguir?",
     "unfollowMessage": "Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer.",
     "unfollowConfirm": "Sí, dejar de seguir",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "by": "por {{name}}",
+    "createMateria": "Crear materia",
+    "newMateria": "Nueva materia",
+    "materiaName": "Nombre de la materia",
+    "create": "Crear",
+    "makePrivate": "Hacer privada",
+    "makePublic": "Hacer pública"
   },
 
   "unit": {
@@ -361,7 +368,10 @@
     "complete": "✓ Completa",
     "cards": "{{n}} tarjetas",
     "loadingSubject": "Cargando materia...",
-    "followToAccess": "Seguí esta materia para acceder al contenido"
+    "followToAccess": "Seguí esta materia para acceder al contenido",
+    "createdBy": "Creada por {{name}}",
+    "public": "Pública",
+    "private": "Privada"
   },
 
   "common": {

@@ -452,6 +452,38 @@ export const zonaLibreReport = async (archivoId, userId, motivo) => {
   return response.json();
 };
 
+// ── Materias CRUD ──────────────────────────────────────────────────────────
+export const createMateria = async (nombre, emoji = null, color = null) => {
+  const response = await fetch(`${API_URL}/materias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ nombre, emoji, color }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create materia');
+  }
+  return response.json();
+};
+
+export const updateMateria = async (id, data) => {
+  const response = await fetch(`${API_URL}/materias/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update materia');
+  return response.json();
+};
+
+export const deleteMateria = async (id) => {
+  const response = await fetch(`${API_URL}/materias/${id}`, {
+    method: 'DELETE',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to delete materia');
+};
+
 // ── Admin AI Analytics ─────────────────────────────────────────────────────
 export const getAdminAISummary = async () => {
   const response = await fetch(`${API_URL}/admin/ai/summary`, { headers: { ...getAdminHeader() } });

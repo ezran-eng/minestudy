@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
-import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, updateMateria } from '../services/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMaterias, useVistasMateria, useSeguidoresMateria, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
@@ -95,9 +96,10 @@ const MateriaDetail = () => {
   const { user } = useTelegram();
   const { t } = useTranslation();
   const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
 
   // Cached queries
-  const { data: allMaterias } = useMaterias();
+  const { data: allMaterias } = useMaterias(user?.id);
   const { data: vistasRes } = useVistasMateria(parseInt(id));
   const { data: seguidoresRes } = useSeguidoresMateria(parseInt(id));
 
@@ -193,6 +195,15 @@ const MateriaDetail = () => {
 
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('materia.loadingSubject')}</div>;
 
+  const isOwner = user?.id && materia.creador_id === user.id;
+
+  const handleToggleVisibility = async () => {
+    try {
+      await updateMateria(materia.id, { es_publica: !materia.es_publica });
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+    } catch { /* silently fail */ }
+  };
+
   const totalUnits = materia.unidades.length;
   let overallPct = 0;
   if (totalUnits > 0) {
@@ -235,6 +246,27 @@ const MateriaDetail = () => {
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               {vistasMateria !== null && <VistaBadge vistas={vistasMateria} />}
               <AvatarStack seguidores={seguidores} total={totalSeguidores} onClick={() => setShowSeguidores(true)} />
+            </div>
+            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {materia.creador_nombre && (
+                <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                  {t('materia.createdBy', { name: materia.creador_nombre })}
+                </span>
+              )}
+              {isOwner && (
+                <button
+                  onClick={handleToggleVisibility}
+                  style={{
+                    padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                    border: '1px solid var(--border)',
+                    background: 'rgba(255,255,240,0.08)',
+                    color: 'var(--text2)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                  }}
+                >
+                  {materia.es_publica ? '👁' : '🔒'} {materia.es_publica ? t('materia.public') : t('materia.private')}
+                </button>
+              )}
             </div>
           </div>
 

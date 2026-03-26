@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, getVistasMateria } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, getVistasMateria, createMateria, updateMateria } from '../services/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMaterias, useMateriasSeguidas, useInvalidate } from '../hooks/useQueryHooks';
 import { useMascotaUpdate } from '../context/MascotaContext';
 import VistaBadge from '../components/VistaBadge';
@@ -12,13 +13,19 @@ const Study = () => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [confirmUnfollowId, setConfirmUnfollowId] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newNombre, setNewNombre] = useState('');
+  const [newEmoji, setNewEmoji] = useState('');
+  const [newColor, setNewColor] = useState('#FFFFF0');
+  const [creating, setCreating] = useState(false);
 
   const tg = window.Telegram?.WebApp;
   const userId = tg?.initDataUnsafe?.user?.id;
 
-  const { data: rawMaterias, isLoading: loadingMaterias } = useMaterias();
+  const { data: rawMaterias, isLoading: loadingMaterias } = useMaterias(userId);
   const { data: seguidasRes, isLoading: loadingSeguidas } = useMateriasSeguidas(userId);
   const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
   const updateMascota = useMascotaUpdate();
   const [hoveredMateriaId, setHoveredMateriaId] = useState(null);
 
@@ -155,6 +162,32 @@ const Study = () => {
     }
   };
 
+  const handleCreateMateria = async () => {
+    if (!newNombre.trim() || creating) return;
+    setCreating(true);
+    try {
+      await createMateria(newNombre.trim(), newEmoji || null, newColor || null);
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      invalidate.seguidas(userId);
+      setShowCreateModal(false);
+      setNewNombre('');
+      setNewEmoji('');
+      setNewColor('#FFFFF0');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleToggleVisibility = async (e, materia) => {
+    e.stopPropagation();
+    try {
+      await updateMateria(materia.id, { es_publica: !materia.es_publica });
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+    } catch { /* silently fail */ }
+  };
+
   if (loading) {
     return (
       <div className="screen active screen-container" id="screen-study">
@@ -227,7 +260,7 @@ const Study = () => {
             >
               <div className="materia-emoji-big">{materia.emoji}</div>
               <div className="materia-info">
-                <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   {materia.nombre}
                   {materia.siguiendo && (
                     <span style={{
@@ -236,32 +269,137 @@ const Study = () => {
                       color: 'var(--gold)', border: '1px solid var(--gold)',
                     }}>{t('study.following')}</span>
                   )}
+                  {!materia.es_publica && (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 600, padding: '2px 6px',
+                      borderRadius: '6px', background: 'rgba(255,255,240,0.08)',
+                      color: 'var(--text2)',
+                    }}>🔒</span>
+                  )}
                 </div>
-                <div className="materia-bottom">
+                <div className="materia-bottom" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span className="materia-pct">{materia.pct}%</span>
                   <div className="mini-bar-wrap">
                     <div className="mini-bar" style={{ width: `${materia.pct}%`, background: color }}></div>
                   </div>
                   <VistaBadge vistas={materia.vistas ?? 0} style={{ marginLeft: '6px' }} />
                 </div>
+                {materia.creador_nombre && (
+                  <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
+                    {t('study.by', { name: materia.creador_nombre })}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={(e) => handleToggleSeguir(e, materia.id)}
-                style={{
-                  padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
-                  border: materia.siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
-                  background: materia.siguiendo ? 'rgba(255,255,240,0.15)' : 'transparent',
-                  color: materia.siguiendo ? 'var(--gold)' : 'var(--text2)',
-                  cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                }}
-              >
-                {materia.siguiendo ? '✓' : '➕'}
-              </button>
+              <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
+                {materia.creador_id === userId && (
+                  <button
+                    onClick={(e) => handleToggleVisibility(e, materia)}
+                    title={materia.es_publica ? t('study.makePrivate') : t('study.makePublic')}
+                    style={{
+                      padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                      border: '1px solid var(--border)',
+                      background: 'transparent',
+                      color: 'var(--text2)',
+                      cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {materia.es_publica ? '👁' : '🔒'}
+                  </button>
+                )}
+                <button
+                  onClick={(e) => handleToggleSeguir(e, materia.id)}
+                  style={{
+                    padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                    border: materia.siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
+                    background: materia.siguiendo ? 'rgba(255,255,240,0.15)' : 'transparent',
+                    color: materia.siguiendo ? 'var(--gold)' : 'var(--text2)',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {materia.siguiendo ? '✓' : '➕'}
+                </button>
+              </div>
             </div>
           );
         })}
+        {userId && (
+          <div
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              padding: '14px', marginTop: '8px',
+              border: '1px dashed var(--border)', borderRadius: '12px',
+              cursor: 'pointer', color: 'var(--text2)', fontSize: '14px',
+              transition: 'all 0.2s',
+            }}
+          >
+            ＋ {t('study.createMateria')}
+          </div>
+        )}
       </div>
     </div>
+
+    {showCreateModal && (
+      <div className="overlay show" id="create-overlay" onClick={e => { if (e.target.id === 'create-overlay') setShowCreateModal(false); }}>
+        <div className="sheet">
+          <div className="sheet-handle" />
+          <div className="sheet-title">{t('study.newMateria')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 4px' }}>
+            <input
+              type="text"
+              placeholder={t('study.materiaName')}
+              value={newNombre}
+              onChange={e => setNewNombre(e.target.value)}
+              maxLength={60}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--s2)', border: '1px solid var(--border)',
+                borderRadius: '10px', padding: '12px 14px',
+                fontSize: '14px', color: 'var(--text)', outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="📚"
+                value={newEmoji}
+                onChange={e => setNewEmoji(e.target.value)}
+                maxLength={4}
+                style={{
+                  width: '60px', textAlign: 'center',
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '10px', padding: '12px',
+                  fontSize: '20px', color: 'var(--text)', outline: 'none',
+                }}
+              />
+              <input
+                type="color"
+                value={newColor}
+                onChange={e => setNewColor(e.target.value)}
+                style={{
+                  width: '50px', height: '46px',
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '10px', padding: '4px', cursor: 'pointer',
+                }}
+              />
+            </div>
+            <button
+              onClick={handleCreateMateria}
+              disabled={!newNombre.trim() || creating}
+              style={{
+                padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: 700,
+                background: newNombre.trim() ? 'var(--gold)' : 'var(--s3)',
+                color: newNombre.trim() ? '#000' : 'var(--text2)',
+                border: 'none', cursor: newNombre.trim() ? 'pointer' : 'default',
+                opacity: creating ? 0.6 : 1,
+              }}
+            >
+              {creating ? '...' : t('study.create')}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {confirmUnfollowId !== null && (
       <ConfirmModal

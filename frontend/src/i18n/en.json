@@ -41,7 +41,14 @@
     "unfollowTitle": "⚠️ Stop following?",
     "unfollowMessage": "All your progress in this subject will be deleted including flashcards, quizzes and views. This action cannot be undone.",
     "unfollowConfirm": "Yes, stop following",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "by": "by {{name}}",
+    "createMateria": "Create subject",
+    "newMateria": "New subject",
+    "materiaName": "Subject name",
+    "create": "Create",
+    "makePrivate": "Make private",
+    "makePublic": "Make public"
   },
 
   "unit": {
@@ -361,7 +368,10 @@
     "complete": "✓ Complete",
     "cards": "{{n}} cards",
     "loadingSubject": "Loading subject...",
-    "followToAccess": "Follow this subject to access the content"
+    "followToAccess": "Follow this subject to access the content",
+    "createdBy": "Created by {{name}}",
+    "public": "Public",
+    "private": "Private"
   },
 
   "common": {

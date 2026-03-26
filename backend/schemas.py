@@ -27,6 +27,9 @@ class MateriaBase(BaseModel):
     emoji: Optional[str] = None
     color: Optional[str] = None
     orden: Optional[int] = None
+    creador_id: Optional[int] = None
+    es_publica: bool = True
+    creador_nombre: Optional[str] = None
     unidades: List[UnidadBase] = []
 
     model_config = {"from_attributes": True}
@@ -36,6 +39,12 @@ class MateriaUpdate(BaseModel):
     emoji: Optional[str] = None
     color: Optional[str] = None
     orden: Optional[int] = None
+    es_publica: Optional[bool] = None
+
+class MateriaCreate(BaseModel):
+    nombre: str
+    emoji: Optional[str] = None
+    color: Optional[str] = None
 
 class UnidadUpdate(BaseModel):
     nombre: Optional[str] = None

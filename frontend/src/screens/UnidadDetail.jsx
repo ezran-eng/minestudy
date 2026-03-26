@@ -59,7 +59,7 @@ const UnidadDetail = () => {
   const [loading, setLoading] = useState(true);
 
   // Cached queries
-  const { data: allMaterias } = useMaterias();
+  const { data: allMaterias } = useMaterias(user?.id);
   const { data: seguidasRes } = useMateriasSeguidas(user?.id);
   const { data: infografias = [] } = useInfografias(idx);
   const { data: pdfs = [] } = usePdfs(idx);

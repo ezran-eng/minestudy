@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, Time, ForeignKey, UniqueConstraint, Index, func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -42,7 +43,10 @@ class Materia(Base):
     emoji = Column(String, nullable=True)
     color = Column(String, nullable=True)
     orden = Column(Integer, nullable=True)
+    creador_id = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=True)
+    es_publica = Column(Boolean, nullable=False, server_default=sa.text("true"))
 
+    creador = relationship("User", foreign_keys=[creador_id])
     unidades = relationship("Unidad", back_populates="materia", cascade="all, delete-orphan")
     progresos = relationship("Progreso", back_populates="materia")
     seguidores = relationship("MateriaSeguida", back_populates="materia", cascade="all, delete-orphan")

@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, F
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
+import sqlalchemy as sa
 from sqlalchemy import func, extract, desc
 from collections import defaultdict
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -396,6 +397,25 @@ def require_init_data(x_telegram_init_data: Optional[str] = Header(default=None)
         print(f"[auth] 403: initData hash invalid. initData[:60]={x_telegram_init_data[:60]!r}")
         raise HTTPException(status_code=403, detail="Invalid Telegram auth")
 
+
+def _extract_user_id(request: Request) -> Optional[int]:
+    """Extract user ID from Telegram initData header."""
+    import json
+    from urllib.parse import unquote
+    init_data = request.headers.get("x-telegram-init-data", "")
+    if not init_data:
+        return None
+    try:
+        pairs = dict(pair.split('=', 1) for pair in init_data.split('&') if '=' in pair)
+        user_str = unquote(pairs.get("user", ""))
+        if user_str:
+            user_obj = json.loads(user_str)
+            return int(user_obj.get("id", 0)) or None
+    except Exception:
+        pass
+    return None
+
+
 # Telegram IDs are sequential — these breakpoints map ID ranges to approximate
 # account creation years based on community research (Fragment, tgstat, etc.)
 _TG_ID_BREAKPOINTS = [
@@ -512,26 +532,79 @@ def update_progress(progreso: schemas.ProgresoCreate, db: Session = Depends(get_
     return db_progreso
 
 @app.get("/materias", response_model=List[schemas.MateriaBase])
-def get_materias(db: Session = Depends(get_db)):
-    db_materias = (
+def get_materias(user_id: int = None, db: Session = Depends(get_db)):
+    query = (
         db.query(models.Materia)
         .options(
-            joinedload(models.Materia.unidades).joinedload(models.Unidad.temas)
+            joinedload(models.Materia.unidades).joinedload(models.Unidad.temas),
+            joinedload(models.Materia.creador),
         )
-        .order_by(models.Materia.orden)
-        .all()
     )
+    if user_id:
+        # Show public materias + user's own private ones
+        query = query.filter(
+            sa.or_(
+                models.Materia.es_publica == True,
+                models.Materia.creador_id == user_id,
+            )
+        )
+    else:
+        query = query.filter(models.Materia.es_publica == True)
+    db_materias = query.order_by(models.Materia.orden).all()
+    results = []
     for materia in db_materias:
         materia.unidades.sort(key=lambda u: (u.orden is None, u.orden))
         for unidad in materia.unidades:
             unidad.temas.sort(key=lambda t: t.id)
-    return db_materias
+        # Build creator name respecting privacy settings
+        creador_nombre = None
+        if materia.creador:
+            u = materia.creador
+            if u.mostrar_nombre:
+                creador_nombre = u.first_name
+            elif u.mostrar_username and u.username:
+                creador_nombre = f"@{u.username}"
+            else:
+                creador_nombre = "Anónimo"
+        materia.creador_nombre = creador_nombre
+        results.append(materia)
+    return results
 
-@app.put("/materias/{id}", response_model=schemas.MateriaBase, dependencies=[Depends(require_admin)])
-def update_materia(id: int, materia: schemas.MateriaUpdate, db: Session = Depends(get_db)):
+@app.post("/materias", response_model=schemas.MateriaBase, dependencies=[Depends(require_init_data)])
+def create_materia(body: schemas.MateriaCreate, request: Request, db: Session = Depends(get_db)):
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User not found")
+    # Limit: max 10 materias per user
+    count = db.query(func.count(models.Materia.id)).filter(models.Materia.creador_id == user_id).scalar()
+    if count >= 10:
+        raise HTTPException(status_code=400, detail="Máximo 10 materias por usuario")
+    nueva = models.Materia(
+        nombre=body.nombre.strip(),
+        emoji=body.emoji,
+        color=body.color,
+        creador_id=user_id,
+        es_publica=True,
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    # Auto-follow
+    db.add(models.MateriaSeguida(id_usuario=user_id, id_materia=nueva.id))
+    db.commit()
+    return nueva
+
+@app.put("/materias/{id}", response_model=schemas.MateriaBase, dependencies=[Depends(require_init_data)])
+def update_materia(id: int, materia: schemas.MateriaUpdate, request: Request, db: Session = Depends(get_db)):
     db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
     if not db_materia:
         raise HTTPException(status_code=404, detail="Materia not found")
+    # Allow admin or creator
+    user_id = _extract_user_id(request)
+    is_admin = user_id == ADMIN_ID
+    is_owner = db_materia.creador_id == user_id
+    if not is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="No tenés permisos para editar esta materia")
 
     update_data = materia.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -541,12 +614,16 @@ def update_materia(id: int, materia: schemas.MateriaUpdate, db: Session = Depend
     db.refresh(db_materia)
     return db_materia
 
-@app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
-def delete_materia(id: int, db: Session = Depends(get_db)):
+@app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_materia(id: int, request: Request, db: Session = Depends(get_db)):
     db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
     if not db_materia:
         raise HTTPException(status_code=404, detail="Materia not found")
-    # Due to cascade="all, delete-orphan", this will also delete unidades, temas, etc.
+    user_id = _extract_user_id(request)
+    is_admin = user_id == ADMIN_ID
+    is_owner = db_materia.creador_id == user_id
+    if not is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="No tenés permisos para eliminar esta materia")
     db.delete(db_materia)
     db.commit()
     return

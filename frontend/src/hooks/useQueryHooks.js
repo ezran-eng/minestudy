@@ -17,11 +17,15 @@ import api, {
   getCommunityCounter,
 } from '../services/api';
 
-// ── Materias (public, rarely changes) ──────────────────────────────────────
-export const useMaterias = () =>
+// ── Materias (public + user's private) ─────────────────────────────────────
+export const useMaterias = (userId) =>
   useQuery({
-    queryKey: ['materias'],
-    queryFn: async () => { const r = await api.get('/materias'); return r.data; },
+    queryKey: ['materias', userId],
+    queryFn: async () => {
+      const url = userId ? `/materias?user_id=${userId}` : '/materias';
+      const r = await api.get(url);
+      return r.data;
+    },
     staleTime: 5 * 60 * 1000, // 5 min
   });
 
