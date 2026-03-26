@@ -81,7 +81,7 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
         </div>
       </div>
 
-      {/* TON badge */}
+      {/* Storage badge */}
       <div style={{
         padding: '3px 8px', borderRadius: '8px',
         background: 'rgba(240,240,240,0.06)',
@@ -90,7 +90,7 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
         fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
         color: '#666', flexShrink: 0,
       }}>
-        TON
+        {archivo.bag_id?.startsWith('r2://') ? 'R2' : 'TON'}
       </div>
 
       {/* Report button */}

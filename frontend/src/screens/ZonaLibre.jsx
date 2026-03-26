@@ -68,8 +68,14 @@ export default function ZonaLibre() {
   };
 
   const handleDownload = (archivo) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    window.open(`${API_URL}/zona-libre/archivo/${archivo.bag_id}`, '_blank');
+    // R2 files have direct public URLs, TON files go through our API
+    if (archivo.bag_id.startsWith('r2://')) {
+      const r2Key = archivo.bag_id.slice(5);
+      window.open(`https://pub-d070e7bf4b014f54acc4915474377809.r2.dev/${r2Key}`, '_blank');
+    } else {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      window.open(`${API_URL}/zona-libre/archivo/${archivo.bag_id}`, '_blank');
+    }
   };
 
   const handleReport = async (motivo) => {

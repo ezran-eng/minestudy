@@ -2009,12 +2009,29 @@ async def zona_libre_upload(
 
     filename = archivo.filename or "archivo"
 
-    # Upload to TON Storage
+    # Upload to TON Storage, fallback to R2
+    bag_id = None
+    storage_type = "ton"
     try:
         bag_id = await upload_to_ton(file_bytes, filename)
     except Exception as e:
-        logger.error("[zona-libre] TON upload failed: %s", e)
-        raise HTTPException(status_code=502, detail="No se pudo subir a TON Storage. Intentá de nuevo más tarde.")
+        logger.warning("[zona-libre] TON upload failed, falling back to R2: %s", e)
+        try:
+            import uuid
+            r2_key = f"zona-libre/{uuid.uuid4().hex[:12]}_{filename}"
+            r2 = get_r2_client()
+            r2.put_object(
+                Bucket=os.environ["R2_BUCKET"],
+                Key=r2_key,
+                Body=file_bytes,
+                ContentType=archivo.content_type or "application/octet-stream",
+            )
+            bag_id = f"r2://{r2_key}"
+            storage_type = "r2"
+            logger.info("[zona-libre] R2 fallback upload OK: %s", r2_key)
+        except Exception as e2:
+            logger.error("[zona-libre] R2 fallback also failed: %s", e2)
+            raise HTTPException(status_code=502, detail="No se pudo subir el archivo. Intentá de nuevo más tarde.")
 
     # Save to DB
     nuevo = models.ZonaLibreArchivo(
@@ -2028,11 +2045,17 @@ async def zona_libre_upload(
     db.commit()
     db.refresh(nuevo)
 
+    if bag_id.startswith("r2://"):
+        r2_key = bag_id[5:]
+        url_descarga = f"{R2_PUBLIC_URL}/{r2_key}"
+    else:
+        url_descarga = await get_download_url(bag_id)
+
     return {
         "bag_id": bag_id,
         "nombre": filename,
         "tamanio": len(file_bytes),
-        "url_descarga": await get_download_url(bag_id),
+        "url_descarga": url_descarga,
         "subido_por": {"user_id": user_id, "username": user.username},
     }
 
@@ -2048,7 +2071,11 @@ async def zona_libre_download(request: Request, bag_id: str, db: Session = Depen
     if not archivo:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
-    url = await get_download_url(bag_id)
+    if bag_id.startswith("r2://"):
+        r2_key = bag_id[5:]
+        url = f"{R2_PUBLIC_URL}/{r2_key}"
+    else:
+        url = await get_download_url(bag_id)
     return RedirectResponse(url=url)
 
 
