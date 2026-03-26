@@ -14,15 +14,27 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
     startScale: 1, startDist: 0, startTx: 0, startTy: 0,
     pinchMidX: 0, pinchMidY: 0,
     isPinching: false,
-    // Pan
+    // Pan — works at any zoom if content overflows
     isPanning: false, panStartX: 0, panStartY: 0, panTx: 0, panTy: 0,
+    panConfirmed: false, // true once we decide this touch is a pan (not a tap)
     // Double tap
     lastTap: 0, lastTapX: 0, lastTapY: 0,
-    // Velocity
+    // Velocity for momentum
     lastMoveTime: 0, velX: 0, velY: 0, lastPanX: 0, lastPanY: 0,
     // Momentum RAF
     momentumId: null,
   });
+
+  // Check if content overflows viewport at current scale
+  const contentOverflows = useCallback((s) => {
+    const el = containerRef.current;
+    if (!el) return false;
+    const parent = el.parentElement;
+    if (!parent) return false;
+    const pw = parent.clientWidth, ph = parent.clientHeight;
+    const cw = el.scrollWidth * s, ch = el.scrollHeight * s;
+    return cw > pw + 2 || ch > ph + 2;
+  }, []);
 
   const clampTranslate = useCallback((tx, ty, s) => {
     const el = containerRef.current;
@@ -60,6 +72,14 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
     const parent = el.parentElement;
     if (!parent) return;
 
+    // Center content initially if it overflows
+    const initClamped = clampTranslate(0, 0, 1);
+    if (initClamped.x !== 0 || initClamped.y !== 0) {
+      state.current.tx = initClamped.x;
+      state.current.ty = initClamped.y;
+      setTranslate(initClamped);
+    }
+
     const getDist = (t) => {
       const dx = t[0].clientX - t[1].clientX;
       const dy = t[0].clientY - t[1].clientY;
@@ -78,6 +98,7 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
         e.preventDefault();
         s.isPinching = true;
         s.isPanning = false;
+        s.panConfirmed = false;
         s.startDist = getDist(e.touches);
         s.startScale = s.scale;
         s.startTx = s.tx;
@@ -86,9 +107,10 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
         const rect = parent.getBoundingClientRect();
         s.pinchMidX = mid.x - rect.left;
         s.pinchMidY = mid.y - rect.top;
-      } else if (e.touches.length === 1 && s.scale > 1.05) {
-        // Pan only when zoomed in
+      } else if (e.touches.length === 1) {
+        // Start tracking for potential pan — we'll confirm it on move
         s.isPanning = true;
+        s.panConfirmed = false;
         s.panStartX = e.touches[0].clientX;
         s.panStartY = e.touches[0].clientY;
         s.panTx = s.tx;
@@ -109,6 +131,7 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
         if (now - s.lastTap < 300 && dist < 40) {
           e.preventDefault();
           s.isPanning = false;
+          s.panConfirmed = false;
           if (s.scale > 1.05) {
             applyTransform(1, 0, 0, true);
           } else {
@@ -140,9 +163,18 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
         const nty = s.pinchMidY - (s.pinchMidY - s.startTy) * (ns / s.startScale);
         applyTransform(ns, ntx, nty);
       } else if (s.isPanning && e.touches.length === 1) {
-        e.preventDefault();
         const dx = e.touches[0].clientX - s.panStartX;
         const dy = e.touches[0].clientY - s.panStartY;
+
+        // Confirm pan after 6px movement threshold (avoids interfering with taps)
+        if (!s.panConfirmed) {
+          if (Math.hypot(dx, dy) < 6) return;
+          // Only allow pan if content overflows
+          if (!contentOverflows(s.scale)) { s.isPanning = false; return; }
+          s.panConfirmed = true;
+        }
+
+        e.preventDefault();
         const now = Date.now();
         const dt = now - s.lastMoveTime;
         if (dt > 0) {
@@ -165,20 +197,24 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
         if (s.scale < 1) applyTransform(1, 0, 0, true);
       }
       if (s.isPanning && e.touches.length === 0) {
+        const wasPanning = s.panConfirmed;
         s.isPanning = false;
-        // Momentum
-        const absVel = Math.hypot(s.velX, s.velY);
-        if (absVel > 0.5) {
-          let vx = s.velX, vy = s.velY;
-          const decel = 0.95;
-          const step = () => {
-            vx *= decel;
-            vy *= decel;
-            if (Math.hypot(vx, vy) < 0.3) { s.momentumId = null; return; }
-            applyTransform(s.scale, s.tx + vx, s.ty + vy);
+        s.panConfirmed = false;
+        // Momentum only if we were actually panning
+        if (wasPanning) {
+          const absVel = Math.hypot(s.velX, s.velY);
+          if (absVel > 0.5) {
+            let vx = s.velX, vy = s.velY;
+            const decel = 0.95;
+            const step = () => {
+              vx *= decel;
+              vy *= decel;
+              if (Math.hypot(vx, vy) < 0.3) { s.momentumId = null; return; }
+              applyTransform(s.scale, s.tx + vx, s.ty + vy);
+              s.momentumId = requestAnimationFrame(step);
+            };
             s.momentumId = requestAnimationFrame(step);
-          };
-          s.momentumId = requestAnimationFrame(step);
+          }
         }
       }
     };
@@ -193,7 +229,7 @@ function usePinchZoom({ minScale = 0.9, maxScale = 4, doubleTapScale = 2.2 } = {
       parent.removeEventListener('touchend', onTouchEnd);
       if (state.current.momentumId) cancelAnimationFrame(state.current.momentumId);
     };
-  }, [applyTransform, minScale, maxScale, doubleTapScale, clampTranslate]);
+  }, [applyTransform, minScale, maxScale, doubleTapScale, clampTranslate, contentOverflows]);
 
   return { containerRef, scale, translate, isAnimating, resetZoom };
 }
