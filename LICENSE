@@ -17,7 +17,23 @@ subject to the following conditions:
    author (Ezequiel, DaathApp) is required in any public project derived from
    this codebase.
 
-2. ETHICAL USE ONLY
+2. DONATIONS (OPTIONAL, NOT REQUIRED)
+   No royalties or payments are required to use this code. However, if this
+   project helped you build something valuable, consider supporting the author
+   with a voluntary donation in TON or any token to this wallet:
+
+   TON Wallet:  UQBhNpsenzXBSEh31z3IXeKK-9YUsraT63zAGb_8rXwZurgi
+
+   Donations are never mandatory — only if you feel like giving back.
+
+3. STAY IN TOUCH
+   If you build something with this code, the author would love to know.
+   Join the DaathApp community on Telegram:
+
+   Telegram Channel: https://t.me/UrbexEchoes
+   Bot: https://t.me/DaathApp_bot
+
+4. ETHICAL USE ONLY
    This Software was created for educational purposes — to help students study,
    organize their subjects, and grow as people. It may only be used to build
    tools that are real, useful, and that add genuine value to society.
@@ -34,14 +50,14 @@ subject to the following conditions:
    The original author is not liable for misuse, damages, or legal consequences
    arising from derivative works.
 
-3. NO WARRANTY
+5. NO WARRANTY
    This Software is provided "as is", without warranty of any kind. The author
    makes no guarantees about performance, security, or fitness for any
    particular purpose. Review the architecture and optimize it for your own
    use case before deploying to production. Any bugs, failures, or losses
    resulting from use of this code are the sole responsibility of the user.
 
-4. SPIRIT OF THIS PROJECT
+6. SPIRIT OF THIS PROJECT
    DaathApp was built with the conviction that technology, when used with
    purpose and values, can genuinely improve people's lives. This code is
    shared freely in that same spirit — so that others can build tools that
@@ -63,5 +79,5 @@ THE SOFTWARE.
 ---
 
 Built with purpose. Shared with love.
-DaathApp — Salta, Argentina, 2026
+DaathApp — Argentina, 2026
 https://t.me/DaathApp_bot
