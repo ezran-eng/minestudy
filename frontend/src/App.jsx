@@ -28,7 +28,7 @@ const AdminAI = lazy(() => import('./screens/AdminAI'));
 const LoadingBar = () => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    height: '100vh', background: '#050510', gap: '24px',
+    height: '100vh', background: '#000000', gap: '24px',
   }}>
     <div style={{
       width: '120px', height: '3px', borderRadius: '2px',
@@ -36,7 +36,7 @@ const LoadingBar = () => (
     }}>
       <div style={{
         width: '40%', height: '100%', borderRadius: '2px',
-        background: 'linear-gradient(90deg, rgba(139,92,246,0.8), rgba(96,165,250,0.8))',
+        background: 'rgba(255,255,240,0.7)',
         animation: 'loading-slide 1.2s ease-in-out infinite',
       }} />
     </div>
@@ -126,7 +126,7 @@ const App = () => {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: '#0e0e0e', padding: '32px', textAlign: 'center', gap: '16px',
+        height: '100vh', background: '#000000', padding: '32px', textAlign: 'center', gap: '16px',
       }}>
         <div style={{ fontSize: '56px' }}>📚</div>
         <div style={{ fontSize: '24px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>DaathApp</div>

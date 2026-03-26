@@ -98,7 +98,7 @@ const Flashcard = ({ isOpen, onClose, materiaName, customCards = null, userId = 
           className="flashcard"
           id="flashcard"
           onClick={flipCard}
-          style={{ background: flipped ? 'rgba(212,168,71,0.07)' : 'var(--s2)' }}
+          style={{ background: flipped ? 'rgba(255,255,240,0.07)' : 'var(--s2)' }}
         >
           <div className="fc-question" style={{ display: flipped ? 'none' : '' }}>
             {cards[cardIdx].q}

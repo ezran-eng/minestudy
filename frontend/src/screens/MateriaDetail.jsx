@@ -219,7 +219,7 @@ const MateriaDetail = () => {
                     style={{
                       padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
                       border: '1px solid var(--gold)',
-                      background: 'rgba(212,168,71,0.15)',
+                      background: 'rgba(255,255,240,0.15)',
                       color: 'var(--gold)',
                       cursor: 'pointer',
                     }}
@@ -244,7 +244,7 @@ const MateriaDetail = () => {
 
           {!siguiendo && (
             <div style={{
-              background: 'rgba(212,168,71,0.08)', border: '1px solid rgba(212,168,71,0.3)',
+              background: 'rgba(255,255,240,0.08)', border: '1px solid rgba(255,255,240,0.3)',
               borderRadius: '12px', padding: '14px 16px', marginBottom: '12px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
             }}>

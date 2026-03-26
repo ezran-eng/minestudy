@@ -321,7 +321,7 @@ export default function CinematicOnboarding({ user, onComplete }) {
     <div
       onClick={handleScreenTap}
       style={{
-        position: 'fixed', inset: 0, background: '#050510',
+        position: 'fixed', inset: 0, background: '#000000',
         zIndex: 9800, display: 'flex', flexDirection: 'column', alignItems: 'center',
         padding: `${safeTop + 16}px 20px 24px`,
         opacity: exiting ? 0 : 1,

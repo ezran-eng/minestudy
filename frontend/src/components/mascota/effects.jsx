@@ -47,7 +47,7 @@ function _effectThanos(c) {
 function _effectPokeball(c) {
   _p(c, {
     left: '50%', top: '50%', width: '10px', height: '10px', borderRadius: '50%',
-    background: 'radial-gradient(circle,#fff 0%,rgba(255,255,255,.9) 30%,rgba(212,168,71,.6) 60%,transparent 80%)',
+    background: 'radial-gradient(circle,#fff 0%,rgba(255,255,255,.9) 30%,rgba(255,255,240,.6) 60%,transparent 80%)',
   }, [
     { transform: 'translate(-50%,-50%) scale(0)', opacity: 0 },
     { transform: 'translate(-50%,-50%) scale(8)', opacity: 1, offset: 0.15 },
@@ -55,8 +55,8 @@ function _effectPokeball(c) {
   ], { duration: 600, easing: 'ease-out' });
   _p(c, {
     left: '50%', top: '50%', width: '30px', height: '30px', borderRadius: '50%',
-    border: '2px solid #d4a847', background: 'transparent',
-    boxShadow: '0 0 15px rgba(212,168,71,.6),inset 0 0 8px rgba(212,168,71,.3)',
+    border: '2px solid #FFFFF0', background: 'transparent',
+    boxShadow: '0 0 15px rgba(255,255,240,.6),inset 0 0 8px rgba(255,255,240,.3)',
   }, [
     { transform: 'translate(-50%,-50%) scale(0)', opacity: 1 },
     { transform: 'translate(-50%,-50%) scale(3)', opacity: .8, offset: 0.4 },
@@ -76,7 +76,7 @@ function _effectPokeball(c) {
     _p(c, {
       left: '32px', top: '32px', width: '4px', height: '4px',
       background: '#fff', borderRadius: '1px',
-      boxShadow: '0 0 6px #fff,0 0 12px rgba(212,168,71,.5)',
+      boxShadow: '0 0 6px #fff,0 0 12px rgba(255,255,240,.5)',
     }, [
       { transform: 'translate(-50%,-50%) rotate(0deg) scale(0)', opacity: 0 },
       { transform: `translate(calc(-50% + ${Math.cos(a) * d * .3}px),calc(-50% + ${Math.sin(a) * d * .3}px)) rotate(45deg) scale(1.5)`, opacity: 1, offset: 0.2 },

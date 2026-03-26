@@ -62,14 +62,14 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: '12px',
         padding: `${safeTop + 12}px 16px 12px`,
-        borderBottom: '1px solid #1e1e1e',
+        borderBottom: '1px solid #1a1a1a',
         flexShrink: 0,
       }}>
         <button
           onClick={onClose}
           style={{
             background: 'rgba(255,255,255,0.04)',
-            border: '1px solid #1e1e1e',
+            border: '1px solid #1a1a1a',
             borderRadius: '10px',
             color: '#666',
             fontSize: '18px', lineHeight: 1,
@@ -79,7 +79,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
         <div style={{
           fontFamily: "'Silkscreen', cursive",
           fontSize: '13px', fontWeight: 700,
-          color: '#e0e0e0', letterSpacing: '0.04em',
+          color: '#FFFFF0', letterSpacing: '0.04em',
         }}>SUBIR ARCHIVO</div>
       </div>
 
@@ -92,8 +92,8 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
         {/* Upload status with Redo */}
         {uploading && (
           <div style={{
-            background: '#0f0f0f',
-            border: '1px solid #1e1e1e',
+            background: '#000000',
+            border: '1px solid #1a1a1a',
             borderRadius: '16px',
             padding: '16px',
             display: 'flex', alignItems: 'center', gap: '12px',
@@ -101,7 +101,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
             <RedoMini size={40} />
             <div style={{
               fontFamily: "'Outfit', sans-serif",
-              fontSize: '13px', color: '#e0e0e0', lineHeight: 1.5,
+              fontSize: '13px', color: '#FFFFF0', lineHeight: 1.5,
             }}>
               Enviando a la red...
             </div>
@@ -111,7 +111,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
         {/* Success */}
         {result && (
           <div style={{
-            background: '#0f0f0f',
+            background: '#000000',
             border: '1px solid rgba(93,191,114,0.2)',
             borderRadius: '16px',
             padding: '16px',
@@ -120,7 +120,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
             <RedoMini size={40} />
             <div style={{
               fontFamily: "'Outfit', sans-serif",
-              fontSize: '13px', color: '#e0e0e0', lineHeight: 1.5,
+              fontSize: '13px', color: '#FFFFF0', lineHeight: 1.5,
             }}>
               ¡Archivo en la red! Ya nadie puede borrarlo.
             </div>
@@ -156,8 +156,8 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
               <div
                 onClick={() => inputRef.current?.click()}
                 style={{
-                  background: '#0f0f0f',
-                  border: '2px dashed #2a2a2a',
+                  background: '#000000',
+                  border: '2px dashed #1a1a1a',
                   borderRadius: '16px',
                   padding: '40px 20px',
                   display: 'flex', flexDirection: 'column',
@@ -168,7 +168,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
                 <div style={{ fontSize: '32px' }}>↑</div>
                 <div style={{
                   fontFamily: "'Outfit', sans-serif",
-                  fontSize: '14px', fontWeight: 600, color: '#e0e0e0',
+                  fontSize: '14px', fontWeight: 600, color: '#FFFFF0',
                 }}>
                   Seleccionar archivo
                 </div>
@@ -180,8 +180,8 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
               </div>
             ) : (
               <div style={{
-                background: '#0f0f0f',
-                border: '1px solid #2a2a2a',
+                background: '#000000',
+                border: '1px solid #1a1a1a',
                 borderRadius: '16px',
                 padding: '16px',
               }}>
@@ -191,7 +191,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
                 }}>
                   <div style={{
                     width: '42px', height: '42px', borderRadius: '12px',
-                    background: '#141414', border: '1px solid #1e1e1e',
+                    background: '#0a0a0a', border: '1px solid #1a1a1a',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '20px',
                   }}>
@@ -200,7 +200,7 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontFamily: "'Outfit', sans-serif",
-                      fontSize: '13px', fontWeight: 600, color: '#e0e0e0',
+                      fontSize: '13px', fontWeight: 600, color: '#FFFFF0',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {file.name}
@@ -229,13 +229,13 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
                   maxLength={200}
                   style={{
                     width: '100%',
-                    background: '#141414',
-                    border: '1px solid #1e1e1e',
+                    background: '#0a0a0a',
+                    border: '1px solid #1a1a1a',
                     borderRadius: '10px',
                     padding: '10px 14px',
                     fontFamily: "'Outfit', sans-serif",
                     fontSize: '13px',
-                    color: '#e0e0e0',
+                    color: '#FFFFF0',
                     outline: 'none',
                   }}
                 />
@@ -271,12 +271,12 @@ export default function ZonaLibreUpload({ onUpload, onClose }) {
             onClick={onClose}
             style={{
               background: 'rgba(240,240,240,0.08)',
-              border: '1px solid #2a2a2a',
+              border: '1px solid #1a1a1a',
               borderRadius: '14px',
               padding: '14px',
               fontFamily: "'Outfit', sans-serif",
               fontSize: '13px', fontWeight: 600,
-              color: '#e0e0e0',
+              color: '#FFFFF0',
               cursor: 'pointer',
             }}
           >

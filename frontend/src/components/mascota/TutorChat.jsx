@@ -178,7 +178,7 @@ export default function TutorChat({ userId, unidadId, unidadNombre, materiaNombr
   return (
     <div style={{
       position: 'fixed', inset: 0,
-      background: '#050510',
+      background: '#000000',
       zIndex: 2500,
       display: 'flex', flexDirection: 'column',
       animation: 'ob-fade-up 0.25s ease-out',

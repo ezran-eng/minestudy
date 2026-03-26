@@ -390,7 +390,7 @@ const Profile = () => {
                     onClick={() => { i18n.changeLanguage(lang.code); localStorage.setItem('daathapp_lang', lang.code); }}
                     style={{
                       flex: 1, padding: '11px 14px',
-                      background: i18n.language === lang.code ? 'rgba(212,168,71,0.15)' : 'var(--s2)',
+                      background: i18n.language === lang.code ? 'rgba(255,255,240,0.15)' : 'var(--s2)',
                       border: i18n.language === lang.code ? '1px solid var(--gold)' : '1px solid var(--border)',
                       borderRadius: '10px', color: i18n.language === lang.code ? 'var(--gold)' : 'var(--text2)',
                       fontSize: '13px', fontWeight: 600, cursor: 'pointer',

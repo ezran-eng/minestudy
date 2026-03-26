@@ -232,7 +232,7 @@ const Study = () => {
                   {materia.siguiendo && (
                     <span style={{
                       fontSize: '10px', fontWeight: 700, padding: '2px 6px',
-                      borderRadius: '6px', background: 'rgba(212,168,71,0.15)',
+                      borderRadius: '6px', background: 'rgba(255,255,240,0.15)',
                       color: 'var(--gold)', border: '1px solid var(--gold)',
                     }}>{t('study.following')}</span>
                   )}
@@ -250,7 +250,7 @@ const Study = () => {
                 style={{
                   padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
                   border: materia.siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
-                  background: materia.siguiendo ? 'rgba(212,168,71,0.15)' : 'transparent',
+                  background: materia.siguiendo ? 'rgba(255,255,240,0.15)' : 'transparent',
                   color: materia.siguiendo ? 'var(--gold)' : 'var(--text2)',
                   cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                 }}

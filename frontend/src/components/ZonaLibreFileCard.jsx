@@ -34,8 +34,8 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
     <div
       onClick={() => onDownload?.(archivo)}
       style={{
-        background: '#0f0f0f',
-        border: '1px solid #1e1e1e',
+        background: '#000000',
+        border: '1px solid #1a1a1a',
         borderRadius: '14px',
         padding: '14px 16px',
         display: 'flex',
@@ -48,7 +48,7 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
       {/* File icon */}
       <div style={{
         width: '42px', height: '42px', borderRadius: '12px',
-        background: '#141414', border: '1px solid #1e1e1e',
+        background: '#0a0a0a', border: '1px solid #1a1a1a',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '20px', flexShrink: 0,
       }}>
@@ -60,7 +60,7 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
         <div style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: '13px', fontWeight: 600,
-          color: '#e0e0e0',
+          color: '#FFFFF0',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {archivo.nombre}
@@ -85,7 +85,7 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
       <div style={{
         padding: '3px 8px', borderRadius: '8px',
         background: 'rgba(240,240,240,0.06)',
-        border: '1px solid #1e1e1e',
+        border: '1px solid #1a1a1a',
         fontFamily: "'Silkscreen', cursive",
         fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
         color: '#666', flexShrink: 0,

@@ -70,7 +70,7 @@ const PDFViewer = ({ isOpen, onClose, pdf }) => {
       <div style={{
         flex: 1,
         overflow: 'auto',
-        background: '#2a2a2a',
+        background: '#1a1a1a',
         display: 'flex',
         justifyContent: 'center',
       }}>

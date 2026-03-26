@@ -3,8 +3,8 @@ export function useTelegram() {
 
   if (tg) {
     tg.ready();
-    try { tg.setHeaderColor('#0e0e0e'); } catch(e) {}
-    try { tg.setBackgroundColor('#0e0e0e'); } catch(e) {}
+    try { tg.setHeaderColor('#000000'); } catch(e) {}
+    try { tg.setBackgroundColor('#000000'); } catch(e) {}
     tg.expand();
     try {
       if (tg.requestFullscreen) {

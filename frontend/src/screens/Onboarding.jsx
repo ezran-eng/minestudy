@@ -97,7 +97,7 @@ const Onboarding = ({ user, onComplete }) => {
               padding: '16px 20px',
               borderRadius: '14px',
               border: selectedLang === lang.code ? '2px solid var(--gold)' : '2px solid var(--border)',
-              background: selectedLang === lang.code ? 'rgba(212,168,71,0.12)' : 'var(--s2)',
+              background: selectedLang === lang.code ? 'rgba(255,255,240,0.12)' : 'var(--s2)',
               color: selectedLang === lang.code ? 'var(--gold)' : 'var(--text)',
               fontSize: '16px', fontWeight: 700, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
@@ -155,7 +155,7 @@ const Onboarding = ({ user, onComplete }) => {
         {t('onboarding.privacyDesc')}
       </div>
       <div style={{
-        background: 'rgba(212,168,71,0.08)', border: '1px solid rgba(212,168,71,0.25)',
+        background: 'rgba(255,255,240,0.08)', border: '1px solid rgba(255,255,240,0.25)',
         borderRadius: '10px', padding: '10px 14px', marginBottom: '16px',
         fontSize: '12px', color: 'var(--text2)', lineHeight: 1.5,
       }}>

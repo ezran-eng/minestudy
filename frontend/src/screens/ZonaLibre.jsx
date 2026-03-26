@@ -110,7 +110,7 @@ export default function ZonaLibre() {
         <div style={{
           fontFamily: "'Outfit', sans-serif",
           fontSize: '24px', fontWeight: 700,
-          color: '#e0e0e0',
+          color: '#FFFFF0',
           marginBottom: '4px',
         }}>
           Archivos libres
@@ -131,8 +131,8 @@ export default function ZonaLibre() {
           const maxMB = Math.round(maxBytes / (1024 * 1024));
           return (
             <div style={{
-              background: '#0f0f0f',
-              border: '1px solid #1e1e1e',
+              background: '#000000',
+              border: '1px solid #1a1a1a',
               borderRadius: '16px',
               padding: '14px 16px',
               display: 'flex', flexDirection: 'column', gap: '10px',
@@ -153,7 +153,7 @@ export default function ZonaLibre() {
               <div>
                 <div style={{
                   height: '4px', borderRadius: '2px',
-                  background: '#1e1e1e', overflow: 'hidden',
+                  background: '#1a1a1a', overflow: 'hidden',
                 }}>
                   <div style={{
                     height: '100%', borderRadius: '2px',
@@ -179,8 +179,8 @@ export default function ZonaLibre() {
         <div
           onClick={() => setShowUpload(true)}
           style={{
-            background: '#0f0f0f',
-            border: '1px solid #2a2a2a',
+            background: '#000000',
+            border: '1px solid #1a1a1a',
             borderRadius: '16px',
             padding: '16px',
             display: 'flex', alignItems: 'center', gap: '14px',
@@ -191,7 +191,7 @@ export default function ZonaLibre() {
         >
           <div style={{
             width: '42px', height: '42px', borderRadius: '12px',
-            background: '#141414', border: '1px solid #2a2a2a',
+            background: '#0a0a0a', border: '1px solid #1a1a1a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '20px',
           }}>
@@ -200,7 +200,7 @@ export default function ZonaLibre() {
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: "'Outfit', sans-serif",
-              fontSize: '14px', fontWeight: 600, color: '#e0e0e0',
+              fontSize: '14px', fontWeight: 600, color: '#FFFFF0',
             }}>
               Subir archivo
             </div>
@@ -211,7 +211,7 @@ export default function ZonaLibre() {
           <div style={{
             padding: '3px 8px', borderRadius: '8px',
             background: 'rgba(240,240,240,0.06)',
-            border: '1px solid #1e1e1e',
+            border: '1px solid #1a1a1a',
             fontFamily: "'Silkscreen', cursive",
             fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
             color: '#666',
@@ -290,8 +290,8 @@ export default function ZonaLibre() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%', maxWidth: '420px',
-              background: '#0f0f0f',
-              borderTop: '1px solid #1e1e1e',
+              background: '#000000',
+              borderTop: '1px solid #1a1a1a',
               borderRadius: '20px 20px 0 0',
               padding: '20px 16px',
               paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
@@ -300,7 +300,7 @@ export default function ZonaLibre() {
           >
             <div style={{
               fontFamily: "'Outfit', sans-serif",
-              fontSize: '15px', fontWeight: 600, color: '#e0e0e0',
+              fontSize: '15px', fontWeight: 600, color: '#FFFFF0',
               marginBottom: '4px',
             }}>
               Reportar archivo
@@ -318,12 +318,12 @@ export default function ZonaLibre() {
                   key={m.id}
                   onClick={() => handleReport(m.id)}
                   style={{
-                    background: '#141414',
-                    border: '1px solid #1e1e1e',
+                    background: '#0a0a0a',
+                    border: '1px solid #1a1a1a',
                     borderRadius: '12px',
                     padding: '12px 16px',
                     fontFamily: "'Outfit', sans-serif",
-                    fontSize: '13px', color: '#e0e0e0',
+                    fontSize: '13px', color: '#FFFFF0',
                     cursor: 'pointer', textAlign: 'left',
                     transition: 'background 0.15s',
                   }}
@@ -339,7 +339,7 @@ export default function ZonaLibre() {
                 marginTop: '12px',
                 width: '100%',
                 background: 'rgba(255,255,255,0.04)',
-                border: '1px solid #1e1e1e',
+                border: '1px solid #1a1a1a',
                 borderRadius: '12px',
                 padding: '12px',
                 fontFamily: "'Outfit', sans-serif",

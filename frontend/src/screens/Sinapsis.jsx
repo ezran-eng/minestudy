@@ -205,7 +205,7 @@ export default function Sinapsis() {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: '#050510',
+      position: 'fixed', inset: 0, background: '#000000',
       zIndex: 8000, fontFamily: "'Silkscreen', cursive",
       display: 'flex', flexDirection: 'column',
     }}>
