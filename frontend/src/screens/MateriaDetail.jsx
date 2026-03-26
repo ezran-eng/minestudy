@@ -195,7 +195,7 @@ const MateriaDetail = () => {
 
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('materia.loadingSubject')}</div>;
 
-  const isOwner = user?.id && materia.creador_id === user.id;
+  const isOwner = user?.id && String(materia.creador_id) === String(user.id);
 
   const handleToggleVisibility = async () => {
     try {

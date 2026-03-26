@@ -34,6 +34,7 @@ from tutor_actions import accion_concepto_clave, accion_punto_debil, accion_prac
 from periodic_table import lookup_element, search_elements, element_context_for_llm
 from ai_generate import generate_flashcards, generate_quiz
 from quota_check import check_quota, get_quota_status
+from bot_config import ADMIN_ID
 from ton_storage import upload_to_ton, get_download_url
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration

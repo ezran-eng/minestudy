@@ -291,7 +291,7 @@ const Study = () => {
                 )}
               </div>
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
-                {materia.creador_id === userId && (
+                {String(materia.creador_id) === String(userId) && (
                   <button
                     onClick={(e) => handleToggleVisibility(e, materia)}
                     title={materia.es_publica ? t('study.makePrivate') : t('study.makePublic')}
