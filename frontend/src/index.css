@@ -699,7 +699,7 @@ body {
   text-decoration:none;
 }
 .nav-item.active{background:rgba(255,255,240,0.08);}
-.nav-icon{font-size:22px;line-height:1;}
+.nav-icon{font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;height:24px;}
 .nav-label{
   font-size:10px;font-weight:600;
   color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;
