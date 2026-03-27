@@ -42,6 +42,7 @@
     "unfollowMessage": "Se borrará todo tu progreso en esta materia incluyendo flashcards, cuestionarios y vistas. Esta acción no se puede deshacer.",
     "unfollowConfirm": "Sí, dejar de seguir",
     "cancel": "Cancelar",
+    "follow": "Seguir",
     "by": "por {{name}}",
     "createMateria": "Crear materia",
     "newMateria": "Nueva materia",

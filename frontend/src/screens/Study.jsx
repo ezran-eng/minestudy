@@ -215,21 +215,39 @@ const Study = () => {
   return (
     <>
     <div className="screen active screen-container" id="screen-study">
-      <div className="study-body-pad" style={{ paddingBottom: '8px' }}>
+
+      {/* Header: search + create button */}
+      <div className="study-body-pad" style={{ paddingBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
         <input
           type="text"
           placeholder={t('study.searchPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           style={{
-            width: '100%', boxSizing: 'border-box',
+            flex: 1, boxSizing: 'border-box',
             background: 'var(--s2)', border: '1px solid var(--border)',
             borderRadius: '10px', padding: '10px 14px',
             fontSize: '14px', color: 'var(--text)',
             outline: 'none',
           }}
         />
+        {userId && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            title={t('study.createMateria')}
+            style={{
+              flexShrink: 0, width: '40px', height: '40px',
+              borderRadius: '10px', border: '1px solid var(--border)',
+              background: 'var(--s2)', color: 'var(--text)',
+              fontSize: '20px', lineHeight: 1, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
+        )}
       </div>
+
       <div className="materias-list study-body-pad" style={{ paddingTop: 0 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', marginTop: '32px' }}>
@@ -238,6 +256,7 @@ const Study = () => {
         )}
         {filtered.map((materia) => {
           const color = materia.color || 'var(--gold)';
+          const isOwner = String(materia.creador_id) === String(userId);
           return (
             <div
               key={materia.id}
@@ -270,24 +289,13 @@ const Study = () => {
             >
               <div className="materia-emoji-big">{materia.emoji}</div>
               <div className="materia-info">
-                <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  {materia.nombre}
-                  {materia.siguiendo && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 700, padding: '2px 6px',
-                      borderRadius: '6px', background: 'rgba(255,255,240,0.15)',
-                      color: 'var(--gold)', border: '1px solid var(--gold)',
-                    }}>{t('study.following')}</span>
-                  )}
+                <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600 }}>{materia.nombre}</span>
                   {!materia.es_publica && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 600, padding: '2px 6px',
-                      borderRadius: '6px', background: 'rgba(255,255,240,0.08)',
-                      color: 'var(--text2)',
-                    }}>🔒</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text2)' }}>🔒</span>
                   )}
                 </div>
-                <div className="materia-bottom" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="materia-bottom" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                   <span className="materia-pct">{materia.pct}%</span>
                   <div className="mini-bar-wrap">
                     <div className="mini-bar" style={{ width: `${materia.pct}%`, background: color }}></div>
@@ -300,52 +308,43 @@ const Study = () => {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
-                {String(materia.creador_id) === String(userId) && (
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0, alignItems: 'flex-end' }}>
+                {/* Visibility toggle — owner only */}
+                {isOwner && (
                   <button
                     onClick={(e) => handleToggleVisibility(e, materia)}
                     title={materia.es_publica ? t('study.makePrivate') : t('study.makePublic')}
                     style={{
-                      padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
-                      border: '1px solid var(--border)',
-                      background: 'transparent',
-                      color: 'var(--text2)',
-                      cursor: 'pointer', whiteSpace: 'nowrap',
+                      width: '32px', height: '22px',
+                      borderRadius: '6px', border: '1px solid var(--border)',
+                      background: 'transparent', color: 'var(--text2)',
+                      cursor: 'pointer', fontSize: '12px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
                     {materia.es_publica ? '👁' : '🔒'}
                   </button>
                 )}
+                {/* Follow / unfollow */}
                 <button
                   onClick={(e) => handleToggleSeguir(e, materia.id)}
                   style={{
-                    padding: '5px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
-                    border: materia.siguiendo ? '1px solid var(--gold)' : '1px solid var(--border)',
-                    background: materia.siguiendo ? 'rgba(255,255,240,0.15)' : 'transparent',
+                    padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                    border: materia.siguiendo ? '1px solid rgba(255,255,240,0.4)' : '1px solid var(--border)',
+                    background: materia.siguiendo ? 'rgba(255,255,240,0.1)' : 'transparent',
                     color: materia.siguiendo ? 'var(--gold)' : 'var(--text2)',
                     cursor: 'pointer', whiteSpace: 'nowrap',
+                    transition: 'all 0.2s',
                   }}
                 >
-                  {materia.siguiendo ? '✓' : '➕'}
+                  {materia.siguiendo ? '✓ ' + t('study.following') : '+ ' + t('study.follow')}
                 </button>
               </div>
             </div>
           );
         })}
-        {userId && (
-          <div
-            onClick={() => setShowCreateModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              padding: '14px', marginTop: '8px',
-              border: '1px dashed var(--border)', borderRadius: '12px',
-              cursor: 'pointer', color: 'var(--text2)', fontSize: '14px',
-              transition: 'all 0.2s',
-            }}
-          >
-            ＋ {t('study.createMateria')}
-          </div>
-        )}
       </div>
     </div>
 

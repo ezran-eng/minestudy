@@ -42,6 +42,7 @@
     "unfollowMessage": "All your progress in this subject will be deleted including flashcards, quizzes and views. This action cannot be undone.",
     "unfollowConfirm": "Yes, stop following",
     "cancel": "Cancel",
+    "follow": "Follow",
     "by": "by {{name}}",
     "createMateria": "Create subject",
     "newMateria": "New subject",

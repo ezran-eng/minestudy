@@ -542,11 +542,21 @@ def get_materias(user_id: int = None, db: Session = Depends(get_db)):
         )
     )
     if user_id:
-        # Show public materias + user's own private ones
+        # Private materias the user already follows (grandfathered access)
+        followed_private = (
+            db.query(models.MateriaSeguida.id_materia)
+            .join(models.Materia, models.Materia.id == models.MateriaSeguida.id_materia)
+            .filter(
+                models.MateriaSeguida.id_usuario == user_id,
+                models.Materia.es_publica == False,
+            )
+            .subquery()
+        )
         query = query.filter(
             sa.or_(
                 models.Materia.es_publica == True,
                 models.Materia.creador_id == user_id,
+                models.Materia.id.in_(followed_private),
             )
         )
     else:
