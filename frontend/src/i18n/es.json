@@ -77,7 +77,29 @@
     "cards": "{{n}} tarjetas",
     "noCards": "Sin tarjetas",
     "questions": "{{n}} preguntas",
-    "new": "Nuevo"
+    "new": "Nuevo",
+    "addTopic": "Agregar tema",
+    "topicName": "Nombre del tema",
+    "editTopic": "Editar tema",
+    "deleteTopic": "Eliminar tema",
+    "deleteTopicMessage": "Se eliminará este tema. Esta acción no se puede deshacer.",
+    "deleteTopicConfirm": "Sí, eliminar",
+    "noTopicsHint": "Agregá temas para organizar el contenido de esta unidad",
+    "manageQuiz": "Gestionar preguntas",
+    "addQuestion": "Agregar pregunta",
+    "editQuestion": "Editar pregunta",
+    "deleteQuestion": "Eliminar pregunta",
+    "deleteQuestionMessage": "Se eliminará esta pregunta. Esta acción no se puede deshacer.",
+    "deleteQuestionConfirm": "Sí, eliminar",
+    "questionText": "Pregunta",
+    "optionA": "Opción A",
+    "optionB": "Opción B",
+    "optionC": "Opción C",
+    "optionD": "Opción D",
+    "correctAnswer": "Respuesta correcta",
+    "justification": "Justificación (opcional)",
+    "noQuestionsHint": "Agregá preguntas de quiz para evaluar a tus estudiantes",
+    "saveQuestion": "Guardar pregunta"
   },
 
   "flashcards": {
@@ -372,7 +394,15 @@
     "followToAccess": "Seguí esta materia para acceder al contenido",
     "createdBy": "Creada por {{name}}",
     "public": "Pública",
-    "private": "Privada"
+    "private": "Privada",
+    "addUnit": "Agregar unidad",
+    "unitName": "Nombre de la unidad",
+    "editUnit": "Editar unidad",
+    "deleteUnit": "Eliminar unidad",
+    "deleteUnitMessage": "Se eliminarán todos los temas, flashcards y preguntas de esta unidad. Esta acción no se puede deshacer.",
+    "deleteUnitConfirm": "Sí, eliminar",
+    "noUnitsHint": "Agregá tu primera unidad para empezar a armar tu materia",
+    "createSuccess": "Unidad creada"
   },
 
   "common": {

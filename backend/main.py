@@ -417,6 +417,28 @@ def _extract_user_id(request: Request) -> Optional[int]:
     return None
 
 
+def _require_owner_or_admin(materia_id: int, request: Request, db: Session):
+    """Check that caller is the materia owner or admin. Returns (user_id, materia)."""
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    materia = db.query(models.Materia).filter(models.Materia.id == materia_id).first()
+    if not materia:
+        raise HTTPException(status_code=404, detail="Materia not found")
+    if user_id != ADMIN_ID and materia.creador_id != user_id:
+        raise HTTPException(status_code=403, detail="No tenés permisos")
+    return user_id, materia
+
+
+def _require_owner_or_admin_by_unidad(unidad_id: int, request: Request, db: Session):
+    """Resolve unidad → materia and check ownership. Returns (user_id, materia, unidad)."""
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad not found")
+    user_id, materia = _require_owner_or_admin(unidad.id_materia, request, db)
+    return user_id, materia, unidad
+
+
 # Telegram IDs are sequential — these breakpoints map ID ranges to approximate
 # account creation years based on community research (Fragment, tgstat, etc.)
 _TG_ID_BREAKPOINTS = [
@@ -646,34 +668,66 @@ def get_unidades(id: int, db: Session = Depends(get_db)):
         return []
     return db_unidades
 
-@app.put("/unidades/{id}", response_model=schemas.UnidadBase, dependencies=[Depends(require_admin)])
-def update_unidad(id: int, unidad: schemas.UnidadUpdate, db: Session = Depends(get_db)):
-    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
-    if not db_unidad:
-        raise HTTPException(status_code=404, detail="Unidad not found")
+@app.post("/materias/{id}/unidades", response_model=schemas.UnidadBase, dependencies=[Depends(require_init_data)])
+def create_unidad(id: int, body: schemas.UnidadCreate, request: Request, db: Session = Depends(get_db)):
+    user_id, materia = _require_owner_or_admin(id, request, db)
+    count = db.query(func.count(models.Unidad.id)).filter(models.Unidad.id_materia == id).scalar()
+    if count >= 30:
+        raise HTTPException(status_code=400, detail="Máximo 30 unidades por materia")
+    orden = body.orden if body.orden is not None else count + 1
+    nueva = models.Unidad(nombre=body.nombre.strip(), id_materia=id, orden=orden, estado_default="pendiente")
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
 
+@app.put("/unidades/{id}", response_model=schemas.UnidadBase, dependencies=[Depends(require_init_data)])
+def update_unidad(id: int, unidad: schemas.UnidadUpdate, request: Request, db: Session = Depends(get_db)):
+    user_id, materia, db_unidad = _require_owner_or_admin_by_unidad(id, request, db)
     update_data = unidad.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_unidad, key, value)
-
     db.commit()
     db.refresh(db_unidad)
     return db_unidad
 
-@app.delete("/unidades/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
-def delete_unidad(id: int, db: Session = Depends(get_db)):
-    db_unidad = db.query(models.Unidad).filter(models.Unidad.id == id).first()
-    if not db_unidad:
-        raise HTTPException(status_code=404, detail="Unidad not found")
+@app.delete("/unidades/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_unidad(id: int, request: Request, db: Session = Depends(get_db)):
+    user_id, materia, db_unidad = _require_owner_or_admin_by_unidad(id, request, db)
     db.delete(db_unidad)
     db.commit()
     return
 
-@app.delete("/temas/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
-def delete_tema(id: int, db: Session = Depends(get_db)):
+@app.post("/unidades/{id}/temas", response_model=schemas.TemaBase, dependencies=[Depends(require_init_data)])
+def create_tema(id: int, body: schemas.TemaCreate, request: Request, db: Session = Depends(get_db)):
+    user_id, materia, unidad = _require_owner_or_admin_by_unidad(id, request, db)
+    count = db.query(func.count(models.Tema.id)).filter(models.Tema.id_unidad == id).scalar()
+    if count >= 20:
+        raise HTTPException(status_code=400, detail="Máximo 20 temas por unidad")
+    nuevo = models.Tema(nombre=body.nombre.strip(), id_unidad=id)
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+@app.put("/temas/{id}", response_model=schemas.TemaBase, dependencies=[Depends(require_init_data)])
+def update_tema(id: int, body: schemas.TemaUpdate, request: Request, db: Session = Depends(get_db)):
     db_tema = db.query(models.Tema).filter(models.Tema.id == id).first()
     if not db_tema:
         raise HTTPException(status_code=404, detail="Tema not found")
+    _require_owner_or_admin_by_unidad(db_tema.id_unidad, request, db)
+    if body.nombre is not None:
+        db_tema.nombre = body.nombre.strip()
+    db.commit()
+    db.refresh(db_tema)
+    return db_tema
+
+@app.delete("/temas/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_tema(id: int, request: Request, db: Session = Depends(get_db)):
+    db_tema = db.query(models.Tema).filter(models.Tema.id == id).first()
+    if not db_tema:
+        raise HTTPException(status_code=404, detail="Tema not found")
+    _require_owner_or_admin_by_unidad(db_tema.id_unidad, request, db)
     db.delete(db_tema)
     db.commit()
     return
@@ -691,6 +745,54 @@ def get_quiz(id_unidad: int, db: Session = Depends(get_db)):
     if not db_quiz:
         return []
     return db_quiz
+
+@app.post("/unidades/{id_unidad}/quiz/pregunta", response_model=schemas.QuizPreguntaBase, dependencies=[Depends(require_init_data)])
+def create_quiz_pregunta(id_unidad: int, body: schemas.QuizPreguntaCreate, request: Request, db: Session = Depends(get_db)):
+    user_id, materia, unidad = _require_owner_or_admin_by_unidad(id_unidad, request, db)
+    count = db.query(func.count(models.QuizPregunta.id)).filter(models.QuizPregunta.id_unidad == id_unidad).scalar()
+    if count >= 50:
+        raise HTTPException(status_code=400, detail="Máximo 50 preguntas por unidad")
+    if body.respuesta_correcta not in ("a", "b", "c", "d"):
+        raise HTTPException(status_code=400, detail="respuesta_correcta debe ser a, b, c o d")
+    nueva = models.QuizPregunta(
+        id_unidad=id_unidad,
+        pregunta=body.pregunta.strip(),
+        opcion_a=body.opcion_a.strip(),
+        opcion_b=body.opcion_b.strip(),
+        opcion_c=body.opcion_c.strip(),
+        opcion_d=body.opcion_d.strip(),
+        respuesta_correcta=body.respuesta_correcta,
+        justificacion=body.justificacion.strip() if body.justificacion else None,
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+@app.put("/quiz/{id}", response_model=schemas.QuizPreguntaBase, dependencies=[Depends(require_init_data)])
+def update_quiz_pregunta(id: int, body: schemas.QuizPreguntaUpdate, request: Request, db: Session = Depends(get_db)):
+    db_q = db.query(models.QuizPregunta).filter(models.QuizPregunta.id == id).first()
+    if not db_q:
+        raise HTTPException(status_code=404, detail="Pregunta not found")
+    _require_owner_or_admin_by_unidad(db_q.id_unidad, request, db)
+    update_data = body.model_dump(exclude_unset=True)
+    if "respuesta_correcta" in update_data and update_data["respuesta_correcta"] not in ("a", "b", "c", "d"):
+        raise HTTPException(status_code=400, detail="respuesta_correcta debe ser a, b, c o d")
+    for key, value in update_data.items():
+        setattr(db_q, key, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(db_q)
+    return db_q
+
+@app.delete("/quiz/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
+def delete_quiz_pregunta(id: int, request: Request, db: Session = Depends(get_db)):
+    db_q = db.query(models.QuizPregunta).filter(models.QuizPregunta.id == id).first()
+    if not db_q:
+        raise HTTPException(status_code=404, detail="Pregunta not found")
+    _require_owner_or_admin_by_unidad(db_q.id_unidad, request, db)
+    db.delete(db_q)
+    db.commit()
+    return
 
 @app.delete("/unidades/{id_unidad}/flashcards", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 def delete_flashcards_by_unidad(id_unidad: int, db: Session = Depends(get_db)):

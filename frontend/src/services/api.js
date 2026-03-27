@@ -57,7 +57,7 @@ const api = {
   delete: async (endpoint) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'DELETE',
-      headers: { ...getAdminHeader() },
+      headers: { ...getInitDataHeader(), ...getAdminHeader() },
     });
     if (!response.ok) throw new Error(`DELETE ${endpoint} failed`);
     return {};
@@ -450,6 +450,102 @@ export const zonaLibreReport = async (archivoId, userId, motivo) => {
   });
   if (!response.ok) throw new Error('Report failed');
   return response.json();
+};
+
+// ── Unidades CRUD ─────────────────────────────────────────────────────────
+export const createUnidad = async (materiaId, nombre, orden = null) => {
+  const response = await fetch(`${API_URL}/materias/${materiaId}/unidades`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ nombre, ...(orden !== null ? { orden } : {}) }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create unidad');
+  }
+  return response.json();
+};
+
+export const updateUnidad = async (id, data) => {
+  const response = await fetch(`${API_URL}/unidades/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update unidad');
+  return response.json();
+};
+
+export const deleteUnidad = async (id) => {
+  const response = await fetch(`${API_URL}/unidades/${id}`, {
+    method: 'DELETE',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to delete unidad');
+};
+
+// ── Temas CRUD ────────────────────────────────────────────────────────────
+export const createTema = async (unidadId, nombre) => {
+  const response = await fetch(`${API_URL}/unidades/${unidadId}/temas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ nombre }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create tema');
+  }
+  return response.json();
+};
+
+export const updateTema = async (id, data) => {
+  const response = await fetch(`${API_URL}/temas/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update tema');
+  return response.json();
+};
+
+export const deleteTema = async (id) => {
+  const response = await fetch(`${API_URL}/temas/${id}`, {
+    method: 'DELETE',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to delete tema');
+};
+
+// ── Quiz Preguntas CRUD ───────────────────────────────────────────────────
+export const createQuizPregunta = async (unidadId, data) => {
+  const response = await fetch(`${API_URL}/unidades/${unidadId}/quiz/pregunta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create quiz pregunta');
+  }
+  return response.json();
+};
+
+export const updateQuizPregunta = async (id, data) => {
+  const response = await fetch(`${API_URL}/quiz/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update quiz pregunta');
+  return response.json();
+};
+
+export const deleteQuizPregunta = async (id) => {
+  const response = await fetch(`${API_URL}/quiz/${id}`, {
+    method: 'DELETE',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!response.ok) throw new Error('Failed to delete quiz pregunta');
 };
 
 // ── Materias CRUD ──────────────────────────────────────────────────────────

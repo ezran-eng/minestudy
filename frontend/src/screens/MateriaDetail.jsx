@@ -2,11 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
-import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, updateMateria } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, updateMateria, createUnidad, updateUnidad, deleteUnidad } from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMaterias, useVistasMateria, useSeguidoresMateria, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
+
+// ─── Help bubble component ──────────────────────────────────────────────────
+const HelpBubble = ({ message }) => (
+  <div style={{
+    background: 'var(--s2)', border: '1px solid var(--border)',
+    borderRadius: '12px', padding: '12px 16px', marginBottom: '12px',
+    position: 'relative', fontSize: '13px', color: 'var(--text2)',
+    lineHeight: 1.5,
+  }}>
+    <div style={{
+      position: 'absolute', top: '-6px', left: '24px',
+      width: '12px', height: '12px', background: 'var(--s2)',
+      border: '1px solid var(--border)', borderRight: 'none', borderBottom: 'none',
+      transform: 'rotate(45deg)',
+    }} />
+    {message}
+  </div>
+);
 
 // ─── Avatar stack shown in header ─────────────────────────────────────────────
 const MAX_AVATARS = 4;
@@ -117,6 +135,14 @@ const MateriaDetail = () => {
   const [showToast, setShowToast] = useState(false);
   const toastTimerRef = useRef(null);
 
+  // Unit CRUD state
+  const [showCreateUnidad, setShowCreateUnidad] = useState(false);
+  const [newUnidadNombre, setNewUnidadNombre] = useState('');
+  const [creatingUnidad, setCreatingUnidad] = useState(false);
+  const [editingUnidadId, setEditingUnidadId] = useState(null);
+  const [editingUnidadNombre, setEditingUnidadNombre] = useState('');
+  const [deleteUnidadId, setDeleteUnidadId] = useState(null);
+
   // Sync siguiendo from seguidores data
   useEffect(() => {
     if (seguidoresRes && user?.id) {
@@ -197,6 +223,44 @@ const MateriaDetail = () => {
       invalidate.allProgreso();
     } catch {
       setSiguiendo(prev);
+    }
+  };
+
+  // ─── Unit CRUD handlers ───────────────────────────────────────────────
+  const handleCreateUnidad = async () => {
+    if (!newUnidadNombre.trim() || creatingUnidad) return;
+    setCreatingUnidad(true);
+    try {
+      await createUnidad(materia.id, newUnidadNombre.trim());
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setShowCreateUnidad(false);
+      setNewUnidadNombre('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCreatingUnidad(false);
+    }
+  };
+
+  const handleEditUnidad = async (unidadId) => {
+    if (!editingUnidadNombre.trim()) return;
+    try {
+      await updateUnidad(unidadId, { nombre: editingUnidadNombre.trim() });
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setEditingUnidadId(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteUnidad = async () => {
+    if (!deleteUnidadId) return;
+    try {
+      await deleteUnidad(deleteUnidadId);
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setDeleteUnidadId(null);
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -282,9 +346,28 @@ const MateriaDetail = () => {
             </div>
           </div>
 
-          <div className="section-head" style={{ marginBottom: '10px' }}>
+          <div className="section-head" style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div className="section-title">{t('materia.syllabus')}</div>
+            {isOwner && (
+              <button
+                onClick={() => setShowCreateUnidad(true)}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--s2)',
+                  color: 'var(--text)', fontSize: '18px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+                title={t('materia.addUnit')}
+              >
+                +
+              </button>
+            )}
           </div>
+
+          {/* Help bubble for empty units */}
+          {isOwner && materia.unidades.length === 0 && (
+            <HelpBubble message={t('materia.noUnitsHint')} />
+          )}
 
           {!siguiendo && (
             <div style={{
@@ -319,14 +402,53 @@ const MateriaDetail = () => {
               const badgeText = userPct === 100 ? t('materia.complete') : `${userPct}%`;
               const displayTemas = u.temas.slice(0, 3);
               const hasMore = u.temas.length > 3;
+              const isEditing = editingUnidadId === u.id;
 
               const cardContent = (
                 <>
-                  <div className="pu-left">
-                    <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
+                  <div className="pu-left" style={{ flex: 1, minWidth: 0 }}>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.preventDefault()}>
+                        <input
+                          type="text"
+                          value={editingUnidadNombre}
+                          onChange={e => setEditingUnidadNombre(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleEditUnidad(u.id); if (e.key === 'Escape') setEditingUnidadId(null); }}
+                          autoFocus
+                          style={{
+                            flex: 1, background: 'var(--s2)', border: '1px solid var(--border)',
+                            borderRadius: '6px', padding: '6px 8px', fontSize: '13px',
+                            color: 'var(--text)', outline: 'none',
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditUnidad(u.id); }}
+                          style={{
+                            padding: '4px 10px', borderRadius: '6px', fontSize: '12px',
+                            background: 'var(--gold)', border: 'none', color: '#000',
+                            cursor: 'pointer', fontWeight: 600,
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingUnidadId(null); }}
+                          style={{
+                            padding: '4px 8px', borderRadius: '6px', fontSize: '12px',
+                            background: 'transparent', border: '1px solid var(--border)',
+                            color: 'var(--text2)', cursor: 'pointer',
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pu-name" style={{ marginBottom: '0' }}>{u.nombre}</div>
+                    )}
                     <div className="pu-topics-chips">
-                      {displayTemas.map((t) => (
-                        <span key={t.id} className="topic-chip">{t.nombre}</span>
+                      {displayTemas.map((tema) => (
+                        <span key={tema.id} className="topic-chip">{tema.nombre}</span>
                       ))}
                       {hasMore && <span className="topic-chip">...</span>}
                       {u.flashcard_count > 0 && (
@@ -336,9 +458,39 @@ const MateriaDetail = () => {
                       )}
                     </div>
                   </div>
-                  <span className={`pu-badge ${siguiendo ? statusClass : 'pend'}`}>
-                    {siguiendo ? badgeText : '🔒'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    {isOwner && !isEditing && (
+                      <>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingUnidadId(u.id); setEditingUnidadNombre(u.nombre); }}
+                          style={{
+                            width: '28px', height: '28px', borderRadius: '6px',
+                            border: '1px solid var(--border)', background: 'transparent',
+                            color: 'var(--text2)', fontSize: '13px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                          title={t('materia.editUnit')}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteUnidadId(u.id); }}
+                          style={{
+                            width: '28px', height: '28px', borderRadius: '6px',
+                            border: '1px solid rgba(255,80,80,0.3)', background: 'transparent',
+                            color: 'var(--text2)', fontSize: '13px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                          title={t('materia.deleteUnit')}
+                        >
+                          🗑
+                        </button>
+                      </>
+                    )}
+                    <span className={`pu-badge ${siguiendo ? statusClass : 'pend'}`}>
+                      {siguiendo ? badgeText : '🔒'}
+                    </span>
+                  </div>
                 </>
               );
 
@@ -372,6 +524,46 @@ const MateriaDetail = () => {
         </div>
       </div>
 
+      {/* Create unit modal */}
+      {showCreateUnidad && (
+        <div className="overlay show" id="create-unidad-overlay" onClick={e => { if (e.target.id === 'create-unidad-overlay') setShowCreateUnidad(false); }}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            <div className="sheet-title">{t('materia.addUnit')}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 4px' }}>
+              <input
+                type="text"
+                placeholder={t('materia.unitName')}
+                value={newUnidadNombre}
+                onChange={e => setNewUnidadNombre(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateUnidad(); }}
+                maxLength={100}
+                autoFocus
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '10px', padding: '12px 14px',
+                  fontSize: '14px', color: 'var(--text)', outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleCreateUnidad}
+                disabled={!newUnidadNombre.trim() || creatingUnidad}
+                style={{
+                  padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: 700,
+                  background: newUnidadNombre.trim() ? 'var(--gold)' : 'var(--s3)',
+                  color: newUnidadNombre.trim() ? '#000' : 'var(--text2)',
+                  border: 'none', cursor: newUnidadNombre.trim() ? 'pointer' : 'default',
+                  opacity: creatingUnidad ? 0.6 : 1,
+                }}
+              >
+                {creatingUnidad ? '...' : t('study.create')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSeguidores && (
         <SeguidoresModal
           seguidores={seguidores}
@@ -389,6 +581,18 @@ const MateriaDetail = () => {
           dangerous
           onConfirm={doUnfollow}
           onCancel={() => setShowUnfollowConfirm(false)}
+        />
+      )}
+
+      {deleteUnidadId && (
+        <ConfirmModal
+          title={t('materia.deleteUnit')}
+          message={t('materia.deleteUnitMessage')}
+          confirmLabel={t('materia.deleteUnitConfirm')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={handleDeleteUnidad}
+          onCancel={() => setDeleteUnidadId(null)}
         />
       )}
 

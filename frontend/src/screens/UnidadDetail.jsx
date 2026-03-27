@@ -1,17 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
 import InfografiaCarousel from '../components/InfografiaCarousel';
 import PDFViewer from '../components/PDFViewer';
+import ConfirmModal from '../components/ConfirmModal';
 import { useTelegram } from '../hooks/useTelegram';
-import api, { registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getProgresoUnidad } from '../services/api';
+import api, { registrarPdfVisto, registrarInfografiaVista, registrarQuizResultado, registrarVista, getProgresoUnidad, createTema, updateTema, deleteTema, createQuizPregunta, updateQuizPregunta, deleteQuizPregunta } from '../services/api';
 import { useMaterias, useMateriasSeguidas, useInfografias, usePdfs, useVistasUnidad, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
 import { useActividad } from '../hooks/useActividad';
 import { useToast } from '../components/Toast';
 import { useMascotaUpdate } from '../context/MascotaContext';
+
+// ─── Help bubble ────────────────────────────────────────────────────────────
+const HelpBubble = ({ message }) => (
+  <div style={{
+    background: 'var(--s2)', border: '1px solid var(--border)',
+    borderRadius: '12px', padding: '12px 16px', marginBottom: '12px',
+    position: 'relative', fontSize: '13px', color: 'var(--text2)',
+    lineHeight: 1.5,
+  }}>
+    <div style={{
+      position: 'absolute', top: '-6px', left: '24px',
+      width: '12px', height: '12px', background: 'var(--s2)',
+      border: '1px solid var(--border)', borderRight: 'none', borderBottom: 'none',
+      transform: 'rotate(45deg)',
+    }} />
+    {message}
+  </div>
+);
 
 const CircularProgress = ({ pct }) => {
   const r = 26;
@@ -32,6 +52,12 @@ const CircularProgress = ({ pct }) => {
   );
 };
 
+// ─── Blank question template ────────────────────────────────────────────────
+const blankQuestion = {
+  pregunta: '', opcion_a: '', opcion_b: '', opcion_c: '', opcion_d: '',
+  respuesta_correcta: 'a', justificacion: '',
+};
+
 const UnidadDetail = () => {
   const { id, idx } = useParams();
   const { user } = useTelegram();
@@ -41,6 +67,7 @@ const UnidadDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
 
   const updateMascota = useMascotaUpdate();
   const [isFlashOpen, setIsFlashOpen] = useState(false);
@@ -50,13 +77,27 @@ const UnidadDetail = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState(null);
   const [progreso, setProgreso] = useState(null);
-  // Local sets for immediate feedback before API refetch
   const [pdfsVistos, setPdfsVistos] = useState(new Set());
   const [infografiasVistas, setInfografiasVistas] = useState(new Set());
 
   const [flashcards, setFlashcards] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Topic CRUD state
+  const [showAddTema, setShowAddTema] = useState(false);
+  const [newTemaNombre, setNewTemaNombre] = useState('');
+  const [editingTemaId, setEditingTemaId] = useState(null);
+  const [editingTemaNombre, setEditingTemaNombre] = useState('');
+  const [deleteTemaId, setDeleteTemaId] = useState(null);
+
+  // Quiz management state
+  const [showQuizManager, setShowQuizManager] = useState(false);
+  const [showQuestionForm, setShowQuestionForm] = useState(false);
+  const [questionForm, setQuestionForm] = useState({ ...blankQuestion });
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
+  const [deleteQuestionId, setDeleteQuestionId] = useState(null);
+  const [savingQuestion, setSavingQuestion] = useState(false);
 
   // Cached queries
   const { data: allMaterias } = useMaterias(user?.id);
@@ -69,13 +110,13 @@ const UnidadDetail = () => {
   const materia = location.state?.materia || allMaterias?.find(m => m.id === parseInt(id)) || null;
   const unidad = location.state?.unidad || materia?.unidades?.find(u => u.id === parseInt(idx)) || null;
 
-  // Register a view when user enters the unit
+  const isOwner = user?.id && materia && String(materia.creador_id) === String(user.id);
+
   useEffect(() => {
     if (!user?.id) return;
     registrarVista(idx, user.id).catch(err => console.error('[vista]', err));
   }, [idx, user?.id]);
 
-  // Mascota context — update on enter and on modal open/close
   useEffect(() => {
     if (!updateMascota || !unidad) return;
     const datos = {
@@ -127,7 +168,6 @@ const UnidadDetail = () => {
     }
   }, [isQuizOpen]); // eslint-disable-line
 
-  // Access guard: redirect if user doesn't follow this materia
   useEffect(() => {
     if (!seguidasRes || !user?.id) return;
     if (!seguidasRes.materia_ids.includes(parseInt(id))) {
@@ -135,7 +175,6 @@ const UnidadDetail = () => {
     }
   }, [seguidasRes, user?.id, id, navigate]);
 
-  // Keep stable refs so callbacks inside child components never go stale
   const idxRef = useRef(idx);
   const userIdRef = useRef(user?.id);
   useEffect(() => { idxRef.current = idx; }, [idx]);
@@ -153,11 +192,16 @@ const UnidadDetail = () => {
     }
   };
 
-  // Stable ref so child components (Flashcard) always call the latest version
   const refreshProgresoRef = useRef(refreshProgreso);
   useEffect(() => { refreshProgresoRef.current = refreshProgreso; });
 
-  // Fetch flashcards + quiz (not cached — unit-specific and lightweight)
+  const fetchQuizQuestions = async () => {
+    try {
+      const qRes = await api.get(`/unidades/${idx}/quiz`);
+      setQuizQuestions(qRes.data);
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     const fetchUnitResources = async () => {
       try {
@@ -180,16 +224,82 @@ const UnidadDetail = () => {
     fetchUnitResources();
   }, [idx, user?.id]);
 
-  // Fetch progreso once after main data loads
   useEffect(() => {
     if (!loading && user?.id) refreshProgreso();
   }, [loading, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Topic CRUD handlers ──────────────────────────────────────────────
+  const handleAddTema = async () => {
+    if (!newTemaNombre.trim()) return;
+    try {
+      await createTema(parseInt(idx), newTemaNombre.trim());
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setNewTemaNombre('');
+      setShowAddTema(false);
+    } catch (err) { alert(err.message); }
+  };
+
+  const handleEditTema = async (temaId) => {
+    if (!editingTemaNombre.trim()) return;
+    try {
+      await updateTema(temaId, { nombre: editingTemaNombre.trim() });
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setEditingTemaId(null);
+    } catch (err) { alert(err.message); }
+  };
+
+  const handleDeleteTema = async () => {
+    if (!deleteTemaId) return;
+    try {
+      await deleteTema(deleteTemaId);
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setDeleteTemaId(null);
+    } catch (err) { alert(err.message); }
+  };
+
+  // ─── Quiz question CRUD handlers ─────────────────────────────────────
+  const handleSaveQuestion = async () => {
+    const f = questionForm;
+    if (!f.pregunta.trim() || !f.opcion_a.trim() || !f.opcion_b.trim() || !f.opcion_c.trim() || !f.opcion_d.trim()) return;
+    setSavingQuestion(true);
+    try {
+      if (editingQuestionId) {
+        await updateQuizPregunta(editingQuestionId, f);
+      } else {
+        await createQuizPregunta(parseInt(idx), f);
+      }
+      await fetchQuizQuestions();
+      setShowQuestionForm(false);
+      setEditingQuestionId(null);
+      setQuestionForm({ ...blankQuestion });
+    } catch (err) { alert(err.message); }
+    finally { setSavingQuestion(false); }
+  };
+
+  const handleEditQuestion = (q) => {
+    setQuestionForm({
+      pregunta: q.pregunta, opcion_a: q.opcion_a, opcion_b: q.opcion_b,
+      opcion_c: q.opcion_c, opcion_d: q.opcion_d,
+      respuesta_correcta: q.respuesta_correcta, justificacion: q.justificacion || '',
+    });
+    setEditingQuestionId(q.id);
+    setShowQuestionForm(true);
+  };
+
+  const handleDeleteQuestion = async () => {
+    if (!deleteQuestionId) return;
+    try {
+      await deleteQuizPregunta(deleteQuestionId);
+      await fetchQuizQuestions();
+      setDeleteQuestionId(null);
+    } catch (err) { alert(err.message); }
+  };
 
   if (loading) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.loadingUnit')}</div>;
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.subjectNotFound')}</div>;
   if (!unidad) return <div className="screen active" style={{ padding: '20px' }}>{t('unit.unitNotFound')}</div>;
 
-  const topicsArray = unidad.temas.map(t => t.nombre);
+  const topicsArray = unidad.temas || [];
 
   const openCarousel = (i) => {
     setCarouselStart(i);
@@ -231,8 +341,6 @@ const UnidadDetail = () => {
     refreshProgresoRef.current();
   };
 
-
-  // Badge helpers
   const flashBadge = progreso?.flashcards.total > 0
     ? t('unit.dominatedCount', { n: progreso.flashcards.dominadas, total: progreso.flashcards.total })
     : flashcards.length > 0 ? t('unit.cards', { n: flashcards.length }) : t('unit.noCards');
@@ -240,6 +348,14 @@ const UnidadDetail = () => {
   const quizBadge = progreso?.cuestionario.total > 0 && progreso?.cuestionario.correctas > 0
     ? `${progreso.cuestionario.correctas}/${progreso.cuestionario.total}`
     : quizQuestions.length > 0 ? t('unit.questions', { n: quizQuestions.length }) : t('unit.new');
+
+  // ─── Input style reused in forms ──────────────────────────────────────
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--s2)', border: '1px solid var(--border)',
+    borderRadius: '8px', padding: '10px 12px',
+    fontSize: '13px', color: 'var(--text)', outline: 'none',
+  };
 
   return (
     <>
@@ -282,12 +398,102 @@ const UnidadDetail = () => {
             </div>
           )}
 
+          {/* Topics section */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {t('unit.topics', 'Temas')}
+            </span>
+            {isOwner && (
+              <button
+                onClick={() => setShowAddTema(true)}
+                style={{
+                  width: '26px', height: '26px', borderRadius: '6px',
+                  border: '1px solid var(--border)', background: 'var(--s2)',
+                  color: 'var(--text)', fontSize: '15px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+                title={t('unit.addTopic')}
+              >
+                +
+              </button>
+            )}
+          </div>
+
+          {isOwner && topicsArray.length === 0 && (
+            <HelpBubble message={t('unit.noTopicsHint')} />
+          )}
+
           <div className="pu-topics-box">
-            {topicsArray.map((t, i) => (
-              <span key={i} style={{ display: 'inline-block', background: 'var(--s3)', borderRadius: '8px', padding: '5px 12px', margin: '3px 3px', fontSize: '11px', color: 'var(--text2)', fontWeight: 500 }}>
-                {t}
+            {topicsArray.map((tema) => {
+              if (editingTemaId === tema.id) {
+                return (
+                  <span key={tema.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '3px' }}>
+                    <input
+                      type="text" value={editingTemaNombre}
+                      onChange={e => setEditingTemaNombre(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleEditTema(tema.id); if (e.key === 'Escape') setEditingTemaId(null); }}
+                      autoFocus
+                      style={{
+                        background: 'var(--s2)', border: '1px solid var(--border)',
+                        borderRadius: '6px', padding: '4px 8px', fontSize: '11px',
+                        color: 'var(--text)', outline: 'none', width: '100px',
+                      }}
+                    />
+                    <button onClick={() => handleEditTema(tema.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px' }}>✓</button>
+                    <button onClick={() => setEditingTemaId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px', color: 'var(--text2)' }}>✕</button>
+                  </span>
+                );
+              }
+              return (
+                <span
+                  key={tema.id}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    background: 'var(--s3)', borderRadius: '8px', padding: '5px 12px',
+                    margin: '3px', fontSize: '11px', color: 'var(--text2)', fontWeight: 500,
+                  }}
+                >
+                  {isOwner ? (
+                    <span onClick={() => { setEditingTemaId(tema.id); setEditingTemaNombre(tema.nombre); }} style={{ cursor: 'pointer' }}>
+                      {tema.nombre}
+                    </span>
+                  ) : tema.nombre}
+                  {isOwner && (
+                    <button
+                      onClick={() => setDeleteTemaId(tema.id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: '10px', color: 'var(--text2)', padding: '0 0 0 4px',
+                        opacity: 0.6,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+
+            {/* Inline add topic */}
+            {showAddTema && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '3px' }}>
+                <input
+                  type="text" value={newTemaNombre}
+                  onChange={e => setNewTemaNombre(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddTema(); if (e.key === 'Escape') { setShowAddTema(false); setNewTemaNombre(''); } }}
+                  placeholder={t('unit.topicName')}
+                  autoFocus
+                  maxLength={60}
+                  style={{
+                    background: 'var(--s2)', border: '1px solid var(--border)',
+                    borderRadius: '6px', padding: '4px 8px', fontSize: '11px',
+                    color: 'var(--text)', outline: 'none', width: '120px',
+                  }}
+                />
+                <button onClick={handleAddTema} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px' }}>✓</button>
+                <button onClick={() => { setShowAddTema(false); setNewTemaNombre(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px', color: 'var(--text2)' }}>✕</button>
               </span>
-            ))}
+            )}
           </div>
 
           <div className="section-head" style={{ marginTop: '18px', marginBottom: '10px' }}>
@@ -311,6 +517,22 @@ const UnidadDetail = () => {
               <div className="resource-badge">{quizBadge}</div>
             </div>
           </div>
+
+          {/* Quiz management button for owner */}
+          {isOwner && (
+            <button
+              onClick={() => setShowQuizManager(true)}
+              style={{
+                width: '100%', marginTop: '10px', padding: '10px',
+                borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+                border: '1px solid var(--border)', background: 'var(--s2)',
+                color: 'var(--text)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              }}
+            >
+              📝 {t('unit.manageQuiz')}
+            </button>
+          )}
 
           {infografias.length > 0 && (
             <div style={{ marginTop: '24px' }}>
@@ -377,6 +599,161 @@ const UnidadDetail = () => {
 
         </div>
       </div>
+
+      {/* ─── Quiz Manager Modal ──────────────────────────────────────────── */}
+      {showQuizManager && (
+        <div className="overlay show" id="quiz-mgr-overlay" onClick={e => { if (e.target.id === 'quiz-mgr-overlay') setShowQuizManager(false); }}>
+          <div className="sheet" style={{ maxHeight: '85vh', overflow: 'auto' }}>
+            <div className="sheet-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div className="sheet-title" style={{ margin: 0 }}>{t('unit.manageQuiz')}</div>
+              <button
+                onClick={() => { setQuestionForm({ ...blankQuestion }); setEditingQuestionId(null); setShowQuestionForm(true); }}
+                style={{
+                  padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700,
+                  background: 'var(--gold)', border: 'none', color: '#000', cursor: 'pointer',
+                }}
+              >
+                + {t('unit.addQuestion')}
+              </button>
+            </div>
+
+            {quizQuestions.length === 0 && (
+              <HelpBubble message={t('unit.noQuestionsHint')} />
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {quizQuestions.map((q, i) => (
+                <div key={q.id} style={{
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '10px', padding: '12px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                        {i + 1}. {q.pregunta}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text2)' }}>
+                        A: {q.opcion_a} | B: {q.opcion_b} | C: {q.opcion_c} | D: {q.opcion_d}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--gold)', marginTop: '2px' }}>
+                        Correcta: {q.respuesta_correcta.toUpperCase()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                      <button
+                        onClick={() => handleEditQuestion(q)}
+                        style={{
+                          width: '28px', height: '28px', borderRadius: '6px',
+                          border: '1px solid var(--border)', background: 'transparent',
+                          color: 'var(--text2)', fontSize: '12px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >✏️</button>
+                      <button
+                        onClick={() => setDeleteQuestionId(q.id)}
+                        style={{
+                          width: '28px', height: '28px', borderRadius: '6px',
+                          border: '1px solid rgba(255,80,80,0.3)', background: 'transparent',
+                          color: 'var(--text2)', fontSize: '12px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >🗑</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Question Form Modal ─────────────────────────────────────────── */}
+      {showQuestionForm && (
+        <div className="overlay show" id="q-form-overlay" onClick={e => { if (e.target.id === 'q-form-overlay') { setShowQuestionForm(false); setEditingQuestionId(null); } }}>
+          <div className="sheet" style={{ maxHeight: '90vh', overflow: 'auto' }}>
+            <div className="sheet-handle" />
+            <div className="sheet-title">
+              {editingQuestionId ? t('unit.editQuestion') : t('unit.addQuestion')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 4px' }}>
+              <textarea
+                placeholder={t('unit.questionText')}
+                value={questionForm.pregunta}
+                onChange={e => setQuestionForm(p => ({ ...p, pregunta: e.target.value }))}
+                rows={3}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+              {['a', 'b', 'c', 'd'].map(opt => (
+                <div key={opt} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    onClick={() => setQuestionForm(p => ({ ...p, respuesta_correcta: opt }))}
+                    style={{
+                      width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+                      border: questionForm.respuesta_correcta === opt ? '2px solid var(--gold)' : '1px solid var(--border)',
+                      background: questionForm.respuesta_correcta === opt ? 'rgba(255,215,0,0.2)' : 'transparent',
+                      color: 'var(--text)', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {opt.toUpperCase()}
+                  </button>
+                  <input
+                    type="text"
+                    placeholder={t(`unit.option${opt.toUpperCase()}`)}
+                    value={questionForm[`opcion_${opt}`]}
+                    onChange={e => setQuestionForm(p => ({ ...p, [`opcion_${opt}`]: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+              ))}
+              <input
+                type="text"
+                placeholder={t('unit.justification')}
+                value={questionForm.justificacion}
+                onChange={e => setQuestionForm(p => ({ ...p, justificacion: e.target.value }))}
+                style={inputStyle}
+              />
+              <button
+                onClick={handleSaveQuestion}
+                disabled={savingQuestion || !questionForm.pregunta.trim() || !questionForm.opcion_a.trim() || !questionForm.opcion_b.trim() || !questionForm.opcion_c.trim() || !questionForm.opcion_d.trim()}
+                style={{
+                  padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: 700,
+                  background: 'var(--gold)', color: '#000', border: 'none', cursor: 'pointer',
+                  opacity: savingQuestion ? 0.6 : 1, marginTop: '4px',
+                }}
+              >
+                {savingQuestion ? '...' : t('unit.saveQuestion')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm modals */}
+      {deleteTemaId && (
+        <ConfirmModal
+          title={t('unit.deleteTopic')}
+          message={t('unit.deleteTopicMessage')}
+          confirmLabel={t('unit.deleteTopicConfirm')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={handleDeleteTema}
+          onCancel={() => setDeleteTemaId(null)}
+        />
+      )}
+
+      {deleteQuestionId && (
+        <ConfirmModal
+          title={t('unit.deleteQuestion')}
+          message={t('unit.deleteQuestionMessage')}
+          confirmLabel={t('unit.deleteQuestionConfirm')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={handleDeleteQuestion}
+          onCancel={() => setDeleteQuestionId(null)}
+        />
+      )}
 
       <PDFViewer
         isOpen={isPdfOpen}

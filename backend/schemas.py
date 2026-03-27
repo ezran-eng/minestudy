@@ -46,10 +46,38 @@ class MateriaCreate(BaseModel):
     emoji: Optional[str] = None
     color: Optional[str] = None
 
+class UnidadCreate(BaseModel):
+    nombre: str
+    orden: Optional[int] = None
+
 class UnidadUpdate(BaseModel):
     nombre: Optional[str] = None
     orden: Optional[int] = None
     estado_default: Optional[str] = None
+
+class TemaCreate(BaseModel):
+    nombre: str
+
+class TemaUpdate(BaseModel):
+    nombre: Optional[str] = None
+
+class QuizPreguntaCreate(BaseModel):
+    pregunta: str
+    opcion_a: str
+    opcion_b: str
+    opcion_c: str
+    opcion_d: str
+    respuesta_correcta: str
+    justificacion: Optional[str] = None
+
+class QuizPreguntaUpdate(BaseModel):
+    pregunta: Optional[str] = None
+    opcion_a: Optional[str] = None
+    opcion_b: Optional[str] = None
+    opcion_c: Optional[str] = None
+    opcion_d: Optional[str] = None
+    respuesta_correcta: Optional[str] = None
+    justificacion: Optional[str] = None
 
 class FlashcardBase(BaseModel):
     id: int

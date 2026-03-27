@@ -77,7 +77,29 @@
     "cards": "{{n}} cards",
     "noCards": "No cards",
     "questions": "{{n}} questions",
-    "new": "New"
+    "new": "New",
+    "addTopic": "Add topic",
+    "topicName": "Topic name",
+    "editTopic": "Edit topic",
+    "deleteTopic": "Delete topic",
+    "deleteTopicMessage": "This topic will be deleted. This action cannot be undone.",
+    "deleteTopicConfirm": "Yes, delete",
+    "noTopicsHint": "Add topics to organize this unit's content",
+    "manageQuiz": "Manage questions",
+    "addQuestion": "Add question",
+    "editQuestion": "Edit question",
+    "deleteQuestion": "Delete question",
+    "deleteQuestionMessage": "This question will be deleted. This action cannot be undone.",
+    "deleteQuestionConfirm": "Yes, delete",
+    "questionText": "Question",
+    "optionA": "Option A",
+    "optionB": "Option B",
+    "optionC": "Option C",
+    "optionD": "Option D",
+    "correctAnswer": "Correct answer",
+    "justification": "Justification (optional)",
+    "noQuestionsHint": "Add quiz questions to test your students",
+    "saveQuestion": "Save question"
   },
 
   "flashcards": {
@@ -372,7 +394,15 @@
     "followToAccess": "Follow this subject to access the content",
     "createdBy": "Created by {{name}}",
     "public": "Public",
-    "private": "Private"
+    "private": "Private",
+    "addUnit": "Add unit",
+    "unitName": "Unit name",
+    "editUnit": "Edit unit",
+    "deleteUnit": "Delete unit",
+    "deleteUnitMessage": "All topics, flashcards and questions in this unit will be deleted. This action cannot be undone.",
+    "deleteUnitConfirm": "Yes, delete",
+    "noUnitsHint": "Add your first unit to start building your subject",
+    "createSuccess": "Unit created"
   },
 
   "common": {
