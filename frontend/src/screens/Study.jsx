@@ -182,10 +182,20 @@ const Study = () => {
 
   const handleToggleVisibility = async (e, materia) => {
     e.stopPropagation();
+    const next = !materia.es_publica;
+    // Optimistic update in local cache
+    queryClient.setQueryData(['materias', userId], (old) =>
+      old?.map(m => m.id === materia.id ? { ...m, es_publica: next } : m)
+    );
     try {
-      await updateMateria(materia.id, { es_publica: !materia.es_publica });
+      await updateMateria(materia.id, { es_publica: next });
       queryClient.invalidateQueries({ queryKey: ['materias'] });
-    } catch { /* silently fail */ }
+    } catch {
+      // revert
+      queryClient.setQueryData(['materias', userId], (old) =>
+        old?.map(m => m.id === materia.id ? { ...m, es_publica: !next } : m)
+      );
+    }
   };
 
   if (loading) {

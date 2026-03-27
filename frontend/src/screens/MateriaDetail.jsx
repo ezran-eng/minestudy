@@ -103,12 +103,14 @@ const MateriaDetail = () => {
   const { data: vistasRes } = useVistasMateria(parseInt(id));
   const { data: seguidoresRes } = useSeguidoresMateria(parseInt(id));
 
-  const materia = location.state?.materia || allMaterias?.find(m => m.id === parseInt(id)) || null;
+  // Prefer fresh data from cache; fall back to location.state while loading
+  const materia = allMaterias?.find(m => m.id === parseInt(id)) || location.state?.materia || null;
   const vistasMateria = vistasRes?.total ?? null;
   const seguidores = seguidoresRes?.seguidores || [];
   const totalSeguidores = seguidoresRes?.total_seguidores || 0;
 
   const [siguiendo, setSiguiendo] = useState(location.state?.materia?.siguiendo ?? location.state?.siguiendo ?? false);
+  const [esPublica, setEsPublica] = useState(location.state?.materia?.es_publica ?? true);
   const [unidadProgresos, setUnidadProgresos] = useState({});
   const [showSeguidores, setShowSeguidores] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
@@ -121,6 +123,11 @@ const MateriaDetail = () => {
       setSiguiendo(seguidoresRes.seguidores.some(s => s.id_telegram === user.id));
     }
   }, [seguidoresRes, user?.id]);
+
+  // Sync esPublica from fresh cache data
+  useEffect(() => {
+    if (materia?.es_publica !== undefined) setEsPublica(materia.es_publica);
+  }, [materia?.es_publica]);
 
   // Fetch progreso per unit
   useEffect(() => {
@@ -198,10 +205,14 @@ const MateriaDetail = () => {
   const isOwner = user?.id && String(materia.creador_id) === String(user.id);
 
   const handleToggleVisibility = async () => {
+    const next = !esPublica;
+    setEsPublica(next); // optimistic
     try {
-      await updateMateria(materia.id, { es_publica: !materia.es_publica });
+      await updateMateria(materia.id, { es_publica: next });
       queryClient.invalidateQueries({ queryKey: ['materias'] });
-    } catch { /* silently fail */ }
+    } catch {
+      setEsPublica(!next); // revert on error
+    }
   };
 
   const totalUnits = materia.unidades.length;
@@ -257,14 +268,15 @@ const MateriaDetail = () => {
                 <button
                   onClick={handleToggleVisibility}
                   style={{
-                    padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
-                    border: '1px solid var(--border)',
-                    background: 'rgba(255,255,240,0.08)',
-                    color: 'var(--text2)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                    padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                    border: `1px solid ${esPublica ? 'rgba(255,255,240,0.3)' : 'rgba(255,255,240,0.15)'}`,
+                    background: esPublica ? 'rgba(255,255,240,0.12)' : 'rgba(255,255,240,0.05)',
+                    color: esPublica ? 'var(--text)' : 'var(--text2)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                    transition: 'all 0.2s',
                   }}
                 >
-                  {materia.es_publica ? '👁' : '🔒'} {materia.es_publica ? t('materia.public') : t('materia.private')}
+                  {esPublica ? '👁' : '🔒'} {esPublica ? t('materia.public') : t('materia.private')}
                 </button>
               )}
             </div>
