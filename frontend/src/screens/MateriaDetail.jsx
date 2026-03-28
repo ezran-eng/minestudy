@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTelegram } from '../hooks/useTelegram';
-import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, updateMateria, createUnidad, updateUnidad, deleteUnidad } from '../services/api';
+import { toggleSeguirMateria, deleteProgresoMateria, createOrUpdateUser, getProgresoUnidad, updateMateria, deleteMateria, createUnidad, updateUnidad, deleteUnidad } from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMaterias, useVistasMateria, useSeguidoresMateria, useInvalidate } from '../hooks/useQueryHooks';
 import VistaBadge from '../components/VistaBadge';
@@ -142,6 +142,7 @@ const MateriaDetail = () => {
   const [editingUnidadId, setEditingUnidadId] = useState(null);
   const [editingUnidadNombre, setEditingUnidadNombre] = useState('');
   const [deleteUnidadId, setDeleteUnidadId] = useState(null);
+  const [showDeleteMateriaConfirm, setShowDeleteMateriaConfirm] = useState(false);
 
   // Sync siguiendo from seguidores data
   useEffect(() => {
@@ -264,6 +265,16 @@ const MateriaDetail = () => {
     }
   };
 
+  const handleDeleteMateria = async () => {
+    try {
+      await deleteMateria(materia.id);
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      navigate('/study', { replace: true });
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   if (!materia) return <div className="screen active" style={{ padding: '20px' }}>{t('materia.loadingSubject')}</div>;
 
   const isOwner = user?.id && String(materia.creador_id) === String(user.id);
@@ -335,19 +346,33 @@ const MateriaDetail = () => {
                 </span>
               )}
               {isOwner && (
-                <button
-                  onClick={handleToggleVisibility}
-                  style={{
-                    padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                    border: `1px solid ${esPublica ? 'rgba(255,255,240,0.3)' : 'rgba(255,255,240,0.15)'}`,
-                    background: esPublica ? 'rgba(255,255,240,0.12)' : 'rgba(255,255,240,0.05)',
-                    color: esPublica ? 'var(--text)' : 'var(--text2)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {esPublica ? '👁' : '🔒'} {esPublica ? t('materia.public') : t('materia.private')}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={handleToggleVisibility}
+                    style={{
+                      padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                      border: `1px solid ${esPublica ? 'rgba(255,255,240,0.3)' : 'rgba(255,255,240,0.15)'}`,
+                      background: esPublica ? 'rgba(255,255,240,0.12)' : 'rgba(255,255,240,0.05)',
+                      color: esPublica ? 'var(--text)' : 'var(--text2)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {esPublica ? '👁' : '🔒'} {esPublica ? t('materia.public') : t('materia.private')}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteMateriaConfirm(true)}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '8px', fontSize: '14px',
+                      border: '1px solid rgba(220,53,69,0.3)', background: 'rgba(220,53,69,0.08)',
+                      color: '#e07070', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                    title={t('materia.deleteSubject')}
+                  >
+                    🗑
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -599,6 +624,18 @@ const MateriaDetail = () => {
           dangerous
           onConfirm={handleDeleteUnidad}
           onCancel={() => setDeleteUnidadId(null)}
+        />
+      )}
+
+      {showDeleteMateriaConfirm && (
+        <ConfirmModal
+          title={t('materia.deleteSubject')}
+          message={t('materia.deleteSubjectMessage')}
+          confirmLabel={t('materia.deleteSubjectConfirm')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={handleDeleteMateria}
+          onCancel={() => setShowDeleteMateriaConfirm(false)}
         />
       )}
 

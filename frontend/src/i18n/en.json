@@ -401,6 +401,9 @@
     "deleteUnit": "Delete unit",
     "deleteUnitMessage": "All topics, flashcards and questions in this unit will be deleted. This action cannot be undone.",
     "deleteUnitConfirm": "Yes, delete",
+    "deleteSubject": "Delete subject",
+    "deleteSubjectMessage": "All units, topics, flashcards and questions in this subject will be deleted. This action cannot be undone.",
+    "deleteSubjectConfirm": "Yes, delete subject",
     "noUnitsHint": "Add your first unit to start building your subject",
     "createSuccess": "Unit created"
   },

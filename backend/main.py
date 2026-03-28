@@ -653,8 +653,10 @@ def delete_materia(id: int, request: Request, db: Session = Depends(get_db)):
     if not db_materia:
         raise HTTPException(status_code=404, detail="Materia not found")
     user_id = _extract_user_id(request)
-    if user_id != ADMIN_ID:
-        raise HTTPException(status_code=403, detail="Solo el administrador puede eliminar materias")
+    is_admin = user_id == ADMIN_ID
+    is_owner = db_materia.creador_id == user_id
+    if not is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="No tenés permisos para eliminar esta materia")
     db.delete(db_materia)
     db.commit()
     return
