@@ -386,7 +386,9 @@ export default function Mascota({ userId }) {
 
   // ── Tap & menu actions ────────────────────────────────────────────────
 
-  const onTap = useCallback(() => {
+  const onTap = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (wasDragging.current) { wasDragging.current = false; return; }
     resetIdle();
     setMenuOpen(prev => !prev);
@@ -483,6 +485,8 @@ export default function Mascota({ userId }) {
       {menuOpen && (
         <div
           onClick={() => setMenuOpen(false)}
+          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
           style={{ position: 'fixed', inset: 0, zIndex: 1000 }}
         />
       )}
