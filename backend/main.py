@@ -11,6 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from typing import List, Optional
 import os
 import sys
+import time
 import uuid
 import hmac
 import hashlib
@@ -349,6 +350,11 @@ def _validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
             logger.warning("[auth] initData has no hash field — keys present: %s", list(pairs.keys()))
             return False
 
+        auth_date = int(pairs.get('auth_date', 0))
+        if not auth_date or (time.time() - auth_date) > 86_400:
+            logger.warning("[auth] initData expired or missing auth_date (age=%ds)", int(time.time() - auth_date))
+            return False
+
         secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
 
         # Attempt 1: raw values (URL-encoded, as received)
@@ -629,34 +635,17 @@ def create_materia(body: schemas.MateriaCreate, request: Request, db: Session = 
 
 @app.put("/materias/{id}", response_model=schemas.MateriaBase, dependencies=[Depends(require_init_data)])
 def update_materia(id: int, materia: schemas.MateriaUpdate, request: Request, db: Session = Depends(get_db)):
-    db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
-    if not db_materia:
-        raise HTTPException(status_code=404, detail="Materia not found")
-    # Allow admin or creator
-    user_id = _extract_user_id(request)
-    is_admin = user_id == ADMIN_ID
-    is_owner = db_materia.creador_id == user_id
-    if not is_admin and not is_owner:
-        raise HTTPException(status_code=403, detail="No tenés permisos para editar esta materia")
-
+    user_id, db_materia = _require_owner_or_admin(id, request, db)
     update_data = materia.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_materia, key, value)
-
     db.commit()
     db.refresh(db_materia)
     return db_materia
 
 @app.delete("/materias/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
 def delete_materia(id: int, request: Request, db: Session = Depends(get_db)):
-    db_materia = db.query(models.Materia).filter(models.Materia.id == id).first()
-    if not db_materia:
-        raise HTTPException(status_code=404, detail="Materia not found")
-    user_id = _extract_user_id(request)
-    is_admin = user_id == ADMIN_ID
-    is_owner = db_materia.creador_id == user_id
-    if not is_admin and not is_owner:
-        raise HTTPException(status_code=403, detail="No tenés permisos para eliminar esta materia")
+    user_id, db_materia = _require_owner_or_admin(id, request, db)
     db.delete(db_materia)
     db.commit()
     return
