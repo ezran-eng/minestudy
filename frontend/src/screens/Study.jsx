@@ -304,7 +304,13 @@ const Study = () => {
                 </div>
                 {materia.creador_nombre && (
                   <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
-                    {t('study.by', { name: materia.creador_nombre })}
+                    {t('study.by', { name: '' })}
+                    <span
+                      onClick={(e) => { e.stopPropagation(); navigate(`/perfil/${materia.creador_id}`); }}
+                      style={{ color: 'var(--blue)', cursor: 'pointer' }}
+                    >
+                      {materia.creador_nombre}
+                    </span>
                   </div>
                 )}
               </div>

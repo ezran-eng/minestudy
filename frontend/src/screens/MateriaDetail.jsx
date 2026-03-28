@@ -325,7 +325,13 @@ const MateriaDetail = () => {
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               {materia.creador_nombre && (
                 <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
-                  {t('materia.createdBy', { name: materia.creador_nombre })}
+                  {t('materia.createdBy', { name: '' })}
+                  <span
+                    onClick={() => navigate(`/perfil/${materia.creador_id}`)}
+                    style={{ color: 'var(--blue)', cursor: 'pointer' }}
+                  >
+                    {materia.creador_nombre}
+                  </span>
                 </span>
               )}
               {isOwner && (
