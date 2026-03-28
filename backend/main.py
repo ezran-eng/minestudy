@@ -423,6 +423,26 @@ def _extract_user_id(request: Request) -> Optional[int]:
     return None
 
 
+def _require_self_or_admin(path_user_id: int, request: Request) -> int:
+    """Check that caller is acting on their own account (or is admin). Returns authenticated user_id."""
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if user_id != path_user_id and user_id != ADMIN_ID:
+        raise HTTPException(status_code=403, detail="No tenés permisos")
+    return user_id
+
+
+def _require_self(request: Request, body_user_id: int) -> int:
+    """Check that the authenticated user matches the user_id in the request body. Returns authenticated user_id."""
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if user_id != body_user_id and user_id != ADMIN_ID:
+        raise HTTPException(status_code=403, detail="No podés operar en nombre de otro usuario")
+    return user_id
+
+
 def _require_owner_or_admin(materia_id: int, request: Request, db: Session):
     """Check that caller is the materia owner or admin. Returns (user_id, materia)."""
     user_id = _extract_user_id(request)
@@ -534,7 +554,8 @@ def get_user_profile(id_telegram: int, db: Session = Depends(get_db)):
     return db_user
 
 @app.put("/progreso", response_model=schemas.Progreso, dependencies=[Depends(require_init_data)])
-def update_progress(progreso: schemas.ProgresoCreate, db: Session = Depends(get_db)):
+def update_progress(progreso: schemas.ProgresoCreate, request: Request, db: Session = Depends(get_db)):
+    _require_self(request, progreso.id_usuario)
     # Check if user exists
     db_user = db.query(models.User).filter(models.User.id_telegram == progreso.id_usuario).first()
     if not db_user:
@@ -826,6 +847,7 @@ from datetime import datetime, date, timedelta, timezone, time as time_obj
 @app.post("/flashcards/{id}/review", response_model=schemas.CardReviewOut, dependencies=[Depends(require_init_data)])
 @limiter.limit("60/minute")
 def review_flashcard(request: Request, id: int, body: schemas.ReviewRequest, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     flashcard = db.query(models.Flashcard).filter(models.Flashcard.id == id).first()
     if not flashcard:
         raise HTTPException(status_code=404, detail="Flashcard not found")
@@ -903,6 +925,7 @@ def get_due_flashcards(id_unidad: int, id_usuario: int, db: Session = Depends(ge
 @app.post("/actividad", response_model=schemas.ActividadResponse, dependencies=[Depends(require_init_data)])
 @limiter.limit("60/minute")
 def registrar_actividad(request: Request, actividad: schemas.ActividadCreate, db: Session = Depends(get_db)):
+    _require_self(request, actividad.id_telegram)
     db_user = db.query(models.User).filter(models.User.id_telegram == actividad.id_telegram).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -955,7 +978,8 @@ def registrar_actividad(request: Request, actividad: schemas.ActividadCreate, db
 
 
 @app.post("/pdfs/{id}/visto", dependencies=[Depends(require_init_data)])
-def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, db: Session = Depends(get_db)):
+def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, request: Request, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     existing = db.query(models.PdfVisto).filter(
         models.PdfVisto.id_usuario == body.id_usuario,
         models.PdfVisto.id_pdf == id
@@ -967,7 +991,8 @@ def registrar_pdf_visto(id: int, body: schemas.PdfVistoCreate, db: Session = Dep
 
 
 @app.post("/infografias/{id}/vista", dependencies=[Depends(require_init_data)])
-def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, db: Session = Depends(get_db)):
+def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, request: Request, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     existing = db.query(models.InfografiaVista).filter(
         models.InfografiaVista.id_usuario == body.id_usuario,
         models.InfografiaVista.id_infografia == id
@@ -979,7 +1004,8 @@ def registrar_infografia_vista(id: int, body: schemas.InfografiaVistaCreate, db:
 
 
 @app.post("/quiz/resultado", dependencies=[Depends(require_init_data)])
-def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, db: Session = Depends(get_db)):
+def guardar_quiz_resultado(body: schemas.QuizResultadoCreate, request: Request, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     resultado = models.QuizResultado(
         id_usuario=body.id_usuario,
         id_unidad=body.id_unidad,
@@ -1227,7 +1253,8 @@ def delete_pdf(request: Request, id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/materias/{id}/seguir", response_model=schemas.SeguirResponse, dependencies=[Depends(require_init_data)])
-def set_seguir_materia(id: int, body: schemas.SeguirCreate, db: Session = Depends(get_db)):
+def set_seguir_materia(id: int, body: schemas.SeguirCreate, request: Request, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     logger.info(f"set_seguir_materia: materia={id} usuario={body.id_usuario} siguiendo={body.siguiendo}")
     existing = db.query(models.MateriaSeguida).filter(
         models.MateriaSeguida.id_usuario == body.id_usuario,
@@ -1351,7 +1378,8 @@ def get_privacidad(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/usuarios/{id}/privacidad", response_model=schemas.PrivacidadOut, dependencies=[Depends(require_init_data)])
-def update_privacidad(id: int, body: schemas.PrivacidadUpdate, db: Session = Depends(get_db)):
+def update_privacidad(id: int, body: schemas.PrivacidadUpdate, request: Request, db: Session = Depends(get_db)):
+    _require_self_or_admin(id, request)
     user = db.query(models.User).filter(models.User.id_telegram == id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1363,8 +1391,9 @@ def update_privacidad(id: int, body: schemas.PrivacidadUpdate, db: Session = Dep
 
 
 @app.post("/usuarios/{id}/onboarding", dependencies=[Depends(require_init_data)])
-def complete_onboarding(id: int, body: schemas.PrivacidadUpdate, db: Session = Depends(get_db)):
+def complete_onboarding(id: int, body: schemas.PrivacidadUpdate, request: Request, db: Session = Depends(get_db)):
     """Mark onboarding as completed and save initial privacy settings in one call."""
+    _require_self_or_admin(id, request)
     user = db.query(models.User).filter(models.User.id_telegram == id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1376,8 +1405,9 @@ def complete_onboarding(id: int, body: schemas.PrivacidadUpdate, db: Session = D
 
 
 @app.delete("/usuarios/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
-def delete_account(id: int, db: Session = Depends(get_db)):
+def delete_account(id: int, request: Request, db: Session = Depends(get_db)):
     """Permanently deletes a user and all their data. Next login shows onboarding again."""
+    _require_self_or_admin(id, request)
     user = db.query(models.User).filter(models.User.id_telegram == id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -1397,10 +1427,9 @@ def delete_account(id: int, db: Session = Depends(get_db)):
 
 
 @app.delete("/usuarios/{id_usuario}/progreso-materia/{id_materia}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_init_data)])
-def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.DeleteProgresoBody, db: Session = Depends(get_db)):
+def delete_progreso_materia(id_usuario: int, id_materia: int, body: schemas.DeleteProgresoBody, request: Request, db: Session = Depends(get_db)):
     """Wipes all progress of a user for every unit in the given materia."""
-    if body.id_usuario != id_usuario:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    _require_self_or_admin(id_usuario, request)
     unidades = db.query(models.Unidad).filter(models.Unidad.id_materia == id_materia).all()
     unidad_ids = [u.id for u in unidades]
     if not unidad_ids:
@@ -1496,6 +1525,7 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
 @app.post("/unidades/{id}/vista", dependencies=[Depends(require_init_data)])
 @limiter.limit("60/minute")
 def registrar_vista(request: Request, id: int, body: schemas.VistaCreate, db: Session = Depends(get_db)):
+    _require_self(request, body.id_usuario)
     cooldown = datetime.now(timezone.utc) - timedelta(minutes=30)
     existing = db.query(models.Vista).filter(
         models.Vista.id_usuario == body.id_usuario,
