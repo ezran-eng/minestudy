@@ -46,9 +46,12 @@
 
 html,body{height:100%;overflow:hidden;}
 body {
-  background: #000000;
-  color: var(--text);
+  background: #000000 !important;
+  color: #FFFFF0 !important;
   font-family: 'Outfit', sans-serif;
+}
+#root {
+  color: #FFFFF0 !important;
 }
 
 /* ── SCREENS ── */

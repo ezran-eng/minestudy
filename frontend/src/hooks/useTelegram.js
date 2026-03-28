@@ -11,6 +11,17 @@ export function useTelegram() {
         tg.requestFullscreen();
       }
     } catch(e) {}
+
+    // Force dark theme variables — overrides Telegram SDK injections on iOS
+    // Inline styles on documentElement have highest CSS priority
+    const root = document.documentElement;
+    root.style.setProperty('--tg-theme-bg-color', 'transparent');
+    root.style.setProperty('--tg-theme-secondary-bg-color', 'transparent');
+    root.style.setProperty('--tg-theme-text-color', '#FFFFF0');
+    root.style.setProperty('--tg-theme-hint-color', '#6b6b6b');
+    root.style.setProperty('--tg-theme-section-bg-color', 'transparent');
+    root.style.setProperty('--tg-theme-section-header-text-color', '#6b6b6b');
+    root.style.setProperty('--tg-theme-subtitle-text-color', '#6b6b6b');
   }
 
   const rawUser = tg?.initDataUnsafe?.user;
