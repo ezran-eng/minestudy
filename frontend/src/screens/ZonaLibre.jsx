@@ -226,6 +226,66 @@ export default function ZonaLibre() {
           </div>
         </div>
 
+        {/* Redo thought bubble — TON network status */}
+        {(() => {
+          const [open, setOpen] = React.useState(false);
+          return (
+            <div style={{ marginBottom: '20px' }}>
+              <div
+                onClick={() => setOpen(o => !o)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                {/* Redo mini avatar */}
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: '#0a0a0a', border: '1px solid #1a1a1a',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '14px', flexShrink: 0, marginTop: '2px',
+                }}>
+                  👁
+                </div>
+                {/* Bubble */}
+                <div style={{
+                  background: '#0a0a0a',
+                  border: '1px solid #1a1a1a',
+                  borderRadius: '14px',
+                  padding: '10px 14px',
+                  flex: 1,
+                }}>
+                  <div style={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '11px', color: '#555',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span>Estado de la red TON</span>
+                    <span style={{ fontSize: '10px' }}>{open ? '▲' : '▼'}</span>
+                  </div>
+                  {open && (
+                    <div style={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '12px', color: '#555',
+                      lineHeight: 1.6, marginTop: '8px',
+                    }}>
+                      <p style={{ margin: '0 0 8px' }}>
+                        ✅ <span style={{ color: '#666' }}>Los archivos se suben correctamente a TON Storage y reciben un Bag ID único en la blockchain de TON.</span>
+                      </p>
+                      <p style={{ margin: '0 0 8px' }}>
+                        ⚠️ <span style={{ color: '#666' }}>El nodo actual corre en Railway, que no expone puertos UDP. Esto significa que la red TON no puede conectarse directamente a este nodo, por lo que los archivos no son visibles todavía en exploradores externos como Bag Explorer.</span>
+                      </p>
+                      <p style={{ margin: '0' }}>
+                        🔮 <span style={{ color: '#555' }}>Cuando la app crezca, el nodo se migrará a un servidor con IP pública y puertos abiertos — ahí los archivos serán verdaderamente descentralizados e inmortales en la red TON.</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* File list */}
         <div style={{
           fontFamily: "'Silkscreen', cursive",
