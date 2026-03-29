@@ -2114,7 +2114,8 @@ def update_notificaciones(id: int, body: schemas.NotificacionesConfigUpdate, db:
 
 
 @app.post("/usuarios/{id}/notificaciones/test", dependencies=[Depends(require_init_data)])
-async def test_notificacion(id: int, db: Session = Depends(get_db)):
+async def test_notificacion(id: int, request: Request, db: Session = Depends(get_db)):
+    _require_self_or_admin(id, request)
     user = db.query(models.User).filter(models.User.id_telegram == id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -2197,7 +2198,7 @@ async def zona_libre_upload(
     descripcion: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
-    # Validate user exists
+    _require_self(request, user_id)
     user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -2297,6 +2298,7 @@ def zona_libre_report(request: Request, body: dict, db: Session = Depends(get_db
 
     if not archivo_id or not user_id:
         raise HTTPException(status_code=400, detail="archivo_id y user_id requeridos")
+    _require_self(request, int(user_id))
 
     archivo = db.query(models.ZonaLibreArchivo).filter(models.ZonaLibreArchivo.id == archivo_id).first()
     if not archivo:
