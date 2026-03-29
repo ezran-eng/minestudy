@@ -27,7 +27,7 @@ export default function ZonaLibre() {
   const [maxBytes, setMaxBytes] = useState(300 * 1024 * 1024);
   const [loading, setLoading] = useState(true);
   const [reportTarget, setReportTarget] = useState(null);
-  const [tonStatusOpen, setTonStatusOpen] = useState(false);
+  const [tonStatusOpen, setTonStatusOpen] = useState(true);
 
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
