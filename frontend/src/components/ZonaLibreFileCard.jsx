@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const FILE_ICONS = {
@@ -30,6 +30,16 @@ function formatDate(fecha) {
 
 export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
   const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const isTon = !archivo.bag_id?.startsWith('r2://');
+
+  function handleCopyBagId(e) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(archivo.bag_id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
   return (
     <div
       onClick={() => onDownload?.(archivo)}
@@ -81,16 +91,31 @@ export default function ZonaLibreFileCard({ archivo, onDownload, onReport }) {
         </div>
       </div>
 
-      {/* Storage badge */}
-      <div style={{
-        padding: '3px 8px', borderRadius: '8px',
-        background: 'rgba(240,240,240,0.06)',
-        border: '1px solid #1a1a1a',
-        fontFamily: "'Silkscreen', cursive",
-        fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
-        color: '#666', flexShrink: 0,
-      }}>
-        {archivo.bag_id?.startsWith('r2://') ? 'R2' : 'TON'}
+      {/* Storage badge + copy Bag ID for TON files */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {isTon && (
+          <div
+            onClick={handleCopyBagId}
+            title="Copiar Bag ID"
+            style={{
+              fontSize: '10px', color: copied ? '#4ade80' : '#444',
+              cursor: 'pointer', padding: '4px',
+              transition: 'color 0.2s',
+            }}
+          >
+            {copied ? '✓' : '#'}
+          </div>
+        )}
+        <div style={{
+          padding: '3px 8px', borderRadius: '8px',
+          background: 'rgba(240,240,240,0.06)',
+          border: '1px solid #1a1a1a',
+          fontFamily: "'Silkscreen', cursive",
+          fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
+          color: '#666',
+        }}>
+          {isTon ? 'TON' : 'R2'}
+        </div>
       </div>
 
       {/* Report button */}
