@@ -152,6 +152,9 @@ class UserPerfil(BaseModel):
     racha: int
     materias_cursando: List[MateriaPorcentaje]
     materias_completadas: List[MateriaPorcentaje]
+    wallet_address: Optional[str] = None
+    nft_activo_address: Optional[str] = None
+    mostrar_nft: bool = False
 
 class PdfVistoCreate(BaseModel):
     id_usuario: int

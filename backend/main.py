@@ -1520,6 +1520,9 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         "racha": user.racha or 0,
         "materias_cursando": materias_cursando if user.mostrar_cursos else [],
         "materias_completadas": materias_completadas if user.mostrar_cursos else [],
+        "wallet_address": user.wallet_address,
+        "nft_activo_address": user.nft_activo_address,
+        "mostrar_nft": user.mostrar_nft if user.mostrar_nft is not None else False,
     }
 
 
