@@ -13,8 +13,12 @@ from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
-TONAPI_KEY = os.environ.get("TONAPI_KEY")
+_raw_key = os.environ.get("TONAPI_KEY", "")
+TONAPI_KEY = _raw_key.strip().strip('"').strip("'")  # remove accidental quotes/whitespace
 TONAPI_BASE = "https://tonapi.io"
+
+if TONAPI_KEY:
+    logger.info("[ton_wallet] TONAPI_KEY loaded (%d chars, starts with %s...)", len(TONAPI_KEY), TONAPI_KEY[:8])
 
 # Colecciones/keywords de Telegram gifts para filtrar NFTs del usuario
 TELEGRAM_GIFT_KEYWORDS = [
@@ -248,8 +252,10 @@ async def get_wallet_public_key(address: str, state_init: str | None = None) -> 
                 pk_hex = r.json().get("public_key", "")
                 if pk_hex:
                     return bytes.fromhex(pk_hex)
-        except Exception:
-            pass
+            else:
+                logger.warning("[tonapi] publickey %d: %s", r.status_code, r.text[:200])
+        except Exception as e:
+            logger.warning("[tonapi] publickey exception: %s", e)
 
     if state_init:
         return _extract_pubkey_from_state_init(state_init)
@@ -281,7 +287,9 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             params={"limit": 100, "offset": 0, "indirect_ownership": "false"},
             headers={"Authorization": f"Bearer {TONAPI_KEY}"},
         )
-        r.raise_for_status()
+        if r.status_code != 200:
+            logger.error("[tonapi] nfts %d: %s (key starts with %s...)", r.status_code, r.text[:300], TONAPI_KEY[:8] if TONAPI_KEY else "NONE")
+            r.raise_for_status()
         items = r.json().get("nft_items", [])
 
     result = []
