@@ -1,5 +1,11 @@
 [variables]
 PYTHON_VERSION = '3.11'
 
+[phases.setup]
+nixPkgs = ['curl', 'wget']
+
 [phases.build]
-cmds = ['chmod +x start.sh']
+cmds = [
+    'chmod +x start.sh',
+    'curl -fsSL -o /tmp/tonutils-storage https://github.com/xssnick/tonutils-storage/releases/latest/download/tonutils-storage-linux-amd64 && chmod +x /tmp/tonutils-storage || echo "[build] tonutils-storage download failed, will retry at startup"',
+]
