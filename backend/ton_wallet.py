@@ -20,6 +20,25 @@ TONAPI_BASE = "https://tonapi.io"
 if TONAPI_KEY:
     logger.info("[ton_wallet] TONAPI_KEY loaded (%d chars, starts with %s...)", len(TONAPI_KEY), TONAPI_KEY[:8])
 
+
+def _tonapi_headers() -> dict:
+    """Auth headers for TonAPI. Returns empty dict if no key configured."""
+    if TONAPI_KEY:
+        return {"Authorization": f"Bearer {TONAPI_KEY}"}
+    return {}
+
+
+async def _tonapi_get(client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Response:
+    """GET with auth. If 401, retry without auth (public endpoint fallback)."""
+    headers = kwargs.pop("headers", {})
+    headers.update(_tonapi_headers())
+    r = await client.get(url, headers=headers, **kwargs)
+    if r.status_code == 401 and TONAPI_KEY:
+        logger.warning("[tonapi] 401 with key, retrying without auth: %s", url.split("?")[0][-60:])
+        headers.pop("Authorization", None)
+        r = await client.get(url, headers=headers, **kwargs)
+    return r
+
 # Colecciones/keywords de Telegram gifts para filtrar NFTs del usuario
 TELEGRAM_GIFT_KEYWORDS = [
     "telegram", "gift", "titanic", "cupid", "charm",
@@ -160,9 +179,6 @@ async def verify_ton_proof(
 
     Spec: https://docs.ton.org/develop/dapps/ton-connect/sign
     """
-    if not TONAPI_KEY:
-        raise RuntimeError("TONAPI_KEY no configurada — TON Connect no disponible")
-
     # 1. Consume nonce — anti-replay
     payload = proof.get("payload", "")
     if not consume_nonce(payload):
@@ -244,10 +260,7 @@ async def get_wallet_public_key(address: str, state_init: str | None = None) -> 
     encoded = quote(address, safe="")
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            r = await client.get(
-                f"{TONAPI_BASE}/v2/accounts/{encoded}/publickey",
-                headers={"Authorization": f"Bearer {TONAPI_KEY}"},
-            )
+            r = await _tonapi_get(client, f"{TONAPI_BASE}/v2/accounts/{encoded}/publickey")
             if r.status_code == 200:
                 pk_hex = r.json().get("public_key", "")
                 if pk_hex:
@@ -277,18 +290,15 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
         "traits": [{"trait_type": "Fondo", "value": "Onyx Black", "rarity": 1.5}]
     }
     """
-    if not TONAPI_KEY:
-        raise RuntimeError("TONAPI_KEY no configurada")
-
     encoded = quote(address, safe="")
     async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.get(
+        r = await _tonapi_get(
+            client,
             f"{TONAPI_BASE}/v2/accounts/{encoded}/nfts",
             params={"limit": 100, "offset": 0, "indirect_ownership": "false"},
-            headers={"Authorization": f"Bearer {TONAPI_KEY}"},
         )
         if r.status_code != 200:
-            logger.error("[tonapi] nfts %d: %s (key starts with %s...)", r.status_code, r.text[:300], TONAPI_KEY[:8] if TONAPI_KEY else "NONE")
+            logger.error("[tonapi] nfts %d: %s", r.status_code, r.text[:300])
             r.raise_for_status()
         items = r.json().get("nft_items", [])
 
@@ -321,14 +331,11 @@ async def get_nft_metadata(nft_address: str) -> dict:
     Obtiene metadata de un NFT específico vía TonAPI.
     Endpoint: GET https://tonapi.io/v2/nfts/{address}
     """
-    if not TONAPI_KEY:
-        raise RuntimeError("TONAPI_KEY no configurada")
-
     encoded = quote(nft_address, safe="")
     async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(
+        r = await _tonapi_get(
+            client,
             f"{TONAPI_BASE}/v2/nfts/{encoded}",
-            headers={"Authorization": f"Bearer {TONAPI_KEY}"},
         )
         r.raise_for_status()
         item = r.json()
