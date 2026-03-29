@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 import sqlalchemy as sa
@@ -36,7 +36,7 @@ from periodic_table import lookup_element, search_elements, element_context_for_
 from ai_generate import generate_flashcards, generate_quiz
 from quota_check import check_quota, get_quota_status
 from bot_config import ADMIN_ID
-from ton_storage import upload_to_ton, get_download_url
+from ton_storage import upload_to_ton, get_local_file_path
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -2259,7 +2259,7 @@ async def zona_libre_upload(
         r2_key = bag_id[5:]
         url_descarga = f"{R2_PUBLIC_URL}/{r2_key}"
     else:
-        url_descarga = await get_download_url(bag_id)
+        url_descarga = f"/zona-libre/archivo/{bag_id}"
 
     return {
         "bag_id": bag_id,
@@ -2284,9 +2284,12 @@ async def zona_libre_download(request: Request, bag_id: str, db: Session = Depen
     if bag_id.startswith("r2://"):
         r2_key = bag_id[5:]
         url = f"{R2_PUBLIC_URL}/{r2_key}"
+        return RedirectResponse(url=url)
     else:
-        url = await get_download_url(bag_id)
-    return RedirectResponse(url=url)
+        file_path = get_local_file_path(bag_id)
+        if not file_path:
+            raise HTTPException(status_code=404, detail="Archivo no disponible localmente")
+        return FileResponse(file_path, filename=archivo.nombre)
 
 
 @app.post("/zona-libre/reportar", dependencies=[Depends(require_init_data)])
