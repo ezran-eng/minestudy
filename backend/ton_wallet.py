@@ -7,8 +7,11 @@ import time
 import secrets
 import struct
 import base64
+import logging
 import httpx
 from urllib.parse import quote
+
+logger = logging.getLogger(__name__)
 
 TONAPI_KEY = os.environ.get("TONAPI_KEY")
 TONAPI_BASE = "https://tonapi.io"
@@ -159,24 +162,27 @@ async def verify_ton_proof(
     # 1. Consume nonce — anti-replay
     payload = proof.get("payload", "")
     if not consume_nonce(payload):
+        logger.warning("[ton_proof] FAIL step 1: nonce inválido o expirado (payload=%s...)", payload[:16])
         return False
 
     # 2. Check timestamp (max 5 minutes old)
     ts = int(proof.get("timestamp", 0))
     if time.time() - ts > 300:
+        logger.warning("[ton_proof] FAIL step 2: timestamp expirado (ts=%s, age=%ss)", ts, int(time.time() - ts))
         return False
 
     # 3. Verify domain matches our app
     domain_val = (proof.get("domain") or {}).get("value", "")
     if domain_val != _EXPECTED_DOMAIN:
+        logger.warning("[ton_proof] FAIL step 3: domain mismatch (got=%s, expected=%s)", domain_val, _EXPECTED_DOMAIN)
         return False
 
     # 4. Get public key (TonAPI → state_init fallback)
     try:
         public_key_bytes = await get_wallet_public_key(address, state_init)
+        logger.info("[ton_proof] step 4 OK: pubkey=%s...", public_key_bytes.hex()[:16])
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("get_wallet_public_key failed: %s", e)
+        logger.warning("[ton_proof] FAIL step 4: get_wallet_public_key: %s", e)
         return False
 
     # 5. Parse address "workchain:hash_hex"
@@ -185,8 +191,10 @@ async def verify_ton_proof(
         workchain = int(wc_str)
         address_hash = bytes.fromhex(hash_hex)
         if len(address_hash) != 32:
+            logger.warning("[ton_proof] FAIL step 5: address hash len=%d", len(address_hash))
             return False
-    except Exception:
+    except Exception as e:
+        logger.warning("[ton_proof] FAIL step 5: address parse: %s (address=%s)", e, address[:20])
         return False
 
     # 6. Build message per TON Connect spec:
@@ -203,7 +211,7 @@ async def verify_ton_proof(
     )
 
     msg_hash = hashlib.sha256(message).digest()
-    full_message = b"\xff\xff" + b"ton connect\x00" + msg_hash
+    full_message = b"\xff\xff" + b"ton-connect" + msg_hash
     result_hash = hashlib.sha256(full_message).digest()
 
     # 7. Verify ed25519 signature with PyNaCl
@@ -216,8 +224,10 @@ async def verify_ton_proof(
         from nacl.signing import VerifyKey
         vk = VerifyKey(public_key_bytes)
         vk.verify(result_hash, sig)
+        logger.info("[ton_proof] OK: signature verified for %s", address[:20])
         return True
-    except Exception:
+    except Exception as e:
+        logger.warning("[ton_proof] FAIL step 7: ed25519 verify: %s", e)
         return False
 
 
