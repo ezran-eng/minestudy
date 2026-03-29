@@ -2270,7 +2270,7 @@ async def zona_libre_upload(
     }
 
 
-@app.get("/zona-libre/archivo/{bag_id}", dependencies=[Depends(require_init_data)])
+@app.get("/zona-libre/archivo/{bag_id}")
 @limiter.limit("30/minute")
 async def zona_libre_download(request: Request, bag_id: str, db: Session = Depends(get_db)):
     archivo = (
