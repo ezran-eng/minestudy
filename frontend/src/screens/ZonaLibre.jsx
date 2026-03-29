@@ -27,6 +27,7 @@ export default function ZonaLibre() {
   const [maxBytes, setMaxBytes] = useState(300 * 1024 * 1024);
   const [loading, setLoading] = useState(true);
   const [reportTarget, setReportTarget] = useState(null);
+  const [tonStatusOpen, setTonStatusOpen] = useState(false);
 
   const tg = window.Telegram?.WebApp;
   const safeTop = (tg?.contentSafeAreaInset?.top ?? 0) + (tg?.safeAreaInset?.top ?? 0);
@@ -182,64 +183,49 @@ export default function ZonaLibre() {
         })()}
 
         {/* Redo thought bubble — TON network status */}
-        {(() => {
-          const [open, setOpen] = React.useState(false);
-          return (
-            <div style={{ marginBottom: '20px' }}>
-              <div
-                onClick={() => setOpen(o => !o)}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '10px',
-                  cursor: 'pointer',
-                }}
-              >
-                {/* Redo mini avatar */}
-                <div style={{
-                  width: '28px', height: '28px', borderRadius: '50%',
-                  background: '#0a0a0a', border: '1px solid #1a1a1a',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '14px', flexShrink: 0, marginTop: '2px',
-                }}>
-                  👁
-                </div>
-                {/* Bubble */}
-                <div style={{
-                  background: '#0a0a0a',
-                  border: '1px solid #1a1a1a',
-                  borderRadius: '14px',
-                  padding: '10px 14px',
-                  flex: 1,
-                }}>
-                  <div style={{
-                    fontFamily: "'Outfit', sans-serif",
-                    fontSize: '11px', color: '#555',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span>{t('zonaLibre.tonStatusTitle')}</span>
-                    <span style={{ fontSize: '10px' }}>{open ? '▲' : '▼'}</span>
-                  </div>
-                  {open && (
-                    <div style={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: '12px', color: '#555',
-                      lineHeight: 1.6, marginTop: '8px',
-                    }}>
-                      <p style={{ margin: '0 0 8px' }}>
-                        ✅ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusOk')}</span>
-                      </p>
-                      <p style={{ margin: '0 0 8px' }}>
-                        ⚠️ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusWarning')}</span>
-                      </p>
-                      <p style={{ margin: '0' }}>
-                        🔮 <span style={{ color: '#555' }}>{t('zonaLibre.tonStatusFuture')}</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+        <div style={{ marginBottom: '20px' }}>
+          <div
+            onClick={() => setTonStatusOpen(o => !o)}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}
+          >
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: '#0a0a0a', border: '1px solid #1a1a1a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', flexShrink: 0, marginTop: '2px',
+            }}>
+              👁
             </div>
-          );
-        })()}
+            <div style={{
+              background: '#0a0a0a', border: '1px solid #1a1a1a',
+              borderRadius: '14px', padding: '10px 14px', flex: 1,
+            }}>
+              <div style={{
+                fontFamily: "'Outfit', sans-serif", fontSize: '11px', color: '#555',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span>{t('zonaLibre.tonStatusTitle')}</span>
+                <span style={{ fontSize: '10px' }}>{tonStatusOpen ? '▲' : '▼'}</span>
+              </div>
+              {tonStatusOpen && (
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif", fontSize: '12px', color: '#555',
+                  lineHeight: 1.6, marginTop: '8px',
+                }}>
+                  <p style={{ margin: '0 0 8px' }}>
+                    ✅ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusOk')}</span>
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    ⚠️ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusWarning')}</span>
+                  </p>
+                  <p style={{ margin: '0' }}>
+                    🔮 <span style={{ color: '#555' }}>{t('zonaLibre.tonStatusFuture')}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* File list */}
         <div style={{
