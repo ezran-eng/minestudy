@@ -115,11 +115,13 @@ const Profile = () => {
   React.useEffect(() => { if (privacyData && !privacy) setPrivacy(privacyData); }, [privacyData]);
   React.useEffect(() => { if (notifData && !notifConfig) setNotifConfig(notifData); }, [notifData]);
 
-  // Sync wallet data from user perfil
+  // Sync wallet data from perfil — only on initial load (ref prevents re-sync after disconnect)
+  const walletLoaded = React.useRef(false);
   React.useEffect(() => {
-    if (perfil) {
-      if (perfil.wallet_address && !walletAddress) setWalletAddress(perfil.wallet_address);
-      if (perfil.nft_activo_address && !activeNftAddress) setActiveNftAddress(perfil.nft_activo_address);
+    if (perfil && !walletLoaded.current) {
+      walletLoaded.current = true;
+      setWalletAddress(perfil.wallet_address || null);
+      setActiveNftAddress(perfil.nft_activo_address || null);
     }
   }, [perfil]); // eslint-disable-line
 

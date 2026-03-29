@@ -278,17 +278,8 @@ async def get_wallet_public_key(address: str, state_init: str | None = None) -> 
 
 async def get_nfts_for_wallet(address: str) -> list[dict]:
     """
-    Consulta TonAPI para obtener los NFTs de una wallet.
-    Filtra solo Telegram gifts por keywords en el nombre de la colección.
-
-    Retorna lista de:
-    {
-        "address": "EQD...",
-        "nombre": "Cupid Charm #5.004",
-        "coleccion": "Titanic",
-        "imagen_url": "https://...",
-        "traits": [{"trait_type": "Fondo", "value": "Onyx Black", "rarity": 1.5}]
-    }
+    Consulta TonAPI para obtener TODOS los NFTs de una wallet.
+    Incluye flag is_telegram_gift para identificar Telegram gifts.
     """
     encoded = quote(address, safe="")
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -304,10 +295,17 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
 
     result = []
     for item in items:
-        if not is_telegram_gift(item):
-            continue
         meta = item.get("metadata") or {}
         collection = item.get("collection") or {}
+        # Use preview image (500x500) if available, fallback to metadata image
+        previews = item.get("previews") or []
+        imagen = ""
+        for p in previews:
+            if p.get("resolution") == "500x500":
+                imagen = p.get("url", "")
+                break
+        if not imagen:
+            imagen = meta.get("image", "")
         traits = [
             {
                 "trait_type": attr.get("trait_type", ""),
@@ -318,10 +316,11 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
         ]
         result.append({
             "address": item.get("address", ""),
-            "nombre": meta.get("name", ""),
+            "nombre": meta.get("name", "") or collection.get("name", ""),
             "coleccion": collection.get("name", ""),
-            "imagen_url": meta.get("image", ""),
+            "imagen_url": imagen,
             "traits": traits,
+            "is_telegram_gift": is_telegram_gift(item),
         })
     return result
 

@@ -12,7 +12,7 @@ import { getWalletNonce, connectWallet, disconnectWallet } from '../services/api
  *  3. Send proof to backend for ed25519 verification → save wallet_address
  *  4. Call onConnected(address)
  */
-const TonConnectButton = ({ walletAddress, onConnected }) => {
+const TonConnectButton = ({ walletAddress, onConnected, onDisconnected }) => {
   const { t } = useTranslation();
   const [tonConnectUI] = useTonConnectUI();
   const [loading, setLoading] = useState(false);
