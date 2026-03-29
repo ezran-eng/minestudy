@@ -423,6 +423,7 @@
     "loadingNfts": "Cargando tus gifts...",
     "noNfts": "No tenés Telegram gifts en esta wallet. Usá el que tiene tus coleccionables.",
     "tapToDeselect": "Tocá el activo para deseleccionarlo",
+    "disconnect": "Desvincular",
     "showNft": "Mostrar NFT en perfil público",
     "showNftDesc": "Tu gift aparecerá en tu perfil cuando otros lo visiten"
   },

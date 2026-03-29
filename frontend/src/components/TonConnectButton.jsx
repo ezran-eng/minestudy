@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useTranslation } from 'react-i18next';
-import { getWalletNonce, connectWallet } from '../services/api';
+import { getWalletNonce, connectWallet, disconnectWallet } from '../services/api';
 
 /**
  * TON wallet connect button using ton_proof flow.
@@ -67,6 +67,16 @@ const TonConnectButton = ({ walletAddress, onConnected }) => {
     }
   };
 
+  const handleDisconnect = async () => {
+    try {
+      await disconnectWallet();        // clear wallet_address + nft_activo on backend
+    } catch (_) { /* best effort */ }
+    try {
+      await tonConnectUI.disconnect();  // disconnect TON Connect session
+    } catch (_) { /* ignore */ }
+    onDisconnected && onDisconnected();
+  };
+
   if (walletAddress) {
     return (
       <div style={{
@@ -83,12 +93,16 @@ const TonConnectButton = ({ walletAddress, onConnected }) => {
             {truncate(walletAddress)}
           </div>
         </div>
-        <div style={{
-          background: 'rgba(0,152,234,0.15)', borderRadius: '6px',
-          padding: '3px 8px', fontSize: '11px', color: '#0098EA', fontWeight: 700,
-        }}>
-          TON
-        </div>
+        <button
+          onClick={handleDisconnect}
+          style={{
+            background: 'none', border: '1px solid var(--border)',
+            borderRadius: '8px', padding: '5px 10px',
+            fontSize: '11px', color: 'var(--text2)', cursor: 'pointer',
+          }}
+        >
+          {t('wallet.disconnect')}
+        </button>
       </div>
     );
   }

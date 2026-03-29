@@ -2599,6 +2599,22 @@ async def wallet_connect(request: Request, body: schemas.WalletConnectBody, db: 
     return {"ok": True, "address": body.address}
 
 
+@app.post("/wallet/disconnect", dependencies=[Depends(require_init_data)])
+def wallet_disconnect(request: Request, db: Session = Depends(get_db)):
+    """Desvincula la wallet del usuario y limpia NFT activo."""
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.wallet_address = None
+    user.nft_activo_address = None
+    db.commit()
+    logger.info("[wallet] Usuario %s desvinculó wallet", user_id)
+    return {"ok": True}
+
+
 @app.get("/usuarios/{id}/nfts", dependencies=[Depends(require_init_data)])
 @limiter.limit("10/minute")
 async def get_user_nfts(request: Request, id: int, db: Session = Depends(get_db)):

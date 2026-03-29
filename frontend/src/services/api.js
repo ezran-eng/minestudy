@@ -632,6 +632,15 @@ export const connectWallet = async (address, proof, stateInit = null) => {
   return r.json();
 };
 
+export const disconnectWallet = async () => {
+  const r = await fetch(`${API_URL}/wallet/disconnect`, {
+    method: 'POST',
+    headers: { ...getInitDataHeader() },
+  });
+  if (!r.ok) throw new Error('Failed to disconnect wallet');
+  return r.json();
+};
+
 export const getUserNfts = async (userId) => {
   const r = await fetch(`${API_URL}/usuarios/${userId}/nfts`, {
     headers: { ...getInitDataHeader() },

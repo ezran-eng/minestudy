@@ -241,6 +241,12 @@ const Profile = () => {
           <TonConnectButton
             walletAddress={walletAddress}
             onConnected={(addr) => setWalletAddress(addr)}
+            onDisconnected={() => {
+              setWalletAddress(null);
+              setActiveNftAddress(null);
+              setActiveNftData(null);
+              setShowNftSelector(false);
+            }}
           />
 
           {walletAddress && (
