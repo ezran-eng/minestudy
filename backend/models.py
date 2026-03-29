@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, Time, ForeignKey, UniqueConstraint, Index, func
+from sqlalchemy import Column, Integer, BigInteger, Float, String, Boolean, DateTime, Time, ForeignKey, UniqueConstraint, Index, func, JSON, Text
 from sqlalchemy.orm import relationship
 from database import Base
 import datetime
@@ -25,6 +25,10 @@ class User(Base):
     mostrar_username = Column(Boolean, default=True, nullable=False)
     mostrar_progreso = Column(Boolean, default=True, nullable=False)
     mostrar_cursos = Column(Boolean, default=True, nullable=False)
+    # TON wallet + NFT
+    wallet_address = Column(String(100), nullable=True)      # raw format "0:abc..." or user-friendly EQD...
+    nft_activo_address = Column(String(100), nullable=True)  # selected NFT item address
+    mostrar_nft = Column(Boolean, default=False, nullable=False)  # show NFT on public profile
 
     progresos = relationship("Progreso", back_populates="usuario")
     card_reviews = relationship("CardReview", back_populates="usuario")
@@ -327,3 +331,15 @@ class ZonaLibreReporte(Base):
 
     archivo = relationship("ZonaLibreArchivo", back_populates="reportes")
     usuario = relationship("User")
+
+
+class NftCache(Base):
+    """Cached metadata for Telegram Gift NFTs (24h TTL)."""
+    __tablename__ = "nft_cache"
+
+    address = Column(String(100), primary_key=True)   # NFT item address
+    nombre = Column(String(200), nullable=False)
+    coleccion = Column(String(200), nullable=True)
+    imagen_url = Column(Text, nullable=True)
+    traits = Column(JSON, nullable=True)               # list of {trait_type, value, rarity}
+    cached_at = Column(DateTime(timezone=True), server_default=func.now())

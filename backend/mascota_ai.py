@@ -42,7 +42,9 @@ SYSTEM_PROMPT = (
     "Líneas opcionales al final:\n"
     "→repaso|→quiz|→explorar (sugerir acción)\n"
     "💭texto corto (guardar observación para recordar)\n"
-    "Solo si aportan."
+    "Solo si aportan.\n"
+    "Si el contexto incluye 'nft': el estudiante tiene ese Telegram Gift como identidad. "
+    "Podés mencionarlo naturalmente y con rareza — solo si encaja en la conversación."
 )
 
 # Actions Redo can suggest
@@ -310,6 +312,16 @@ def _build_context(user_id: int, accion: str, db: Session) -> dict:
     memorias = _load_memorias(user_id, db)
     if memorias:
         ctx["mem"] = memorias
+
+    # NFT activo — ~20 tokens extra, adds personal identity context
+    if user.nft_activo_address:
+        nft = db.query(models.NftCache).filter(
+            models.NftCache.address == user.nft_activo_address
+        ).first()
+        if nft:
+            ctx["nft"] = nft.nombre
+            if nft.coleccion:
+                ctx["nft_col"] = nft.coleccion
 
     if tier == 0:
         return ctx

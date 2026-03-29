@@ -610,3 +610,42 @@ export const getAdminAIRecent = async () => {
   if (!response.ok) throw new Error('Failed to get AI recent');
   return response.json();
 };
+
+// ── TON Wallet + NFT ──────────────────────────────────────────────────────────
+
+export const getWalletNonce = async () => {
+  const r = await fetch(`${API_URL}/wallet/nonce`);
+  if (!r.ok) throw new Error('Failed to get nonce');
+  return r.json();
+};
+
+export const connectWallet = async (address, proof, stateInit = null) => {
+  const r = await fetch(`${API_URL}/wallet/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ address, proof, state_init: stateInit }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to connect wallet');
+  }
+  return r.json();
+};
+
+export const getUserNfts = async (userId) => {
+  const r = await fetch(`${API_URL}/usuarios/${userId}/nfts`, {
+    headers: { ...getInitDataHeader() },
+  });
+  if (!r.ok) throw new Error('Failed to get NFTs');
+  return r.json();
+};
+
+export const setNftActivo = async (userId, nftAddress) => {
+  const r = await fetch(`${API_URL}/usuarios/${userId}/nft-activo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getInitDataHeader() },
+    body: JSON.stringify({ nft_address: nftAddress }),
+  });
+  if (!r.ok) throw new Error('Failed to set active NFT');
+  return r.json();
+};

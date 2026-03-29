@@ -195,6 +195,9 @@ class UserBase(BaseModel):
     foto_url: Optional[str] = None
     descripcion: Optional[str] = None
     racha: Optional[int] = 0
+    wallet_address: Optional[str] = None
+    nft_activo_address: Optional[str] = None
+    mostrar_nft: Optional[bool] = False
 
 class UserCreate(UserBase):
     pass
@@ -221,6 +224,7 @@ class PrivacidadUpdate(BaseModel):
     mostrar_username: Optional[bool] = None
     mostrar_progreso: Optional[bool] = None
     mostrar_cursos: Optional[bool] = None
+    mostrar_nft: Optional[bool] = None
 
 class PrivacidadOut(BaseModel):
     mostrar_foto: bool
@@ -228,9 +232,20 @@ class PrivacidadOut(BaseModel):
     mostrar_username: bool
     mostrar_progreso: bool
     mostrar_cursos: bool
+    mostrar_nft: bool
     onboarding_completado: bool
 
     model_config = {"from_attributes": True}
+
+
+class WalletConnectBody(BaseModel):
+    address: str               # "workchain:hash_hex"
+    proof: dict                # { timestamp, domain, signature, payload }
+    state_init: Optional[str] = None  # base64 state init for undeployed wallets
+
+
+class NftActivoBody(BaseModel):
+    nft_address: Optional[str] = None  # None to deselect
 
 class ActividadCreate(BaseModel):
     id_telegram: int

@@ -412,6 +412,21 @@
     "createSuccess": "Unit created"
   },
 
+  "wallet": {
+    "title": "My TON wallet",
+    "connectBtn": "Connect TON wallet",
+    "connecting": "Connecting...",
+    "connected": "Wallet linked",
+    "errorConnect": "Connection failed. Please try again.",
+    "errorNoProof": "Your wallet didn't return a signature. Use Tonkeeper or Telegram Wallet.",
+    "myNfts": "My collectibles",
+    "loadingNfts": "Loading your gifts...",
+    "noNfts": "No Telegram gifts found in this wallet. Try the one that has your collectibles.",
+    "tapToDeselect": "Tap the active NFT to deselect it",
+    "showNft": "Show NFT on public profile",
+    "showNftDesc": "Your gift will appear on your profile when others visit it"
+  },
+
   "common": {
     "back": "Back",
     "close": "Close",

@@ -6,6 +6,9 @@ import { updatePrivacidad, updateNotificaciones, deleteAccount } from '../servic
 import { useMascotaUpdate } from '../context/MascotaContext';
 import { useUserPerfil, usePrivacidad, useNotificaciones } from '../hooks/useQueryHooks';
 import MateriaList from '../components/MateriaList';
+import TonConnectButton from '../components/TonConnectButton';
+import NftSelector from '../components/NftSelector';
+import NftBadge from '../components/NftBadge';
 
 const Toggle = ({ label, description, value, onChange, disabled }) => (
   <div style={{
@@ -78,6 +81,11 @@ const Profile = () => {
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [deleteStep, setDeleteStep] = useState(0); // 0=hidden, 1=warning, 2=deleting
   const [devLog, setDevLog] = useState('');
+  // Wallet + NFT state (synced from perfil data)
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [activeNftAddress, setActiveNftAddress] = useState(null);
+  const [activeNftData, setActiveNftData] = useState(null);
+  const [showNftSelector, setShowNftSelector] = useState(false);
   const versionTaps = React.useRef(0);
   const versionTimer = React.useRef(null);
 
@@ -106,6 +114,14 @@ const Profile = () => {
   // Sync React Query data into local state (for optimistic updates)
   React.useEffect(() => { if (privacyData && !privacy) setPrivacy(privacyData); }, [privacyData]);
   React.useEffect(() => { if (notifData && !notifConfig) setNotifConfig(notifData); }, [notifData]);
+
+  // Sync wallet data from user perfil
+  React.useEffect(() => {
+    if (perfil) {
+      if (perfil.wallet_address && !walletAddress) setWalletAddress(perfil.wallet_address);
+      if (perfil.nft_activo_address && !activeNftAddress) setActiveNftAddress(perfil.nft_activo_address);
+    }
+  }, [perfil]); // eslint-disable-line
 
   useEffect(() => {
     if (!updateMascota || !perfil) return;
@@ -209,6 +225,60 @@ const Profile = () => {
           </div>
         </div>
 
+        {/* NFT trophy badge — shown below avatar if active */}
+        {activeNftData && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+            <NftBadge nftData={activeNftData} size="md" />
+          </div>
+        )}
+
+        {/* Wallet + NFT section */}
+        <div style={{ padding: '16px 16px 0' }}>
+          <div className="section-head" style={{ marginBottom: '12px' }}>
+            <div className="section-title">{t('wallet.title')}</div>
+          </div>
+
+          <TonConnectButton
+            walletAddress={walletAddress}
+            onConnected={(addr) => setWalletAddress(addr)}
+          />
+
+          {walletAddress && (
+            <div style={{ marginTop: '12px' }}>
+              <button
+                onClick={() => setShowNftSelector(!showNftSelector)}
+                style={{
+                  width: '100%', padding: '11px 14px',
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '10px', color: 'var(--text)',
+                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}
+              >
+                <span>🏆 {t('wallet.myNfts')}</span>
+                <span style={{ color: 'var(--text2)' }}>{showNftSelector ? '▲' : '▼'}</span>
+              </button>
+
+              {showNftSelector && (
+                <div style={{
+                  marginTop: '10px', padding: '12px',
+                  background: 'var(--s2)', borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                }}>
+                  <NftSelector
+                    userId={user?.id}
+                    activeAddress={activeNftAddress}
+                    onNftChange={(addr, nft) => {
+                      setActiveNftAddress(addr);
+                      setActiveNftData(nft);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Materias */}
         {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
           <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '24px 16px' }}>
@@ -280,6 +350,15 @@ const Profile = () => {
                   <Toggle label={t('profile.username')} description={t('profile.usernameDesc')} value={privacy.mostrar_username} onChange={v => handleToggle('mostrar_username', v)} disabled={saving} />
                   <Toggle label={t('profile.subjects')} description={t('profile.subjectsDesc')} value={privacy.mostrar_cursos} onChange={v => handleToggle('mostrar_cursos', v)} disabled={saving} />
                   <Toggle label={t('profile.progress')} description={t('profile.progressDesc')} value={privacy.mostrar_progreso} onChange={v => handleToggle('mostrar_progreso', v)} disabled={saving} />
+                  {walletAddress && (
+                    <Toggle
+                      label={t('wallet.showNft')}
+                      description={t('wallet.showNftDesc')}
+                      value={privacy.mostrar_nft ?? false}
+                      onChange={v => handleToggle('mostrar_nft', v)}
+                      disabled={saving}
+                    />
+                  )}
                 </div>
               </div>
             )}

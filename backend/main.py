@@ -37,6 +37,7 @@ from ai_generate import generate_flashcards, generate_quiz
 from quota_check import check_quota, get_quota_status
 from bot_config import ADMIN_ID
 from ton_storage import upload_to_ton, get_local_file_path
+from ton_wallet import generate_nonce, verify_ton_proof, get_nfts_for_wallet
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -2556,3 +2557,116 @@ def admin_ai_set_budget(user_id: int, db: Session = Depends(get_db),
         "monthly_limit_usd": budget.monthly_limit_usd,
         "is_blocked": budget.is_blocked,
     }}
+
+
+# ── TON Wallet + NFT ──────────────────────────────────────────────────────────
+
+@app.get("/wallet/nonce")
+def wallet_get_nonce():
+    """Genera un nonce de un solo uso para ton_proof. Válido 5 minutos."""
+    return {"nonce": generate_nonce()}
+
+
+@app.post("/wallet/connect", dependencies=[Depends(require_init_data)])
+@limiter.limit("10/minute")
+async def wallet_connect(request: Request, body: schemas.WalletConnectBody, db: Session = Depends(get_db)):
+    """
+    Verifica el ton_proof y vincula la wallet al usuario autenticado.
+    La wallet NUNCA se guarda sin verificación de firma ed25519.
+    """
+    user_id = _extract_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+
+    try:
+        valid = await verify_ton_proof(body.address, body.proof, body.state_init)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    if not valid:
+        raise HTTPException(status_code=400, detail="Firma TON inválida o nonce expirado")
+
+    user = db.query(models.User).filter(models.User.id_telegram == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.wallet_address = body.address
+    db.commit()
+    logger.info("[wallet] Usuario %s vinculó wallet %s", user_id, body.address[:20])
+    return {"ok": True, "address": body.address}
+
+
+@app.get("/usuarios/{id}/nfts", dependencies=[Depends(require_init_data)])
+@limiter.limit("10/minute")
+async def get_user_nfts(request: Request, id: int, db: Session = Depends(get_db)):
+    """
+    Devuelve los Telegram Gift NFTs de la wallet vinculada del usuario.
+    Cachea en nft_cache por 24h.
+    """
+    _require_self(request, id)
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.wallet_address:
+        raise HTTPException(status_code=400, detail="Wallet no vinculada")
+
+    try:
+        nfts = await get_nfts_for_wallet(user.wallet_address)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error consultando TonAPI: {e}")
+
+    # Upsert into nft_cache
+    now_utc = datetime.now(timezone.utc)
+    for nft in nfts:
+        cached = db.query(models.NftCache).filter(models.NftCache.address == nft["address"]).first()
+        if cached:
+            cached.nombre = nft["nombre"]
+            cached.coleccion = nft.get("coleccion")
+            cached.imagen_url = nft.get("imagen_url")
+            cached.traits = nft.get("traits")
+            cached.cached_at = now_utc
+        else:
+            db.add(models.NftCache(
+                address=nft["address"],
+                nombre=nft["nombre"],
+                coleccion=nft.get("coleccion"),
+                imagen_url=nft.get("imagen_url"),
+                traits=nft.get("traits"),
+            ))
+    db.commit()
+
+    return {"nfts": nfts, "wallet_address": user.wallet_address, "nft_activo_address": user.nft_activo_address}
+
+
+@app.post("/usuarios/{id}/nft-activo", dependencies=[Depends(require_init_data)])
+@limiter.limit("20/minute")
+async def set_nft_activo(request: Request, id: int, body: schemas.NftActivoBody, db: Session = Depends(get_db)):
+    """
+    Establece el NFT activo del usuario. Verifica que le pertenezca.
+    Enviar nft_address=null para deseleccionar.
+    """
+    _require_self(request, id)
+    user = db.query(models.User).filter(models.User.id_telegram == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if body.nft_address is None:
+        user.nft_activo_address = None
+        db.commit()
+        return {"ok": True, "nft_activo_address": None}
+
+    if not user.wallet_address:
+        raise HTTPException(status_code=400, detail="Wallet no vinculada")
+
+    # Verify NFT belongs to user's wallet before saving
+    try:
+        nfts = await get_nfts_for_wallet(user.wallet_address)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error verificando NFT: {e}")
+
+    if body.nft_address not in {nft["address"] for nft in nfts}:
+        raise HTTPException(status_code=403, detail="El NFT no pertenece a tu wallet")
+
+    user.nft_activo_address = body.nft_address
+    db.commit()
+    return {"ok": True, "nft_activo_address": body.nft_address}
