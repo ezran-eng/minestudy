@@ -226,7 +226,11 @@
     "uploadToTon": "UPLOAD TO TON",
     "uploading": "Sending to the network...",
     "uploadSuccess": "File on the network! Nobody can delete it now.",
-    "back": "Back"
+    "back": "Back",
+    "tonStatusTitle": "TON network status",
+    "tonStatusOk": "Files are uploaded correctly to TON Storage and receive a unique Bag ID on the TON network.",
+    "tonStatusWarning": "The current node runs on Railway, which does not expose UDP ports. The TON network cannot connect directly to this node, so files are not yet visible in external explorers like Bag Explorer.",
+    "tonStatusFuture": "When the app grows, the node will migrate to a server with a public IP and open ports — there the files will be truly decentralized and immortal on the TON network."
   },
 
   "zlOnboarding": {

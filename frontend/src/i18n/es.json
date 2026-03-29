@@ -226,7 +226,11 @@
     "uploadToTon": "SUBIR A TON",
     "uploading": "Enviando a la red...",
     "uploadSuccess": "¡Archivo en la red! Ya nadie puede borrarlo.",
-    "back": "Volver"
+    "back": "Volver",
+    "tonStatusTitle": "Estado de la red TON",
+    "tonStatusOk": "Los archivos se suben correctamente a TON Storage y reciben un Bag ID único en la red TON.",
+    "tonStatusWarning": "El nodo actual corre en Railway, que no expone puertos UDP. La red TON no puede conectarse directamente a este nodo, por lo que los archivos no son visibles todavía en exploradores externos como Bag Explorer.",
+    "tonStatusFuture": "Cuando la app crezca, el nodo se migrará a un servidor con IP pública y puertos abiertos — ahí los archivos serán verdaderamente descentralizados e inmortales en la red TON."
   },
 
   "zlOnboarding": {

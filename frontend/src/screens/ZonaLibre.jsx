@@ -181,51 +181,6 @@ export default function ZonaLibre() {
           );
         })()}
 
-        {/* Upload button */}
-        <div
-          onClick={() => setShowUpload(true)}
-          style={{
-            background: '#000000',
-            border: '1px solid #1a1a1a',
-            borderRadius: '16px',
-            padding: '16px',
-            display: 'flex', alignItems: 'center', gap: '14px',
-            cursor: 'pointer',
-            marginBottom: '24px',
-            transition: 'background 0.15s',
-          }}
-        >
-          <div style={{
-            width: '42px', height: '42px', borderRadius: '12px',
-            background: '#0a0a0a', border: '1px solid #1a1a1a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '20px',
-          }}>
-            ↑
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontFamily: "'Outfit', sans-serif",
-              fontSize: '14px', fontWeight: 600, color: '#FFFFF0',
-            }}>
-              Subir archivo
-            </div>
-            <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
-              PDF, apuntes, libros técnicos
-            </div>
-          </div>
-          <div style={{
-            padding: '3px 8px', borderRadius: '8px',
-            background: 'rgba(240,240,240,0.06)',
-            border: '1px solid #1a1a1a',
-            fontFamily: "'Silkscreen', cursive",
-            fontSize: '8px', fontWeight: 700, letterSpacing: '0.06em',
-            color: '#666',
-          }}>
-            TON
-          </div>
-        </div>
-
         {/* Redo thought bubble — TON network status */}
         {(() => {
           const [open, setOpen] = React.useState(false);
@@ -260,7 +215,7 @@ export default function ZonaLibre() {
                     fontSize: '11px', color: '#555',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
-                    <span>Estado de la red TON</span>
+                    <span>{t('zonaLibre.tonStatusTitle')}</span>
                     <span style={{ fontSize: '10px' }}>{open ? '▲' : '▼'}</span>
                   </div>
                   {open && (
@@ -270,13 +225,13 @@ export default function ZonaLibre() {
                       lineHeight: 1.6, marginTop: '8px',
                     }}>
                       <p style={{ margin: '0 0 8px' }}>
-                        ✅ <span style={{ color: '#666' }}>Los archivos se suben correctamente a TON Storage y reciben un Bag ID único en la blockchain de TON.</span>
+                        ✅ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusOk')}</span>
                       </p>
                       <p style={{ margin: '0 0 8px' }}>
-                        ⚠️ <span style={{ color: '#666' }}>El nodo actual corre en Railway, que no expone puertos UDP. Esto significa que la red TON no puede conectarse directamente a este nodo, por lo que los archivos no son visibles todavía en exploradores externos como Bag Explorer.</span>
+                        ⚠️ <span style={{ color: '#666' }}>{t('zonaLibre.tonStatusWarning')}</span>
                       </p>
                       <p style={{ margin: '0' }}>
-                        🔮 <span style={{ color: '#555' }}>Cuando la app crezca, el nodo se migrará a un servidor con IP pública y puertos abiertos — ahí los archivos serán verdaderamente descentralizados e inmortales en la red TON.</span>
+                        🔮 <span style={{ color: '#555' }}>{t('zonaLibre.tonStatusFuture')}</span>
                       </p>
                     </div>
                   )}
