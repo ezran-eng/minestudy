@@ -1,268 +1,323 @@
-# TON Connect + NFT Personalization — Plan completo
+# TON Connect + NFT Personalization
 
-> **Estado**: Planificado. No implementado aún.
-> **Prioridad**: Alta (hackathon TON)
-> **Agente responsable**: Leer este doc completo antes de tocar cualquier archivo.
+> **Estado**: Preparado. Pendiente TONAPI_KEY para activar.
+> **Prioridad**: Alta (hackathon TON — segunda integración)
+> **Para el agente implementador**: Leer este doc completo antes de tocar cualquier archivo.
 
 ---
 
 ## Visión
 
-Los regalos NFT de Telegram (Cupid Charm, Titanic, etc.) se convierten en la **identidad visual del estudiante** dentro de DaathApp. Redo, la IA, los reconoce y los menciona naturalmente en sus mensajes. Es la primera mini app de estudio donde tu colección de Telegram te da un trato personalizado real.
+Los regalos NFT de Telegram (Cupid Charm, Titanic, etc.) se convierten en la
+**identidad visual del estudiante** dentro de DaathApp. Redo los reconoce y los
+menciona naturalmente. Es la primera mini app de estudio donde tu colección de
+Telegram te da un trato personalizado real.
 
 ---
 
-## Concepto innovador: "Tu NFT, tu identidad de estudio"
+## Concepto: "Tu NFT, tu identidad de estudio"
 
 ### Capa visual
-- El NFT del usuario aparece como **decoración de su tarjeta de perfil pública**
-- En el ranking, en vez de solo el avatar de Telegram, se ve el NFT al lado
-- Borde de tarjeta con el color dominante del NFT (extraído del metadata de traits)
-- Badge especial si el NFT tiene rareza < 5% en algún trait
+- NFT activo aparece como decoración en la tarjeta de perfil pública
+- Borde de tarjeta con el color del NFT (basado en traits del metadata)
+- Badge de rareza si algún trait tiene < 5% de distribución
 
 ### Capa IA (Redo)
-- Redo recibe en su contexto: `nft_name`, `nft_collection`, `nft_rarity` del NFT activo del usuario
-- Redo puede hacer referencias naturales: *"para alguien con un Cupid Charm Titanic, la precisión importa"*
-- Redo celebra milestones con referencia al NFT: *"tu 🔑 Cupid Charm ya se ganó el 100% en Geología"*
-- Las observaciones de memoria de Redo pueden incluir el NFT como contexto emocional
+- Redo recibe `nft_name` y `nft_collection` en su contexto T1 (~20 tokens extra)
+- Puede hacer referencias naturales ocasionales al NFT del usuario
+- Las memorias de Redo pueden incluir el NFT como contexto emocional/personal
+- **Nunca forzado** — solo cuando sea natural en la conversación
 
 ### Capa social
-- Perfil público muestra el NFT si el usuario lo activa
-- Respeta el toggle de privacidad existente (`mostrar_nombre`, etc.) — agregar `mostrar_nft`
+- Toggle `mostrar_nft` en configuración de privacidad (default: `False`)
+- Perfil público muestra el NFT solo si el usuario lo activa explícitamente
 
 ---
 
 ## Arquitectura de seguridad
 
+### Flujo completo
+
 ```
 [Frontend]
-  1. Usuario toca "Conectar wallet"
-  2. TON Connect abre modal → usuario aprueba en su wallet
-  3. Wallet devuelve: { address, proof: { timestamp, domain, signature, payload } }
-  4. Frontend envía proof al backend (junto con initData ya verificado)
+  1. Backend genera nonce aleatorio → lo devuelve al frontend
+     GET /wallet/nonce → { nonce: "abc123..." }  (válido 5 minutos, guardado en memoria)
+
+  2. TON Connect abre modal → usuario aprueba en su wallet (Telegram Wallet, TonKeeper, etc.)
+
+  3. Wallet firma y devuelve:
+     {
+       account: { address, chain, publicKey, walletStateInit },
+       proof: { timestamp, domain, signature, payload: "abc123..." }
+     }
+
+  4. Frontend envía TODO al backend via POST /wallet/connect
+     Headers: X-Telegram-Init-Data (ya verificado por el sistema existente)
 
 [Backend]
-  5. Verifica initData (Telegram) → identifica id_telegram
-  6. Verifica ton_proof:
-     a. Construye el mensaje: "ton-proof-item-v2/" + domain + timestamp + address + payload
-     b. Hashea con SHA256
-     c. Prefija con 0xffff + "ton connect" + hash → segundo SHA256
-     d. Verifica firma ed25519 con la public_key de la wallet (obtenida de TonAPI)
-  7. Si válido → guarda wallet_address en DB vinculada al id_telegram
-  8. Consulta TonAPI con esa address → devuelve NFTs
+  5. require_init_data → identifica id_telegram del usuario autenticado
+
+  6. Verifica ton_proof (en ton_wallet.py):
+     a. Chequea que timestamp sea < 5 minutos atrás (anti-replay)
+     b. Chequea que payload coincida con el nonce generado en paso 1
+     c. Construye el mensaje a verificar:
+        msg = sha256(
+          "ton-proof-item-v2\0"
+          + workchain_bytes           # 4 bytes little-endian
+          + address_bytes             # 32 bytes raw
+          + timestamp_bytes           # 8 bytes little-endian
+          + len(domain)_bytes         # 4 bytes little-endian
+          + domain                    # "minestudy.vercel.app"
+          + payload                   # el nonce
+        )
+     d. final = sha256("\xff\xff" + "ton connect\0" + msg)
+     e. Verifica firma ed25519(final, signature, public_key)
+        → public_key viene de walletStateInit (wallet nueva) o de TonAPI (wallet ya deployada)
+
+  7. Firma válida → guarda wallet_address en DB vinculada al id_telegram del usuario
 
 [Base de datos]
-  9. wallet_address almacenada en tabla users
-  10. nft_activo_address (dirección del NFT seleccionado) en tabla users
-  11. Cache de metadata NFT en tabla separada (para no consultar TonAPI en cada request)
+  8. users.wallet_address  — dirección TON en formato user-friendly (EQD...)
+  9. users.nft_activo_address — dirección del NFT Item elegido (nullable)
+  10. users.mostrar_nft — boolean, default False
+  11. nft_cache — tabla separada con metadata cacheada 24h (evita llamadas repetidas a TonAPI)
 ```
 
-**Reglas de oro:**
-- La API key de TonAPI NUNCA va al frontend — solo en env var de Railway
-- El ton_proof se verifica SIEMPRE en el backend — nunca confiar en el frontend
-- La wallet solo se puede vincular al usuario autenticado por initData (no a otro)
+### Reglas de oro
+- La `TONAPI_KEY` **nunca** va al frontend — solo en env vars de Railway
+- El `ton_proof` se verifica **siempre** en el backend — el frontend no es confiable
+- La wallet solo se puede vincular al usuario autenticado por su propio `initData`
+- El nonce expira en 5 minutos — los nonces usados se descartan inmediatamente
+- El `nft_activo_address` se valida contra TonAPI: confirmar que esa dirección pertenece realmente a la wallet del usuario antes de guardar
 
 ---
 
-## Implementación — Fases
+## Archivos — Estado actual
 
-### Fase 1: Backend — Wallet + NFTs
-**Archivos a modificar/crear:**
-
+### Ya preparados (sin necesitar TONAPI_KEY)
 ```
 backend/
-  alembic/versions/004_wallet_nft.py   ← NUEVO: migración DB
-  ton_wallet.py                         ← NUEVO: verificación ton_proof + TonAPI client
-  main.py                               ← MODIFICAR: 3 endpoints nuevos
+  ton_wallet.py                    ✅ Stub con firmas de funciones y TODO
+  requirements.txt                 ✅ PyNaCl agregado
+
+frontend/
+  public/tonconnect-manifest.json  ✅ Listo para producción
+  package.json                     ✅ @tonconnect/ui-react agregado
 ```
 
-**Migración DB (004_wallet_nft.py):**
-```sql
-ALTER TABLE users ADD COLUMN wallet_address VARCHAR(66);
-ALTER TABLE users ADD COLUMN nft_activo_address VARCHAR(66);
-ALTER TABLE users ADD COLUMN mostrar_nft BOOLEAN DEFAULT FALSE;
-
-CREATE TABLE nft_cache (
-  address VARCHAR(66) PRIMARY KEY,
-  nombre VARCHAR(200),
-  coleccion VARCHAR(200),
-  imagen_url TEXT,
-  traits JSONB,
-  cached_at TIMESTAMP DEFAULT NOW()
-);
+### Pendientes de implementar (necesitan TONAPI_KEY)
 ```
+backend/
+  alembic/versions/008_wallet_nft.py  ← Migración DB
+  ton_wallet.py                        ← Completar lógica real (TODO → código)
+  main.py                              ← 4 endpoints nuevos
 
-**Endpoints nuevos en main.py:**
-
-```
-POST /wallet/connect
-  Body: { ton_proof: { address, proof: {...} } }
-  Auth: require_init_data
-  → Verifica proof → guarda wallet_address → devuelve { ok, address }
-
-GET /usuarios/{id}/nfts
-  Auth: require_init_data (solo el propio usuario)
-  → Consulta TonAPI con wallet_address guardada
-  → Filtra por colecciones de Telegram gifts
-  → Devuelve lista de NFTs con imagen y traits
-
-POST /usuarios/{id}/nft-activo
-  Body: { nft_address: "EQD..." | null }
-  Auth: require_init_data (solo el propio usuario)
-  → Guarda el NFT elegido como activo
-  → Verifica que la address pertenezca realmente a la wallet del usuario
-```
-
-**ton_wallet.py:**
-```python
-# Verificación ton_proof (ed25519 + SHA256)
-# Cliente TonAPI para consultar NFTs
-# Filtro de colecciones Telegram gifts conocidas
-# Cache de metadata en tabla nft_cache (TTL 24h)
-```
-
-**Variables de entorno a agregar en Railway (minestudy):**
-```
-TONAPI_KEY=...       # obtenida gratis via @tonapi_bot en Telegram
+frontend/
+  src/components/TonConnectButton.jsx  ← Botón conectar + estado
+  src/components/NftSelector.jsx       ← Grilla de NFTs
+  src/components/NftBadge.jsx          ← Display del NFT en perfil/ranking
+  src/screens/Profile.jsx              ← Sección wallet
+  src/services/api.js                  ← connectWallet, getNfts, setNftActivo
 ```
 
 ---
 
-### Fase 2: Frontend — Conectar wallet + elegir NFT
-**Archivos a modificar/crear:**
+## Fase 1 — Backend
+
+### Migración DB (`008_wallet_nft.py`)
+
+Agregar a `models.py`:
+```python
+class User(Base):
+    # ... columnas existentes ...
+    wallet_address     = Column(String(100), nullable=True)   # EQD... (user-friendly)
+    nft_activo_address = Column(String(100), nullable=True)   # dirección NFT Item
+    mostrar_nft        = Column(Boolean, default=False, nullable=False)
+
+class NftCache(Base):
+    __tablename__ = "nft_cache"
+    address     = Column(String(100), primary_key=True)  # dirección NFT Item
+    nombre      = Column(String(200), nullable=False)
+    coleccion   = Column(String(200), nullable=True)
+    imagen_url  = Column(Text, nullable=True)
+    traits      = Column(JSON, nullable=True)             # lista de {trait_type, value, rarity}
+    cached_at   = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+### Endpoints (`main.py`)
 
 ```
-frontend/
-  src/
-    components/
-      TonConnectButton.jsx    ← NUEVO: botón conectar + estado
-      NftSelector.jsx         ← NUEVO: grilla de NFTs para elegir
-      NftBadge.jsx            ← NUEVO: display del NFT activo (perfil/ranking)
-    screens/
-      Profile.jsx             ← MODIFICAR: sección wallet + NFT activo
-    services/
-      api.js                  ← MODIFICAR: connectWallet, getNfts, setNftActivo
-  public/
-    tonconnect-manifest.json  ← NUEVO (obligatorio para TON Connect)
+GET  /wallet/nonce
+     → Genera nonce aleatorio, lo guarda en dict en memoria con TTL 5min
+     → { nonce: "abc..." }
+
+POST /wallet/connect
+     Auth: require_init_data
+     Body: { address, proof: { timestamp, domain, signature, payload, state_init? } }
+     → Verifica ton_proof → guarda wallet_address → { ok: true, address }
+
+GET  /usuarios/{id}/nfts
+     Auth: require_init_data (solo propio usuario)
+     → Consulta TonAPI: GET /v2/accounts/{address}/nfts?limit=100
+     → Filtra por Telegram gifts (por keywords en nombre de colección)
+     → Cachea en nft_cache por 24h
+     → Devuelve lista de { address, nombre, coleccion, imagen_url, traits }
+
+POST /usuarios/{id}/nft-activo
+     Auth: require_init_data (solo propio usuario)
+     Body: { nft_address: "EQD..." | null }
+     → Verifica que nft_address esté en la lista de NFTs del usuario (llama GET /nfts internamente)
+     → Guarda en users.nft_activo_address
 ```
 
-**tonconnect-manifest.json:**
+### `ton_wallet.py` (lógica a completar)
+
+```python
+# Dependencias:
+# - PyNaCl (ed25519 verify) → ya en requirements.txt
+# - httpx (llamadas a TonAPI) → ya existe en el proyecto
+# - hashlib (SHA256) → stdlib
+
+TONAPI_KEY = os.environ.get("TONAPI_KEY")  # ← necesaria para activar
+TONAPI_BASE = "https://tonapi.io"
+
+# Funciones a implementar:
+async def verify_ton_proof(address, proof, state_init=None) -> bool: ...
+async def get_wallet_public_key(address, state_init=None) -> bytes: ...
+async def get_nfts_for_wallet(address) -> list[dict]: ...
+async def get_nft_metadata(nft_address) -> dict: ...
+
+TELEGRAM_GIFT_KEYWORDS = [
+    "telegram", "gift", "titanic", "cupid", "charm",
+    "durov", "collectible", "star", "santa"
+]
+```
+
+---
+
+## Fase 2 — Frontend
+
+### `tonconnect-manifest.json` (ya creado)
 ```json
 {
   "url": "https://minestudy.vercel.app",
   "name": "DaathApp",
-  "iconUrl": "https://minestudy.vercel.app/icon-192.png"
+  "iconUrl": "https://minestudy.vercel.app/vite.svg"
 }
 ```
 
-**Packages a instalar:**
-```bash
-npm install @tonconnect/ui-react
+### Setup en `main.jsx`
+```jsx
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
+
+<TonConnectUIProvider
+  manifestUrl="https://minestudy.vercel.app/tonconnect-manifest.json"
+  actionsConfiguration={{ twaReturnUrl: 'https://t.me/DaathApp_bot/app' }}
+>
+  <App />
+</TonConnectUIProvider>
 ```
 
-**Flujo en Profile.jsx:**
-1. Si no tiene wallet → botón "Conectar wallet TON"
-2. Al conectar → TON Connect modal → proof va al backend → se guarda
-3. Si tiene wallet → muestra "chainoracle.ton" (o address truncada) + sus NFTs
-4. Grilla de NFTs → toca uno → queda como activo con borde iluminado
-5. Toggle "Mostrar en mi perfil" (respeta sistema de privacidad existente)
+### Flujo en `Profile.jsx`
+1. Sin wallet → botón "Conectar wallet TON"
+2. Click → pide nonce al backend → abre TON Connect modal
+3. Usuario aprueba en su wallet → proof llega al frontend
+4. Frontend envía proof al backend → wallet guardada
+5. Con wallet → muestra address truncada + grilla de NFTs
+6. Tap en NFT → se guarda como activo (borde iluminado)
+7. Toggle `mostrar_nft` en sección de privacidad
 
 ---
 
-### Fase 3: IA — Redo conoce tu NFT
-**Archivos a modificar:**
+## Fase 3 — Redo × NFT
 
-```
-backend/
-  mascota_ai.py    ← MODIFICAR: agregar nft al context tier T1
-  main.py          ← MODIFICAR: pasar nft_data al build_context
-```
-
-**Cambio en mascota_ai.py — Context Tier T1:**
-```python
-# Si el usuario tiene nft_activo, agregar al contexto:
-if nft_data:
-    ctx += f"NFT activo: {nft_data['nombre']} ({nft_data['coleccion']})"
-    if nft_data.get('rarity_score'):
-        ctx += f" rareza {nft_data['rarity_score']}%"
-```
-
-**Cambio en SYSTEM_PROMPT:**
-```
-Añadir: "Si el usuario tiene NFT activo, podés mencionarlo con naturalidad
-una vez cada tanto. Nunca forzarlo."
-```
-
-**Token cost estimado:** ~20 tokens extra por llamada cuando hay NFT activo. Prefixcacheable.
-
----
-
-## Colecciones de Telegram Gifts conocidas
-
-Para filtrar solo NFTs de Telegram (no cualquier NFT del usuario):
+**Archivo**: `backend/mascota_ai.py` → en `build_context()`, tier T1
 
 ```python
-TELEGRAM_GIFT_COLLECTIONS = [
-    # Agregar addresses de colecciones a medida que se descubren via TonAPI
-    # Filtrar por: collection.name contiene keywords conocidos
-]
-
-TELEGRAM_GIFT_KEYWORDS = [
-    "telegram", "gift", "titanic", "cupid", "charm",
-    "durov", "collectible", "star"
-]
+# Agregar en el bloque de contexto T1 (datos del usuario):
+if user.nft_activo_address:
+    nft = db.query(NftCache).filter_by(address=user.nft_activo_address).first()
+    if nft:
+        ctx_parts.append(f"NFT activo: {nft.nombre}")
+        if nft.coleccion:
+            ctx_parts.append(f"colección {nft.coleccion}")
 ```
 
-TonAPI devuelve el nombre de la colección — filtrar por keywords es más robusto
-que hardcodear addresses (nuevas colecciones aparecen seguido).
+**IMPORTANTE**: No modificar las primeras 2 líneas del SYSTEM_PROMPT — están
+prefix-cacheadas en DeepSeek. Agregar instrucción NFT al final del prompt existente.
 
 ---
 
-## Orden de implementación sugerido
+## Variables de entorno
 
-```
-1. Fase 1 completa (backend) → testear endpoints con curl
-2. tonconnect-manifest.json → deployar a Vercel
-3. Fase 2 completa (frontend) → testear en Telegram
-4. Fase 3 (Redo × NFT) → testear mensajes de Redo
-```
-
-No implementar las 3 fases en paralelo — la 2 depende de la 1, la 3 depende de la 1.
+### Railway — minestudy service
+| Variable | Cómo obtener | Estado |
+|---|---|---|
+| `TONAPI_KEY` | @tonapi_bot en Telegram → `/get_server_key` | ⏳ Pendiente |
 
 ---
 
-## Tests a escribir
+## Checklist para cuando llegue la TONAPI_KEY
+
+```
+[ ] Agregar TONAPI_KEY en Railway (minestudy → Variables)
+[ ] Completar los TODO en backend/ton_wallet.py
+[ ] Crear backend/alembic/versions/008_wallet_nft.py
+[ ] Agregar wallet_address, nft_activo_address, mostrar_nft a models.py User
+[ ] Agregar NftCache a models.py
+[ ] Implementar 4 endpoints en main.py
+[ ] Implementar TonConnectButton.jsx
+[ ] Implementar NftSelector.jsx
+[ ] Implementar NftBadge.jsx
+[ ] Modificar Profile.jsx
+[ ] Modificar main.jsx (TonConnectUIProvider)
+[ ] Agregar funciones wallet a api.js
+[ ] Modificar mascota_ai.py (tier T1 + system prompt)
+[ ] Escribir test_wallet.py (5 tests de seguridad)
+[ ] Deploy y probar en Telegram con wallet real
+```
+
+---
+
+## Tests de seguridad a escribir
 
 ```
 backend/test_wallet.py:
-  - test_valid_ton_proof_accepted
-  - test_invalid_signature_rejected
-  - test_cannot_link_wallet_to_another_user
-  - test_nft_list_requires_linked_wallet
+  - test_nonce_expires_after_5_minutes
+  - test_replayed_nonce_rejected
+  - test_invalid_ed25519_signature_rejected
+  - test_cannot_link_wallet_of_another_user
   - test_nft_activo_must_belong_to_wallet
+  - test_nft_query_requires_linked_wallet
 ```
 
 ---
 
-## Referencias
+## Referencias técnicas
 
-- TON Connect SDK: https://github.com/ton-connect/sdk
-- ton_proof verification: https://docs.ton.org/develop/dapps/ton-connect/sign
-- TonAPI NFTs: https://tonapi.io/api-v2#operations-NFT-getNftItemsByOwner
-- Telegram Gift NFTs: https://telegram.org/blog/wear-gifts-blockchain-and-more
-- Colecciones en GetGems: https://getgems.io/gifts-collection
+- TON Connect proof verification (oficial): https://docs.ton.org/develop/dapps/ton-connect/sign
+- TonAPI NFTs endpoint: `GET https://tonapi.io/v2/accounts/{account_id}/nfts`
+- @tonconnect/ui-react: https://github.com/ton-connect/sdk/tree/main/packages/ui-react
+- Telegram Gift NFTs en blockchain: https://telegram.org/blog/wear-gifts-blockchain-and-more
+- TEP-62 (estándar NFT de TON): https://github.com/ton-blockchain/TEPs/blob/master/text/0062-nft-standard.md
 
 ---
 
-## Notas para el agente implementador
+## Notas críticas para el agente implementador
 
-1. **Leer** `backend/mascota_ai.py` completo antes de modificarlo — tiene un sistema
-   de cache y context tiers delicado, no romper el prefix-cache de DeepSeek.
-2. **Leer** `backend/main.py` líneas 2160-2300 para entender el patrón de endpoints.
-3. **Leer** `backend/ton_storage.py` para ver el patrón de cliente HTTP usado.
-4. El sistema de privacidad existente está en `models.User` — agregar `mostrar_nft`
-   siguiendo el mismo patrón que `mostrar_nombre`, `mostrar_progreso`, etc.
-5. Los tests de seguridad existentes están en `backend/test_security.py` — seguir
-   el mismo patrón con HMAC-signed initData real.
-6. **NO** modificar el SYSTEM_PROMPT de Redo en las primeras 2 líneas — están
-   prefix-cacheadas en DeepSeek y cambiarlas invalida el cache.
+1. **`mascota_ai.py`**: Leer completo antes de modificar. Tiene sistema de cache y
+   tiers de contexto delicado. El prefix-cache de DeepSeek depende de que el
+   SYSTEM_PROMPT no cambie entre llamadas.
+
+2. **Patrón de endpoints**: Ver `main.py` alrededor de `/zona-libre/upload` para
+   el patrón de autenticación + manejo de errores usado en el proyecto.
+
+3. **Patrón de cliente HTTP**: Ver `backend/ton_storage.py` — usa `httpx.AsyncClient`
+   con timeout explícito. Usar el mismo patrón en `ton_wallet.py`.
+
+4. **Privacidad**: El campo `mostrar_nft` sigue el patrón de `mostrar_nombre`,
+   `mostrar_progreso`, etc. en `models.py`. Incluirlo en el endpoint de privacidad
+   existente (`PUT /usuarios/{id}/privacidad`).
+
+5. **Nunca** guardar `wallet_address` sin verificar el `ton_proof` primero.
+   Un usuario malintencionado podría enviar la address de otra persona.

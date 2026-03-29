@@ -1,4 +1,5 @@
 alembic
+PyNaCl
 sentry-sdk[fastapi]
 apscheduler
 boto3

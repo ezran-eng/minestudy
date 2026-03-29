@@ -13,6 +13,7 @@
     "vercel-install": "npm install --legacy-peer-deps"
   },
   "dependencies": {
+    "@tonconnect/ui-react": "^2.0.0",
     "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",
     "@telegram-apps/telegram-ui": "^2.1.13",
