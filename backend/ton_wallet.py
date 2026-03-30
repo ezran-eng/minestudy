@@ -289,20 +289,31 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             logger.error("[tonapi] nfts %d: %s", r.status_code, r.text[:300])
             r.raise_for_status()
         items = r.json().get("nft_items", [])
+        logger.info("[nfts] fetched %d NFTs for %s", len(items), address[:20])
 
     # Pre-check all unique collections to determine which are Telegram gifts
-    unique_cols = {
+    # Process in batches of 5 to avoid TonAPI rate limiting
+    import asyncio
+    unique_cols = [
         (item.get("collection") or {}).get("address", "")
         for item in items
-    }
-    unique_cols.discard("")
+    ]
+    # Deduplicate while preserving order
+    seen = set()
+    to_check = []
+    for addr in unique_cols:
+        if addr and addr not in seen and addr not in _gift_collection_cache:
+            seen.add(addr)
+            to_check.append(addr)
+
+    BATCH_SIZE = 5
     async with httpx.AsyncClient(timeout=10.0) as col_client:
-        import asyncio
-        await asyncio.gather(*[
-            _check_collection_is_gift(col_client, addr)
-            for addr in unique_cols
-            if addr not in _gift_collection_cache
-        ])
+        for i in range(0, len(to_check), BATCH_SIZE):
+            batch = to_check[i:i + BATCH_SIZE]
+            await asyncio.gather(*[
+                _check_collection_is_gift(col_client, addr)
+                for addr in batch
+            ])
 
     result = []
     for item in items:
@@ -373,7 +384,7 @@ async def get_nft_metadata(nft_address: str) -> dict:
 async def _check_collection_is_gift(client: httpx.AsyncClient, col_address: str) -> bool:
     """
     Checks TonAPI collection metadata to determine if it's a Telegram gift.
-    Telegram gifts have nft.fragment.com URLs or 'telegram' in description.
+    Telegram gifts have nft.fragment.com in on-chain data or metadata links.
     Results are cached in memory.
     """
     if col_address in _gift_collection_cache:
@@ -383,25 +394,35 @@ async def _check_collection_is_gift(client: httpx.AsyncClient, col_address: str)
         encoded = quote(col_address, safe="")
         r = await _tonapi_get(client, f"{TONAPI_BASE}/v2/nfts/collections/{encoded}")
         if r.status_code != 200:
-            _gift_collection_cache[col_address] = False
+            logger.warning("[gift_check] %d for col %s", r.status_code, col_address[-20:])
+            # Don't cache failures — retry next time
             return False
         data = r.json()
         meta = data.get("metadata") or {}
         desc = (meta.get("description") or "").lower()
-        ext_link = (meta.get("external_link") or "").lower()
-        raw = (data.get("raw_collection_content") or "")
+        # Check both field names (TonAPI uses both)
+        ext_link = (meta.get("external_link") or meta.get("external_url") or "").lower()
+        # Decode hex raw_collection_content to find nft.fragment.com
+        raw_hex = data.get("raw_collection_content") or ""
+        raw_decoded = ""
+        if raw_hex:
+            try:
+                raw_decoded = bytes.fromhex(raw_hex).decode("utf-8", errors="ignore").lower()
+            except Exception:
+                pass
 
         is_gift = (
             "fragment.com/gifts/" in ext_link
-            or "nft.fragment.com" in raw
+            or "nft.fragment.com" in raw_decoded
             or ("telegram" in desc and ("gift" in desc or "nft collection" in desc))
         )
-        logger.info("[gift_check] col=%s | ext_link=%s | is_gift=%s", col_address[-20:], ext_link[:60], is_gift)
+        logger.info("[gift_check] col=%s | link=%s | raw_has_fragment=%s | is_gift=%s",
+                     col_address[-20:], ext_link[:60], "nft.fragment.com" in raw_decoded, is_gift)
         _gift_collection_cache[col_address] = is_gift
         return is_gift
     except Exception as e:
         logger.warning("[gift_check] error for %s: %s", col_address[-20:], e)
-        _gift_collection_cache[col_address] = False
+        # Don't cache errors — retry next time
         return False
 
 
