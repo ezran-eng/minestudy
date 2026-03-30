@@ -39,8 +39,8 @@ async def _tonapi_get(client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Re
         r = await client.get(url, headers=headers, **kwargs)
     return r
 
-# Known Telegram gift collection addresses (fallback detection)
-TELEGRAM_GIFT_COLLECTIONS: set[str] = set()
+# In-memory cache: collection_address -> is_telegram_gift (bool)
+_gift_collection_cache: dict[str, bool] = {}
 
 # Expected domain — must match tonconnect-manifest.json
 _EXPECTED_DOMAIN = "minestudy.vercel.app"
@@ -290,16 +290,24 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             r.raise_for_status()
         items = r.json().get("nft_items", [])
 
+    # Pre-check all unique collections to determine which are Telegram gifts
+    unique_cols = {
+        (item.get("collection") or {}).get("address", "")
+        for item in items
+    }
+    unique_cols.discard("")
+    async with httpx.AsyncClient(timeout=10.0) as col_client:
+        import asyncio
+        await asyncio.gather(*[
+            _check_collection_is_gift(col_client, addr)
+            for addr in unique_cols
+            if addr not in _gift_collection_cache
+        ])
+
     result = []
     for item in items:
         meta = item.get("metadata") or {}
         collection = item.get("collection") or {}
-        # Log collection info for debugging gift detection
-        col_name = collection.get("name", "?")
-        approved = collection.get("approved_by")
-        nft_name = meta.get("name", "?")
-        is_gift = is_telegram_gift(item)
-        logger.info("[nfts] %s | col=%s | approved_by=%s | is_gift=%s", nft_name, col_name, approved, is_gift)
         # Use preview image (500x500) if available, fallback to metadata image
         previews = item.get("previews") or []
         imagen = ""
@@ -317,13 +325,14 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             }
             for attr in meta.get("attributes", [])
         ]
+        is_gift = is_telegram_gift(item)
         result.append({
             "address": item.get("address", ""),
             "nombre": meta.get("name", "") or collection.get("name", ""),
             "coleccion": collection.get("name", ""),
             "imagen_url": imagen,
             "traits": traits,
-            "is_telegram_gift": is_telegram_gift(item),
+            "is_telegram_gift": is_gift,
         })
     return result
 
@@ -361,26 +370,43 @@ async def get_nft_metadata(nft_address: str) -> dict:
     }
 
 
+async def _check_collection_is_gift(client: httpx.AsyncClient, col_address: str) -> bool:
+    """
+    Checks TonAPI collection metadata to determine if it's a Telegram gift.
+    Telegram gifts have nft.fragment.com URLs or 'telegram' in description.
+    Results are cached in memory.
+    """
+    if col_address in _gift_collection_cache:
+        return _gift_collection_cache[col_address]
+
+    try:
+        encoded = quote(col_address, safe="")
+        r = await _tonapi_get(client, f"{TONAPI_BASE}/v2/nfts/collections/{encoded}")
+        if r.status_code != 200:
+            _gift_collection_cache[col_address] = False
+            return False
+        data = r.json()
+        meta = data.get("metadata") or {}
+        desc = (meta.get("description") or "").lower()
+        ext_link = (meta.get("external_link") or "").lower()
+        raw = (data.get("raw_collection_content") or "")
+
+        is_gift = (
+            "fragment.com/gifts/" in ext_link
+            or "nft.fragment.com" in raw
+            or ("telegram" in desc and ("gift" in desc or "nft collection" in desc))
+        )
+        logger.info("[gift_check] col=%s | ext_link=%s | is_gift=%s", col_address[-20:], ext_link[:60], is_gift)
+        _gift_collection_cache[col_address] = is_gift
+        return is_gift
+    except Exception as e:
+        logger.warning("[gift_check] error for %s: %s", col_address[-20:], e)
+        _gift_collection_cache[col_address] = False
+        return False
+
+
 def is_telegram_gift(nft_item: dict) -> bool:
-    """
-    Determina si un NFT es un Telegram gift.
-    Usa el campo approved_by de la colección (TonAPI lo marca como 'telegram').
-    Fallback: verifica la dirección de colección contra una lista conocida.
-    """
+    """Sync check using cache only. Use _check_collection_is_gift for async check."""
     collection = nft_item.get("collection") or {}
-    approved = collection.get("approved_by")
-
-    # Primary: approved_by contains "telegram"
-    if approved:
-        if isinstance(approved, list):
-            if any("telegram" in str(a).lower() for a in approved):
-                return True
-        elif isinstance(approved, str) and "telegram" in approved.lower():
-            return True
-
-    # Fallback: known collection addresses
     col_addr = collection.get("address", "")
-    if col_addr and col_addr in TELEGRAM_GIFT_COLLECTIONS:
-        return True
-
-    return False
+    return _gift_collection_cache.get(col_addr, False)
