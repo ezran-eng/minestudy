@@ -12,7 +12,7 @@ import { getWalletNonce, connectWallet, disconnectWallet } from '../services/api
  *  3. Send proof to backend for ed25519 verification → save wallet_address
  *  4. Call onConnected(address)
  */
-const TonConnectButton = ({ walletAddress, onConnected, onDisconnected }) => {
+const TonConnectButton = ({ walletAddress, onConnected, onDisconnected, compact = false }) => {
   const { t } = useTranslation();
   const [tonConnectUI] = useTonConnectUI();
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,24 @@ const TonConnectButton = ({ walletAddress, onConnected, onDisconnected }) => {
   };
 
   if (walletAddress) {
+    // Compact mode: just a small disconnect button for use in headers
+    if (compact) {
+      return (
+        <button
+          onClick={handleDisconnect}
+          style={{
+            background: 'none', border: '1px solid var(--border)',
+            borderRadius: '8px', padding: '4px 10px',
+            fontSize: '11px', color: 'var(--text2)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '5px',
+          }}
+        >
+          <span style={{ fontSize: '12px' }}>💎</span>
+          {truncate(walletAddress)}
+        </button>
+      );
+    }
+
     return (
       <div style={{
         display: 'flex', alignItems: 'center', gap: '10px',

@@ -7,8 +7,10 @@ import { useMascotaUpdate } from '../context/MascotaContext';
 import { useUserPerfil, usePrivacidad, useNotificaciones } from '../hooks/useQueryHooks';
 import MateriaList from '../components/MateriaList';
 import TonConnectButton from '../components/TonConnectButton';
-import NftSelector from '../components/NftSelector';
+import GiftGrid from '../components/GiftGrid';
 import NftBadge from '../components/NftBadge';
+import { updateMateria } from '../services/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Toggle = ({ label, description, value, onChange, disabled }) => (
   <div style={{
@@ -85,7 +87,9 @@ const Profile = () => {
   const [walletAddress, setWalletAddress] = useState(null);
   const [activeNftAddress, setActiveNftAddress] = useState(null);
   const [activeNftData, setActiveNftData] = useState(null);
-  const [showNftSelector, setShowNftSelector] = useState(false);
+  const [giftCount, setGiftCount] = useState(null);
+  const [applyGift, setApplyGift] = useState(null); // gift to apply to a materia
+  const queryClient = useQueryClient();
   const versionTaps = React.useRef(0);
   const versionTimer = React.useRef(null);
 
@@ -227,75 +231,64 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* NFT trophy badge — shown below avatar if active */}
+        {/* Active gift badge — shown below avatar */}
         {activeNftData && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
             <NftBadge nftData={activeNftData} size="md" />
           </div>
         )}
 
-        {/* Wallet + NFT section */}
-        <div style={{ padding: '16px 16px 0' }}>
-          <div className="section-head" style={{ marginBottom: '12px' }}>
-            <div className="section-title">{t('wallet.title')}</div>
-          </div>
-
-          <TonConnectButton
-            walletAddress={walletAddress}
-            onConnected={(addr) => setWalletAddress(addr)}
-            onDisconnected={() => {
-              setWalletAddress(null);
-              setActiveNftAddress(null);
-              setActiveNftData(null);
-              setShowNftSelector(false);
-            }}
-          />
-
-          {walletAddress && (
-            <div style={{ marginTop: '12px' }}>
-              <button
-                onClick={() => setShowNftSelector(!showNftSelector)}
-                style={{
-                  width: '100%', padding: '12px 16px',
-                  background: showNftSelector
-                    ? 'linear-gradient(135deg, rgba(0,152,234,0.12), rgba(0,152,234,0.05))'
-                    : 'var(--s2)',
-                  border: showNftSelector ? '1px solid rgba(0,152,234,0.3)' : '1px solid var(--border)',
-                  borderRadius: '12px', color: 'var(--text)',
-                  fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }}>🎁</span>
-                  {t('wallet.myNfts')}
-                </span>
+        {/* Gifts section — negative margin to break out of profile-body 16px padding */}
+        <div style={{ marginTop: '20px', margin: '20px -16px 0' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 20px', marginBottom: '10px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="section-title">{t('wallet.giftsTitle')}</div>
+              {giftCount != null && (
                 <span style={{
-                  color: 'var(--text2)', fontSize: '12px',
-                  transition: 'transform 0.2s',
-                  transform: showNftSelector ? 'rotate(180deg)' : 'rotate(0)',
-                  display: 'inline-block',
-                }}>▼</span>
-              </button>
-
-              {showNftSelector && (
-                <div style={{
-                  marginTop: '8px', padding: '12px',
-                  background: 'var(--s2)', borderRadius: '14px',
-                  border: '1px solid var(--border)',
-                }}>
-                  <NftSelector
-                    userId={user?.id}
-                    activeAddress={activeNftAddress}
-                    onNftChange={(addr, nft) => {
-                      setActiveNftAddress(addr);
-                      setActiveNftData(nft);
-                    }}
-                  />
-                </div>
+                  fontSize: '12px', fontWeight: 700,
+                  color: 'var(--text2)',
+                  background: 'var(--s2)', border: '1px solid var(--border)',
+                  borderRadius: '20px', padding: '1px 8px',
+                }}>{giftCount}</span>
               )}
             </div>
+            {walletAddress ? (
+              <TonConnectButton
+                walletAddress={walletAddress}
+                compact
+                onConnected={(addr) => setWalletAddress(addr)}
+                onDisconnected={() => {
+                  setWalletAddress(null);
+                  setActiveNftAddress(null);
+                  setActiveNftData(null);
+                  setGiftCount(null);
+                }}
+              />
+            ) : null}
+          </div>
+
+          {!walletAddress ? (
+            <div style={{ padding: '0 20px' }}>
+              <TonConnectButton
+                walletAddress={null}
+                onConnected={(addr) => setWalletAddress(addr)}
+                onDisconnected={() => {}}
+              />
+            </div>
+          ) : (
+            <GiftGrid
+              userId={user?.id}
+              activeAddress={activeNftAddress}
+              onNftChange={(addr, nft) => {
+                setActiveNftAddress(addr);
+                setActiveNftData(nft);
+              }}
+              onCountLoaded={(n) => setGiftCount(n)}
+              onApplyToMateria={(gift) => setApplyGift(gift)}
+            />
           )}
         </div>
 
@@ -568,6 +561,86 @@ const Profile = () => {
               )}
             </div>
 
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Apply gift to materia sheet */}
+    {applyGift && perfil && (
+      <div
+        className="overlay show"
+        id="apply-gift-overlay"
+        onClick={e => { if (e.target.id === 'apply-gift-overlay') setApplyGift(null); }}
+      >
+        <div className="sheet">
+          <div className="sheet-handle" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '4px 16px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, background: '#111' }}>
+              {applyGift.imagen_url && <img src={applyGift.imagen_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            </div>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{applyGift.nombre || applyGift.coleccion}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px' }}>{t('wallet.pickMateriaToStyle')}</div>
+            </div>
+          </div>
+
+          <div style={{ padding: '10px 12px 32px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '50vh', overflowY: 'auto' }}>
+            {[...(perfil.materias_cursando || []), ...(perfil.materias_completadas || [])].map(m => {
+              const color = m.color || 'var(--gold)';
+              return (
+                <button
+                  key={m.id}
+                  onClick={async () => {
+                    // Extract color from gift traits (Fondo/Background)
+                    const fondoTrait = (applyGift.traits || []).find(
+                      t => t.trait_type?.toLowerCase() === 'fondo' || t.trait_type?.toLowerCase() === 'background'
+                    );
+                    // Map trait values to colors
+                    const TRAIT_COLORS = {
+                      'onyx black': '#2d2d3d', 'golden': '#c9a227', 'space gray': '#6b7280',
+                      'red rose': '#c0392b', 'lemon slice': '#eab308', 'purple': '#8b5cf6',
+                      'blue': '#3b82f6', 'green': '#22c55e', 'pink': '#ec4899',
+                      'ivory white': '#f5f5dc', 'silver': '#94a3b8', 'bronze': '#cd7f32',
+                      'ruby': '#e0115f', 'sapphire': '#0f52ba', 'emerald': '#50c878',
+                    };
+                    const traitColor = fondoTrait
+                      ? TRAIT_COLORS[fondoTrait.value?.toLowerCase()] || null
+                      : null;
+                    // Use gift emoji (first char of collection name) or fallback
+                    const giftEmoji = applyGift.coleccion
+                      ? String.fromCodePoint(applyGift.coleccion.codePointAt(0)) : null;
+
+                    try {
+                      await updateMateria(m.id, {
+                        ...(traitColor ? { color: traitColor } : {}),
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['materias'] });
+                      queryClient.invalidateQueries({ queryKey: ['perfil', user?.id] });
+                    } catch (_) {}
+                    setApplyGift(null);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    background: 'var(--s2)', border: '1px solid var(--border)',
+                    borderRadius: '14px', padding: '12px 14px',
+                    cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+                    background: `${color}20`, border: `1.5px solid ${color}40`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
+                  }}>
+                    {m.emoji || '📚'}
+                  </div>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {m.nombre}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text2)' }}>›</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

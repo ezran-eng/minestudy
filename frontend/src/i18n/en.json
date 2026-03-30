@@ -425,10 +425,15 @@
     "myNfts": "My collectibles",
     "loadingNfts": "Loading your gifts...",
     "noNfts": "No Telegram gifts found in this wallet. Try the one that has your collectibles.",
-    "tapToDeselect": "Tap the active NFT to deselect it",
+    "tapToDeselect": "Tap the active gift for options",
     "disconnect": "Disconnect",
     "showNft": "Show NFT on public profile",
-    "showNftDesc": "Your gift will appear on your profile when others visit it"
+    "showNftDesc": "Your gift will appear on your profile when others visit it",
+    "giftsTitle": "Gifts",
+    "applyToMateria": "Apply style to a subject",
+    "applyToMateriaDesc": "Use this gift's color to customize a subject card",
+    "pickMateriaToStyle": "Which subject to style?",
+    "unpinGift": "Remove as active gift"
   },
 
   "common": {
