@@ -334,6 +334,30 @@ const MateriaDetail = () => {
         </div>
         <div className="detail-body detail-body-pad">
 
+          {/* Materia header with emoji badge */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            marginBottom: '14px',
+          }}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '13px',
+              background: materia.color ? `${materia.color}20` : 'var(--s3)',
+              border: `1.5px solid ${materia.color || 'var(--border)'}40`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '24px', flexShrink: 0,
+            }}>
+              {materia.emoji || '📚'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: '18px', fontWeight: 700, color: 'var(--text)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {materia.nombre}
+              </div>
+            </div>
+          </div>
+
           <div className="detail-prog">
             <div className="detail-prog-top">
               <span className="detail-prog-label">{t('materia.generalProgress')}</span>

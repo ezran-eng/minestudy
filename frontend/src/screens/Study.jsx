@@ -287,7 +287,10 @@ const Study = () => {
               }}
               onClick={() => handleMateriaClick(materia)}
             >
-              <div className="materia-emoji-big">{materia.emoji}</div>
+              <div className="materia-emoji-big" style={{
+                background: `${color}20`,
+                border: `1.5px solid ${color}40`,
+              }}>{materia.emoji || '📚'}</div>
               <div className="materia-info">
                 <div className="materia-name-row" style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600 }}>{materia.nombre}</span>
@@ -373,30 +376,79 @@ const Study = () => {
                 fontSize: '14px', color: 'var(--text)', outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="📚"
-                value={newEmoji}
-                onChange={e => setNewEmoji(e.target.value)}
-                maxLength={4}
-                style={{
-                  width: '60px', textAlign: 'center',
-                  background: 'var(--s2)', border: '1px solid var(--border)',
-                  borderRadius: '10px', padding: '12px',
-                  fontSize: '20px', color: 'var(--text)', outline: 'none',
-                }}
-              />
-              <input
-                type="color"
-                value={newColor}
-                onChange={e => setNewColor(e.target.value)}
-                style={{
-                  width: '50px', height: '46px',
-                  background: 'var(--s2)', border: '1px solid var(--border)',
-                  borderRadius: '10px', padding: '4px', cursor: 'pointer',
-                }}
-              />
+            {/* Preview */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              background: 'var(--s2)', borderRadius: '12px', padding: '12px',
+              border: '1px solid var(--border)',
+            }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '12px',
+                background: newColor ? `${newColor}20` : 'var(--s3)',
+                border: `1.5px solid ${newColor || 'var(--border)'}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '22px', flexShrink: 0,
+              }}>
+                {newEmoji || '📚'}
+              </div>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', opacity: newNombre.trim() ? 1 : 0.4 }}>
+                {newNombre.trim() || t('study.materiaName')}
+              </span>
+            </div>
+
+            {/* Emoji + color row */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '6px', fontWeight: 500 }}>
+                  {t('materia.symbolLabel')}
+                </div>
+                <input
+                  type="text"
+                  placeholder="📚"
+                  value={newEmoji}
+                  onChange={e => setNewEmoji(e.target.value)}
+                  maxLength={4}
+                  style={{
+                    width: '56px', textAlign: 'center',
+                    background: 'var(--s2)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '10px',
+                    fontSize: '22px', color: 'var(--text)', outline: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '6px', fontWeight: 500 }}>
+                  {t('materia.colorLabel')}
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#DDA0DD', '#FF8C42', '#6C5CE7'].map(c => (
+                    <div
+                      key={c}
+                      onClick={() => setNewColor(c)}
+                      style={{
+                        width: '30px', height: '30px', borderRadius: '8px',
+                        background: c, cursor: 'pointer',
+                        border: newColor === c ? '2.5px solid var(--text)' : '2px solid transparent',
+                        transition: 'border 0.15s, transform 0.15s',
+                        transform: newColor === c ? 'scale(1.12)' : 'scale(1)',
+                      }}
+                    />
+                  ))}
+                  <label style={{
+                    width: '30px', height: '30px', borderRadius: '8px',
+                    background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                    border: '2px solid var(--border)',
+                  }}>
+                    <input
+                      type="color"
+                      value={newColor}
+                      onChange={e => setNewColor(e.target.value)}
+                      style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
             <button
               onClick={handleCreateMateria}
