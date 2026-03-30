@@ -2,11 +2,6 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getUserNfts, setNftActivo } from '../services/api';
 
-/**
- * NFT trophy case selector.
- * Shows only Telegram Gift NFTs in a modern grid.
- * Tapping one sets it as active; tapping again deselects.
- */
 const NftSelector = ({ userId, activeAddress, onNftChange }) => {
   const { t } = useTranslation();
   const [nfts, setNfts] = useState([]);
@@ -17,9 +12,9 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
   useEffect(() => {
     getUserNfts(userId)
       .then((data) => {
-        // Only show Telegram gift NFTs
-        const gifts = (data.nfts || []).filter(n => n.is_telegram_gift);
-        setNfts(gifts);
+        const all = data.nfts || [];
+        const gifts = all.filter(n => n.is_telegram_gift);
+        setNfts(gifts.length > 0 ? gifts : all);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -42,15 +37,23 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
   if (loading) {
     return (
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: '8px', padding: '32px 0', color: 'var(--text2)', fontSize: '13px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', gap: '10px', padding: '40px 0',
       }}>
-        <div style={{
-          width: '18px', height: '18px', border: '2px solid var(--border)',
-          borderTop: '2px solid var(--gold)', borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        {t('wallet.loadingNfts')}
+        <div className="nft-spinner" />
+        <span style={{ fontSize: '13px', color: 'var(--text2)' }}>
+          {t('wallet.loadingNfts')}
+        </span>
+        <style>{`
+          .nft-spinner {
+            width: 24px; height: 24px;
+            border: 2.5px solid var(--s3);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: nft-spin 0.7s linear infinite;
+          }
+          @keyframes nft-spin { to { transform: rotate(360deg); } }
+        `}</style>
       </div>
     );
   }
@@ -58,10 +61,8 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
   if (error) {
     return (
       <div style={{
-        fontSize: '13px', color: '#ff6b6b', padding: '14px 16px',
-        background: 'rgba(255,107,107,0.08)', borderRadius: '12px',
-        border: '1px solid rgba(255,107,107,0.15)',
-        textAlign: 'center',
+        textAlign: 'center', padding: '20px 16px',
+        fontSize: '13px', color: '#ff6b6b',
       }}>
         {error}
       </div>
@@ -70,11 +71,9 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
 
   if (nfts.length === 0) {
     return (
-      <div style={{
-        textAlign: 'center', padding: '28px 16px', lineHeight: 1.6,
-      }}>
-        <div style={{ fontSize: '36px', marginBottom: '8px' }}>🎁</div>
-        <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+      <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+        <div style={{ fontSize: '40px', marginBottom: '10px' }}>🎁</div>
+        <div style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.5 }}>
           {t('wallet.noNfts')}
         </div>
       </div>
@@ -82,85 +81,34 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
   }
 
   return (
-    <div>
+    <>
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '8px',
+        gap: '10px',
       }}>
         {nfts.map((nft) => {
           const isActive = nft.address === activeAddress;
-
           return (
             <div
               key={nft.address}
               onClick={() => !saving && handleSelect(nft.address)}
-              style={{
-                position: 'relative',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                cursor: saving ? 'default' : 'pointer',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                background: 'var(--s3)',
-                boxShadow: isActive
-                  ? '0 0 0 2px #0098EA, 0 4px 16px rgba(0,152,234,0.25)'
-                  : '0 1px 4px rgba(0,0,0,0.15)',
-              }}
+              className={`nft-card ${isActive ? 'nft-card-active' : ''}`}
             >
-              {/* NFT image */}
-              <div style={{
-                width: '100%', aspectRatio: '1', position: 'relative',
-                overflow: 'hidden',
-              }}>
+              <div className="nft-card-img">
                 {nft.imagen_url ? (
-                  <img
-                    src={nft.imagen_url}
-                    alt={nft.nombre}
-                    style={{
-                      width: '100%', height: '100%', objectFit: 'cover',
-                      display: 'block',
-                    }}
-                    loading="lazy"
-                  />
+                  <img src={nft.imagen_url} alt={nft.nombre} loading="lazy" />
                 ) : (
-                  <div style={{
-                    width: '100%', height: '100%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'linear-gradient(135deg, var(--s2), var(--s3))',
-                    fontSize: '32px',
-                  }}>
-                    🎁
-                  </div>
+                  <div className="nft-card-placeholder">🎁</div>
                 )}
-
-                {/* Active check overlay */}
                 {isActive && (
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'rgba(0,152,234,0.15)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <div style={{
-                      width: '28px', height: '28px', borderRadius: '50%',
-                      background: '#0098EA',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '14px', color: '#fff', fontWeight: 700,
-                      boxShadow: '0 2px 8px rgba(0,152,234,0.4)',
-                    }}>
-                      ✓
-                    </div>
+                  <div className="nft-card-check">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </div>
                 )}
               </div>
-
-              {/* Name label */}
-              <div style={{
-                padding: '6px 6px 8px',
-                fontSize: '10px', color: 'var(--text)',
-                lineHeight: 1.2, textAlign: 'center',
-                fontWeight: 500,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
+              <div className="nft-card-name">
                 {nft.nombre || nft.coleccion || '—'}
               </div>
             </div>
@@ -170,19 +118,75 @@ const NftSelector = ({ userId, activeAddress, onNftChange }) => {
 
       {activeAddress && (
         <div style={{
-          marginTop: '10px', textAlign: 'center',
-          fontSize: '12px', color: 'var(--text2)',
+          marginTop: '12px', textAlign: 'center',
+          fontSize: '12px', color: 'var(--text2)', opacity: 0.7,
         }}>
           {t('wallet.tapToDeselect')}
         </div>
       )}
 
       <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        .nft-card {
+          border-radius: 14px;
+          overflow: hidden;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          background: var(--s2);
+          border: 2px solid transparent;
+        }
+        .nft-card:active {
+          transform: scale(0.96);
+        }
+        .nft-card-active {
+          border-color: #0098EA;
+          box-shadow: 0 0 0 1px #0098EA, 0 4px 12px rgba(0,152,234,0.2);
+        }
+        .nft-card-img {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1;
+          overflow: hidden;
+          background: var(--s3);
+        }
+        .nft-card-img img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .nft-card-placeholder {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+        }
+        .nft-card-check {
+          position: absolute;
+          bottom: 6px;
+          right: 6px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #0098EA;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .nft-card-name {
+          padding: 5px 6px 7px;
+          font-size: 11px;
+          color: var(--text);
+          text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-weight: 500;
         }
       `}</style>
-    </div>
+    </>
   );
 };
 

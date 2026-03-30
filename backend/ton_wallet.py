@@ -39,11 +39,8 @@ async def _tonapi_get(client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Re
         r = await client.get(url, headers=headers, **kwargs)
     return r
 
-# Colecciones/keywords de Telegram gifts para filtrar NFTs del usuario
-TELEGRAM_GIFT_KEYWORDS = [
-    "telegram", "gift", "titanic", "cupid", "charm",
-    "durov", "collectible", "star", "santa",
-]
+# Known Telegram gift collection addresses (fallback detection)
+TELEGRAM_GIFT_COLLECTIONS: set[str] = set()
 
 # Expected domain — must match tonconnect-manifest.json
 _EXPECTED_DOMAIN = "minestudy.vercel.app"
@@ -297,6 +294,12 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
     for item in items:
         meta = item.get("metadata") or {}
         collection = item.get("collection") or {}
+        # Log collection info for debugging gift detection
+        col_name = collection.get("name", "?")
+        approved = collection.get("approved_by")
+        nft_name = meta.get("name", "?")
+        is_gift = is_telegram_gift(item)
+        logger.info("[nfts] %s | col=%s | approved_by=%s | is_gift=%s", nft_name, col_name, approved, is_gift)
         # Use preview image (500x500) if available, fallback to metadata image
         previews = item.get("previews") or []
         imagen = ""
@@ -360,10 +363,24 @@ async def get_nft_metadata(nft_address: str) -> dict:
 
 def is_telegram_gift(nft_item: dict) -> bool:
     """
-    Determina si un NFT es un Telegram gift basándose en keywords.
+    Determina si un NFT es un Telegram gift.
+    Usa el campo approved_by de la colección (TonAPI lo marca como 'telegram').
+    Fallback: verifica la dirección de colección contra una lista conocida.
     """
-    text = " ".join([
-        (nft_item.get("collection") or {}).get("name", ""),
-        (nft_item.get("metadata") or {}).get("name", ""),
-    ]).lower()
-    return any(kw in text for kw in TELEGRAM_GIFT_KEYWORDS)
+    collection = nft_item.get("collection") or {}
+    approved = collection.get("approved_by")
+
+    # Primary: approved_by contains "telegram"
+    if approved:
+        if isinstance(approved, list):
+            if any("telegram" in str(a).lower() for a in approved):
+                return True
+        elif isinstance(approved, str) and "telegram" in approved.lower():
+            return True
+
+    # Fallback: known collection addresses
+    col_addr = collection.get("address", "")
+    if col_addr and col_addr in TELEGRAM_GIFT_COLLECTIONS:
+        return True
+
+    return False
