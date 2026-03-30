@@ -409,7 +409,10 @@
     "deleteSubjectMessage": "Se eliminarán todas las unidades, temas, flashcards y preguntas de esta materia. Esta acción no se puede deshacer.",
     "deleteSubjectConfirm": "Sí, eliminar materia",
     "noUnitsHint": "Agregá tu primera unidad para empezar a armar tu materia",
-    "createSuccess": "Unidad creada"
+    "createSuccess": "Unidad creada",
+    "customize": "Personalizar",
+    "symbolLabel": "Icono",
+    "colorLabel": "Color"
   },
 
   "wallet": {

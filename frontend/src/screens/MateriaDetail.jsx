@@ -144,6 +144,35 @@ const MateriaDetail = () => {
   const [deleteUnidadId, setDeleteUnidadId] = useState(null);
   const [showDeleteMateriaConfirm, setShowDeleteMateriaConfirm] = useState(false);
 
+  // Materia customization state
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [customEmoji, setCustomEmoji] = useState('');
+  const [customColor, setCustomColor] = useState('#FFFFF0');
+  const [savingCustom, setSavingCustom] = useState(false);
+
+  const handleOpenCustomize = () => {
+    setCustomEmoji(materia.emoji || '');
+    setCustomColor(materia.color || '#FFFFF0');
+    setShowCustomize(true);
+  };
+
+  const handleSaveCustomize = async () => {
+    if (savingCustom) return;
+    setSavingCustom(true);
+    try {
+      await updateMateria(materia.id, {
+        emoji: customEmoji || null,
+        color: customColor || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['materias'] });
+      setShowCustomize(false);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingCustom(false);
+    }
+  };
+
   // Sync siguiendo from seguidores data
   useEffect(() => {
     if (seguidoresRes && user?.id) {
@@ -347,6 +376,18 @@ const MateriaDetail = () => {
               )}
               {isOwner && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={handleOpenCustomize}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '8px', fontSize: '14px',
+                      border: '1px solid var(--border)', background: 'var(--s2)',
+                      color: 'var(--text2)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                    title={t('materia.customize')}
+                  >
+                    🎨
+                  </button>
                   <button
                     onClick={handleToggleVisibility}
                     style={{
@@ -648,6 +689,120 @@ const MateriaDetail = () => {
           zIndex: 100, whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         }}>
           {t('materia.followToAccess')}
+        </div>
+      )}
+
+      {/* Customize materia modal */}
+      {showCustomize && (
+        <div className="overlay show" id="customize-overlay" onClick={e => { if (e.target.id === 'customize-overlay') setShowCustomize(false); }}>
+          <div className="sheet">
+            <div className="sheet-handle" />
+            <div className="sheet-title">{t('materia.customize')}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '0 4px' }}>
+
+              {/* Preview card */}
+              <div style={{
+                background: 'var(--s2)', borderRadius: '14px', padding: '16px',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: '14px',
+              }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: customColor ? `${customColor}22` : 'var(--s3)',
+                  border: `2px solid ${customColor || 'var(--border)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', flexShrink: 0,
+                }}>
+                  {customEmoji || '📚'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                    {materia.nombre}
+                  </div>
+                  <div style={{
+                    height: '4px', borderRadius: '2px', marginTop: '8px',
+                    background: 'var(--s3)', overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      width: '65%', height: '100%', borderRadius: '2px',
+                      background: `linear-gradient(90deg, ${customColor || 'var(--gold)'}, ${customColor || 'var(--gold)'}88)`,
+                    }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Emoji input */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+                  {t('materia.symbolLabel')}
+                </div>
+                <input
+                  type="text"
+                  placeholder="📚"
+                  value={customEmoji}
+                  onChange={e => setCustomEmoji(e.target.value)}
+                  maxLength={4}
+                  style={{
+                    width: '72px', textAlign: 'center',
+                    background: 'var(--s2)', border: '1px solid var(--border)',
+                    borderRadius: '12px', padding: '12px',
+                    fontSize: '28px', color: 'var(--text)', outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Color picker */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+                  {t('materia.colorLabel')}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#DDA0DD', '#FF8C42', '#6C5CE7', '#A8E6CF', '#FF85A2'].map(c => (
+                    <div
+                      key={c}
+                      onClick={() => setCustomColor(c)}
+                      style={{
+                        width: '36px', height: '36px', borderRadius: '10px',
+                        background: c, cursor: 'pointer',
+                        border: customColor === c ? '3px solid var(--text)' : '2px solid transparent',
+                        transition: 'border 0.15s, transform 0.15s',
+                        transform: customColor === c ? 'scale(1.1)' : 'scale(1)',
+                      }}
+                    />
+                  ))}
+                  <label style={{
+                    width: '36px', height: '36px', borderRadius: '10px',
+                    background: `conic-gradient(red, yellow, lime, aqua, blue, magenta, red)`,
+                    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                    border: '2px solid var(--border)',
+                  }}>
+                    <input
+                      type="color"
+                      value={customColor}
+                      onChange={e => setCustomColor(e.target.value)}
+                      style={{
+                        position: 'absolute', inset: 0, opacity: 0,
+                        width: '100%', height: '100%', cursor: 'pointer',
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveCustomize}
+                disabled={savingCustom}
+                style={{
+                  padding: '13px', borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+                  background: 'var(--gold)', color: '#000',
+                  border: 'none', cursor: savingCustom ? 'default' : 'pointer',
+                  opacity: savingCustom ? 0.6 : 1,
+                }}
+              >
+                {savingCustom ? '...' : t('common.save')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

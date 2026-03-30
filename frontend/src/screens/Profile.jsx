@@ -256,21 +256,33 @@ const Profile = () => {
               <button
                 onClick={() => setShowNftSelector(!showNftSelector)}
                 style={{
-                  width: '100%', padding: '11px 14px',
-                  background: 'var(--s2)', border: '1px solid var(--border)',
-                  borderRadius: '10px', color: 'var(--text)',
+                  width: '100%', padding: '12px 16px',
+                  background: showNftSelector
+                    ? 'linear-gradient(135deg, rgba(0,152,234,0.12), rgba(0,152,234,0.05))'
+                    : 'var(--s2)',
+                  border: showNftSelector ? '1px solid rgba(0,152,234,0.3)' : '1px solid var(--border)',
+                  borderRadius: '12px', color: 'var(--text)',
                   fontSize: '14px', fontWeight: 600, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  transition: 'all 0.2s',
                 }}
               >
-                <span>🏆 {t('wallet.myNfts')}</span>
-                <span style={{ color: 'var(--text2)' }}>{showNftSelector ? '▲' : '▼'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>🎁</span>
+                  {t('wallet.myNfts')}
+                </span>
+                <span style={{
+                  color: 'var(--text2)', fontSize: '12px',
+                  transition: 'transform 0.2s',
+                  transform: showNftSelector ? 'rotate(180deg)' : 'rotate(0)',
+                  display: 'inline-block',
+                }}>▼</span>
               </button>
 
               {showNftSelector && (
                 <div style={{
-                  marginTop: '10px', padding: '12px',
-                  background: 'var(--s2)', borderRadius: '12px',
+                  marginTop: '8px', padding: '12px',
+                  background: 'var(--s2)', borderRadius: '14px',
                   border: '1px solid var(--border)',
                 }}>
                   <NftSelector
