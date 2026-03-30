@@ -711,7 +711,10 @@ const Profile = () => {
                     }
 
                     try {
-                      await updateMateria(m.id, { color: giftColor });
+                      await updateMateria(m.id, {
+                        color: giftColor,
+                        gift_image: applyGift.imagen_url || null,
+                      });
                       queryClient.invalidateQueries({ queryKey: ['materias'] });
                       queryClient.invalidateQueries({ queryKey: ['perfil', user?.id] });
                     } catch (_) {}

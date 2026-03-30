@@ -46,6 +46,7 @@ class Materia(Base):
     nombre = Column(String, nullable=False)
     emoji = Column(String, nullable=True)
     color = Column(String, nullable=True)
+    gift_image = Column(String, nullable=True)
     orden = Column(Integer, nullable=True)
     creador_id = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=True)
     es_publica = Column(Boolean, nullable=False, server_default=sa.text("true"))

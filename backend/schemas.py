@@ -26,6 +26,7 @@ class MateriaBase(BaseModel):
     nombre: str
     emoji: Optional[str] = None
     color: Optional[str] = None
+    gift_image: Optional[str] = None
     orden: Optional[int] = None
     creador_id: Optional[int] = None
     es_publica: bool = True
@@ -38,6 +39,7 @@ class MateriaUpdate(BaseModel):
     nombre: Optional[str] = None
     emoji: Optional[str] = None
     color: Optional[str] = None
+    gift_image: Optional[str] = None
     orden: Optional[int] = None
     es_publica: Optional[bool] = None
 

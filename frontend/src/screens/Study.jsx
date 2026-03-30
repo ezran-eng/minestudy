@@ -267,6 +267,9 @@ const Study = () => {
               data-materia-unidades={materia.unidades.length}
               style={{
                 borderLeftColor: color,
+                position: 'relative',
+                overflow: 'hidden',
+                ...(materia.gift_image ? { background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`, borderColor: `${color}30` } : {}),
                 ...(hoveredMateriaId
                   ? String(materia.id) === hoveredMateriaId
                     ? {
@@ -275,7 +278,6 @@ const Study = () => {
                         boxShadow: '0 0 20px rgba(255, 200, 50, 0.3)',
                         transform: 'scale(1.01)',
                         transition: 'all 0.2s ease',
-                        position: 'relative',
                         zIndex: 1000,
                       }
                     : {
@@ -287,6 +289,15 @@ const Study = () => {
               }}
               onClick={() => handleMateriaClick(materia)}
             >
+              {/* Gift watermark */}
+              {materia.gift_image && (
+                <img src={materia.gift_image} alt="" style={{
+                  position: 'absolute', right: '-8px', top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '72px', height: '72px', objectFit: 'contain',
+                  opacity: 0.12, pointerEvents: 'none', filter: 'saturate(1.3)',
+                }} />
+              )}
               <div className="materia-emoji-big" style={{
                 background: `${color}20`,
                 border: `1.5px solid ${color}40`,

@@ -121,6 +121,14 @@ def get_r2_client():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-migrate: add missing columns
+    with engine.connect() as conn:
+        for col, typ in [("gift_image", "VARCHAR")]:
+            try:
+                conn.execute(sa.text(f"ALTER TABLE materias ADD COLUMN {col} {typ}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
     # Startup
     try:
         _scheduler.add_job(_job_recordatorio, 'interval', minutes=1)
@@ -1505,6 +1513,7 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         item = {
             "id": materia.id, "nombre": materia.nombre,
             "emoji": materia.emoji, "color": materia.color,
+            "gift_image": materia.gift_image,
             "porcentaje": round(pct, 1) if user.mostrar_progreso else 0,
         }
         if unidades and round(pct, 1) >= 100.0:
