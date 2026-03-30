@@ -276,44 +276,54 @@ async def get_wallet_public_key(address: str, state_init: str | None = None) -> 
 async def get_nfts_for_wallet(address: str) -> list[dict]:
     """
     Consulta TonAPI para obtener TODOS los NFTs de una wallet.
-    Incluye flag is_telegram_gift para identificar Telegram gifts.
+    Pagina si hay más de 256 NFTs. Incluye flag is_telegram_gift.
     """
+    import asyncio
     encoded = quote(address, safe="")
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await _tonapi_get(
-            client,
-            f"{TONAPI_BASE}/v2/accounts/{encoded}/nfts",
-            params={"limit": 100, "offset": 0, "indirect_ownership": "false"},
-        )
-        if r.status_code != 200:
-            logger.error("[tonapi] nfts %d: %s", r.status_code, r.text[:300])
-            r.raise_for_status()
-        items = r.json().get("nft_items", [])
-        logger.info("[nfts] fetched %d NFTs for %s", len(items), address[:20])
+    items: list[dict] = []
+    PAGE_SIZE = 256
+
+    # Fetch all NFTs with pagination
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        offset = 0
+        while True:
+            r = await _tonapi_get(
+                client,
+                f"{TONAPI_BASE}/v2/accounts/{encoded}/nfts",
+                params={"limit": PAGE_SIZE, "offset": offset, "indirect_ownership": "false"},
+            )
+            if r.status_code != 200:
+                logger.error("[tonapi] nfts %d: %s", r.status_code, r.text[:300])
+                r.raise_for_status()
+            page = r.json().get("nft_items", [])
+            items.extend(page)
+            logger.info("[nfts] page offset=%d got %d items (total so far: %d)", offset, len(page), len(items))
+            if len(page) < PAGE_SIZE:
+                break
+            offset += PAGE_SIZE
 
     # Pre-check all unique collections to determine which are Telegram gifts
-    # Process in batches of 5 to avoid TonAPI rate limiting
-    import asyncio
-    unique_cols = [
-        (item.get("collection") or {}).get("address", "")
-        for item in items
-    ]
-    # Deduplicate while preserving order
-    seen = set()
-    to_check = []
-    for addr in unique_cols:
+    # Process in batches of 3 with retry to avoid TonAPI rate limiting
+    seen: set[str] = set()
+    to_check: list[str] = []
+    for item in items:
+        addr = (item.get("collection") or {}).get("address", "")
         if addr and addr not in seen and addr not in _gift_collection_cache:
             seen.add(addr)
             to_check.append(addr)
 
-    BATCH_SIZE = 5
-    async with httpx.AsyncClient(timeout=10.0) as col_client:
+    logger.info("[nfts] checking %d unique collections for gift status", len(to_check))
+    BATCH_SIZE = 3
+    async with httpx.AsyncClient(timeout=15.0) as col_client:
         for i in range(0, len(to_check), BATCH_SIZE):
             batch = to_check[i:i + BATCH_SIZE]
             await asyncio.gather(*[
                 _check_collection_is_gift(col_client, addr)
                 for addr in batch
             ])
+            # Small delay between batches to respect rate limits
+            if i + BATCH_SIZE < len(to_check):
+                await asyncio.sleep(0.15)
 
     result = []
     for item in items:
@@ -345,6 +355,9 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             "traits": traits,
             "is_telegram_gift": is_gift,
         })
+
+    gift_count = sum(1 for r in result if r["is_telegram_gift"])
+    logger.info("[nfts] result: %d total, %d gifts, %d other", len(result), gift_count, len(result) - gift_count)
     return result
 
 
@@ -391,11 +404,18 @@ async def _check_collection_is_gift(client: httpx.AsyncClient, col_address: str)
         return _gift_collection_cache[col_address]
 
     try:
+        import asyncio
         encoded = quote(col_address, safe="")
-        r = await _tonapi_get(client, f"{TONAPI_BASE}/v2/nfts/collections/{encoded}")
+        url = f"{TONAPI_BASE}/v2/nfts/collections/{encoded}"
+        r = await _tonapi_get(client, url)
+        # Retry once on rate limit or server error
+        if r.status_code in (429, 500, 502, 503):
+            logger.warning("[gift_check] %d for col %s, retrying...", r.status_code, col_address[-20:])
+            await asyncio.sleep(0.5)
+            r = await _tonapi_get(client, url)
         if r.status_code != 200:
-            logger.warning("[gift_check] %d for col %s", r.status_code, col_address[-20:])
-            # Don't cache failures — retry next time
+            logger.warning("[gift_check] %d for col %s (final)", r.status_code, col_address[-20:])
+            # Don't cache failures — retry next request
             return False
         data = r.json()
         meta = data.get("metadata") or {}
