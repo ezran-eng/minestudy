@@ -39,8 +39,6 @@ async def _tonapi_get(client: httpx.AsyncClient, url: str, **kwargs) -> httpx.Re
         r = await client.get(url, headers=headers, **kwargs)
     return r
 
-# In-memory cache: collection_address -> is_telegram_gift (bool)
-_gift_collection_cache: dict[str, bool] = {}
 
 # Expected domain — must match tonconnect-manifest.json
 _EXPECTED_DOMAIN = "minestudy.vercel.app"
@@ -276,9 +274,8 @@ async def get_wallet_public_key(address: str, state_init: str | None = None) -> 
 async def get_nfts_for_wallet(address: str) -> list[dict]:
     """
     Consulta TonAPI para obtener TODOS los NFTs de una wallet.
-    Pagina si hay más de 256 NFTs. Incluye flag is_telegram_gift.
+    Pagina si hay más de 256 NFTs. Detecta Telegram gifts sin API calls extra.
     """
-    import asyncio
     encoded = quote(address, safe="")
     items: list[dict] = []
     PAGE_SIZE = 256
@@ -297,33 +294,11 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
                 r.raise_for_status()
             page = r.json().get("nft_items", [])
             items.extend(page)
-            logger.info("[nfts] page offset=%d got %d items (total so far: %d)", offset, len(page), len(items))
             if len(page) < PAGE_SIZE:
                 break
             offset += PAGE_SIZE
 
-    # Pre-check all unique collections to determine which are Telegram gifts
-    # Process in batches of 3 with retry to avoid TonAPI rate limiting
-    seen: set[str] = set()
-    to_check: list[str] = []
-    for item in items:
-        addr = (item.get("collection") or {}).get("address", "")
-        if addr and addr not in seen and addr not in _gift_collection_cache:
-            seen.add(addr)
-            to_check.append(addr)
-
-    logger.info("[nfts] checking %d unique collections for gift status", len(to_check))
-    BATCH_SIZE = 3
-    async with httpx.AsyncClient(timeout=15.0) as col_client:
-        for i in range(0, len(to_check), BATCH_SIZE):
-            batch = to_check[i:i + BATCH_SIZE]
-            await asyncio.gather(*[
-                _check_collection_is_gift(col_client, addr)
-                for addr in batch
-            ])
-            # Small delay between batches to respect rate limits
-            if i + BATCH_SIZE < len(to_check):
-                await asyncio.sleep(0.15)
+    logger.info("[nfts] fetched %d total NFTs for %s", len(items), address[:20])
 
     result = []
     for item in items:
@@ -346,7 +321,7 @@ async def get_nfts_for_wallet(address: str) -> list[dict]:
             }
             for attr in meta.get("attributes", [])
         ]
-        is_gift = is_telegram_gift(item)
+        is_gift = _is_telegram_gift_fast(item)
         result.append({
             "address": item.get("address", ""),
             "nombre": meta.get("name", "") or collection.get("name", ""),
@@ -394,60 +369,31 @@ async def get_nft_metadata(nft_address: str) -> dict:
     }
 
 
-async def _check_collection_is_gift(client: httpx.AsyncClient, col_address: str) -> bool:
+def _is_telegram_gift_fast(nft_item: dict) -> bool:
     """
-    Checks TonAPI collection metadata to determine if it's a Telegram gift.
-    Telegram gifts have nft.fragment.com in on-chain data or metadata links.
-    Results are cached in memory.
+    Detects Telegram gifts using data already in the NFT item response.
+    No extra API calls needed. Checks:
+    1. metadata.image contains nft.fragment.com (most reliable)
+    2. metadata.external_url/external_link contains fragment.com/gifts/
+    3. Collection description mentions Telegram gifts
     """
-    if col_address in _gift_collection_cache:
-        return _gift_collection_cache[col_address]
-
-    try:
-        import asyncio
-        encoded = quote(col_address, safe="")
-        url = f"{TONAPI_BASE}/v2/nfts/collections/{encoded}"
-        r = await _tonapi_get(client, url)
-        # Retry once on rate limit or server error
-        if r.status_code in (429, 500, 502, 503):
-            logger.warning("[gift_check] %d for col %s, retrying...", r.status_code, col_address[-20:])
-            await asyncio.sleep(0.5)
-            r = await _tonapi_get(client, url)
-        if r.status_code != 200:
-            logger.warning("[gift_check] %d for col %s (final)", r.status_code, col_address[-20:])
-            # Don't cache failures — retry next request
-            return False
-        data = r.json()
-        meta = data.get("metadata") or {}
-        desc = (meta.get("description") or "").lower()
-        # Check both field names (TonAPI uses both)
-        ext_link = (meta.get("external_link") or meta.get("external_url") or "").lower()
-        # Decode hex raw_collection_content to find nft.fragment.com
-        raw_hex = data.get("raw_collection_content") or ""
-        raw_decoded = ""
-        if raw_hex:
-            try:
-                raw_decoded = bytes.fromhex(raw_hex).decode("utf-8", errors="ignore").lower()
-            except Exception:
-                pass
-
-        is_gift = (
-            "fragment.com/gifts/" in ext_link
-            or "nft.fragment.com" in raw_decoded
-            or ("telegram" in desc and ("gift" in desc or "nft collection" in desc))
-        )
-        logger.info("[gift_check] col=%s | link=%s | raw_has_fragment=%s | is_gift=%s",
-                     col_address[-20:], ext_link[:60], "nft.fragment.com" in raw_decoded, is_gift)
-        _gift_collection_cache[col_address] = is_gift
-        return is_gift
-    except Exception as e:
-        logger.warning("[gift_check] error for %s: %s", col_address[-20:], e)
-        # Don't cache errors — retry next time
-        return False
-
-
-def is_telegram_gift(nft_item: dict) -> bool:
-    """Sync check using cache only. Use _check_collection_is_gift for async check."""
+    meta = nft_item.get("metadata") or {}
     collection = nft_item.get("collection") or {}
-    col_addr = collection.get("address", "")
-    return _gift_collection_cache.get(col_addr, False)
+
+    # Check NFT image URL — all Telegram gifts use nft.fragment.com
+    image = (meta.get("image") or "").lower()
+    if "nft.fragment.com" in image:
+        return True
+
+    # Check external links
+    for field in ("external_url", "external_link"):
+        link = (meta.get(field) or "").lower()
+        if "fragment.com" in link:
+            return True
+
+    # Check collection description (sometimes embedded in NFT item)
+    col_desc = (collection.get("description") or "").lower()
+    if "telegram" in col_desc and "nft collection" in col_desc:
+        return True
+
+    return False
