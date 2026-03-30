@@ -141,6 +141,7 @@
     "loadingProfile": "Loading profile...",
     "errorProfile": "Could not load profile",
     "noSubjects": "You're not following any subjects yet",
+    "subjectsTab": "Subjects",
     "studying": "📚 Studying",
     "completedSubjects": "🎓 Completed",
     "settings": "Settings",
@@ -433,7 +434,8 @@
     "applyToMateria": "Apply style to a subject",
     "applyToMateriaDesc": "Use this gift's color to customize a subject card",
     "pickMateriaToStyle": "Which subject to style?",
-    "unpinGift": "Remove as active gift"
+    "unpinGift": "Remove as active gift",
+    "connectToSeeGifts": "Connect your TON wallet to see your Telegram gifts"
   },
 
   "common": {

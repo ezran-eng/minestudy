@@ -12,6 +12,36 @@ import NftBadge from '../components/NftBadge';
 import { updateMateria } from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Generate a deterministic color from a string (collection name, gift name, etc.)
+const hashColor = (str) => {
+  const PALETTE = [
+    '#0098EA', '#e05263', '#8b5cf6', '#22c55e', '#f59e0b',
+    '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6',
+    '#ef4444', '#a855f7', '#3b82f6', '#84cc16', '#d946ef',
+  ];
+  let hash = 0;
+  for (let i = 0; i < (str || '').length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PALETTE[Math.abs(hash) % PALETTE.length];
+};
+
+// Extended trait-to-color map
+const TRAIT_COLORS = {
+  'onyx black': '#2d2d3d', 'golden': '#c9a227', 'space gray': '#6b7280',
+  'red rose': '#c0392b', 'lemon slice': '#eab308', 'purple': '#8b5cf6',
+  'blue': '#3b82f6', 'green': '#22c55e', 'pink': '#ec4899',
+  'ivory white': '#f5f5dc', 'silver': '#94a3b8', 'bronze': '#cd7f32',
+  'ruby': '#e0115f', 'sapphire': '#0f52ba', 'emerald': '#50c878',
+  'red': '#ef4444', 'orange': '#f97316', 'yellow': '#eab308',
+  'cyan': '#06b6d4', 'teal': '#14b8a6', 'indigo': '#6366f1',
+  'violet': '#7c3aed', 'magenta': '#d946ef', 'rose': '#f43f5e',
+  'amber': '#f59e0b', 'lime': '#84cc16', 'sky': '#0ea5e9',
+  'white': '#e2e8f0', 'black': '#1e1e2e', 'gold': '#c9a227',
+  'dark blue': '#1e3a5f', 'dark green': '#166534', 'dark red': '#991b1b',
+  'light blue': '#7dd3fc', 'light green': '#86efac', 'light pink': '#fbcfe8',
+};
+
 const Toggle = ({ label, description, value, onChange, disabled }) => (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -89,6 +119,7 @@ const Profile = () => {
   const [activeNftData, setActiveNftData] = useState(null);
   const [giftCount, setGiftCount] = useState(null);
   const [applyGift, setApplyGift] = useState(null); // gift to apply to a materia
+  const [activeTab, setActiveTab] = useState('gifts'); // 'gifts' | 'materias'
   const queryClient = useQueryClient();
   const versionTaps = React.useRef(0);
   const versionTimer = React.useRef(null);
@@ -238,85 +269,139 @@ const Profile = () => {
           </div>
         )}
 
-        {/* Gifts section — negative margin to break out of profile-body 16px padding */}
-        <div style={{ marginTop: '20px', margin: '20px -16px 0' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 20px', marginBottom: '10px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="section-title">{t('wallet.giftsTitle')}</div>
-              {giftCount != null && (
-                <span style={{
-                  fontSize: '12px', fontWeight: 700,
-                  color: 'var(--text2)',
-                  background: 'var(--s2)', border: '1px solid var(--border)',
-                  borderRadius: '20px', padding: '1px 8px',
-                }}>{giftCount}</span>
-              )}
-            </div>
-            {walletAddress ? (
-              <TonConnectButton
-                walletAddress={walletAddress}
-                compact
-                onConnected={(addr) => setWalletAddress(addr)}
-                onDisconnected={() => {
-                  setWalletAddress(null);
-                  setActiveNftAddress(null);
-                  setActiveNftData(null);
-                  setGiftCount(null);
-                }}
-              />
-            ) : null}
-          </div>
-
-          {!walletAddress ? (
-            <div style={{ padding: '0 20px' }}>
-              <TonConnectButton
-                walletAddress={null}
-                onConnected={(addr) => setWalletAddress(addr)}
-                onDisconnected={() => {}}
-              />
-            </div>
-          ) : (
-            <GiftGrid
-              userId={user?.id}
-              activeAddress={activeNftAddress}
-              onNftChange={(addr, nft) => {
-                setActiveNftAddress(addr);
-                setActiveNftData(nft);
-              }}
-              onCountLoaded={(n) => setGiftCount(n)}
-              onApplyToMateria={(gift) => setApplyGift(gift)}
+        {/* Wallet connect (when not connected) */}
+        {!walletAddress && (
+          <div style={{ margin: '16px 0 0' }}>
+            <TonConnectButton
+              walletAddress={null}
+              onConnected={(addr) => setWalletAddress(addr)}
+              onDisconnected={() => {}}
             />
-          )}
+          </div>
+        )}
+
+        {/* Tab bar — Telegram-style */}
+        <div style={{
+          display: 'flex', margin: '20px -16px 0',
+          borderBottom: '1px solid var(--border)',
+          position: 'relative',
+        }}>
+          {[
+            { key: 'gifts', label: t('wallet.giftsTitle'), count: giftCount, icon: '🎁' },
+            { key: 'materias', label: t('profile.subjectsTab'), count: (perfil.materias_cursando?.length || 0) + (perfil.materias_completadas?.length || 0), icon: '📚' },
+          ].map(tab => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  flex: 1, padding: '12px 0 10px',
+                  background: 'none', border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  borderBottom: isActive ? '2px solid #0098EA' : '2px solid transparent',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>{tab.icon}</span>
+                <span style={{
+                  fontSize: '13px', fontWeight: 600,
+                  color: isActive ? 'var(--text)' : 'var(--text2)',
+                  transition: 'color 0.2s',
+                }}>{tab.label}</span>
+                {tab.count != null && tab.count > 0 && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: 700,
+                    color: isActive ? '#0098EA' : 'var(--text2)',
+                    background: isActive ? 'rgba(0,152,234,0.1)' : 'var(--s2)',
+                    borderRadius: '10px', padding: '1px 6px',
+                    minWidth: '18px', textAlign: 'center',
+                  }}>{tab.count}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Materias */}
-        {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
-          <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '24px 16px' }}>
-            {t('profile.noSubjects')}
-          </div>
-        ) : (
-          <>
-            {perfil.materias_cursando.length > 0 && (
-              <>
-                <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
-                  <div className="section-title">{t('profile.studying')}</div>
+        {/* Tab content */}
+        <div style={{ margin: '0 -16px' }}>
+          {/* Gifts tab */}
+          {activeTab === 'gifts' && (
+            <div>
+              {/* Compact wallet button header when connected */}
+              {walletAddress && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                  padding: '10px 16px 6px',
+                }}>
+                  <TonConnectButton
+                    walletAddress={walletAddress}
+                    compact
+                    onConnected={(addr) => setWalletAddress(addr)}
+                    onDisconnected={() => {
+                      setWalletAddress(null);
+                      setActiveNftAddress(null);
+                      setActiveNftData(null);
+                      setGiftCount(null);
+                    }}
+                  />
                 </div>
-                <MateriaList materias={perfil.materias_cursando} isOwnProfile navigate={navigate} />
-              </>
-            )}
-            {perfil.materias_completadas.length > 0 && (
-              <>
-                <div className="section-head" style={{ padding: '0 16px', marginTop: '20px', marginBottom: '10px' }}>
-                  <div className="section-title">{t('profile.completedSubjects')}</div>
+              )}
+
+              {walletAddress ? (
+                <GiftGrid
+                  userId={user?.id}
+                  activeAddress={activeNftAddress}
+                  onNftChange={(addr, nft) => {
+                    setActiveNftAddress(addr);
+                    setActiveNftData(nft);
+                  }}
+                  onCountLoaded={(n) => setGiftCount(n)}
+                  onApplyToMateria={(gift) => setApplyGift(gift)}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text2)' }}>
+                  <div style={{ fontSize: '44px', marginBottom: '12px' }}>💎</div>
+                  <div style={{ fontSize: '14px', lineHeight: 1.5 }}>
+                    {t('wallet.connectToSeeGifts')}
+                  </div>
                 </div>
-                <MateriaList materias={perfil.materias_completadas} isOwnProfile navigate={navigate} />
-              </>
-            )}
-          </>
-        )}
+              )}
+            </div>
+          )}
+
+          {/* Materias tab */}
+          {activeTab === 'materias' && (
+            <div style={{ padding: '0' }}>
+              {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
+                <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '48px 24px' }}>
+                  <div style={{ fontSize: '44px', marginBottom: '12px' }}>📚</div>
+                  {t('profile.noSubjects')}
+                </div>
+              ) : (
+                <>
+                  {perfil.materias_cursando.length > 0 && (
+                    <>
+                      <div className="section-head" style={{ padding: '0 16px', marginTop: '14px', marginBottom: '10px' }}>
+                        <div className="section-title">{t('profile.studying')}</div>
+                      </div>
+                      <MateriaList materias={perfil.materias_cursando} isOwnProfile navigate={navigate} />
+                    </>
+                  )}
+                  {perfil.materias_completadas.length > 0 && (
+                    <>
+                      <div className="section-head" style={{ padding: '0 16px', marginTop: '14px', marginBottom: '10px' }}>
+                        <div className="section-title">{t('profile.completedSubjects')}</div>
+                      </div>
+                      <MateriaList materias={perfil.materias_completadas} isOwnProfile navigate={navigate} />
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Versión — tocar 5 veces abre el panel de dev */}
         <div
@@ -592,29 +677,41 @@ const Profile = () => {
                 <button
                   key={m.id}
                   onClick={async () => {
-                    // Extract color from gift traits (Fondo/Background)
-                    const fondoTrait = (applyGift.traits || []).find(
-                      t => t.trait_type?.toLowerCase() === 'fondo' || t.trait_type?.toLowerCase() === 'background'
+                    // Extract color from ANY trait that looks like a color
+                    const colorTraits = (applyGift.traits || []);
+                    let giftColor = null;
+
+                    // 1. Try Fondo/Background trait
+                    const fondoTrait = colorTraits.find(
+                      t => ['fondo', 'background', 'color', 'backdrop'].includes(t.trait_type?.toLowerCase())
                     );
-                    // Map trait values to colors
-                    const TRAIT_COLORS = {
-                      'onyx black': '#2d2d3d', 'golden': '#c9a227', 'space gray': '#6b7280',
-                      'red rose': '#c0392b', 'lemon slice': '#eab308', 'purple': '#8b5cf6',
-                      'blue': '#3b82f6', 'green': '#22c55e', 'pink': '#ec4899',
-                      'ivory white': '#f5f5dc', 'silver': '#94a3b8', 'bronze': '#cd7f32',
-                      'ruby': '#e0115f', 'sapphire': '#0f52ba', 'emerald': '#50c878',
-                    };
-                    const traitColor = fondoTrait
-                      ? TRAIT_COLORS[fondoTrait.value?.toLowerCase()] || null
-                      : null;
-                    // Use gift emoji (first char of collection name) or fallback
-                    const giftEmoji = applyGift.coleccion
-                      ? String.fromCodePoint(applyGift.coleccion.codePointAt(0)) : null;
+                    if (fondoTrait) {
+                      giftColor = TRAIT_COLORS[fondoTrait.value?.toLowerCase()] || null;
+                    }
+
+                    // 2. Try any trait value that matches a known color name
+                    if (!giftColor) {
+                      for (const trait of colorTraits) {
+                        const v = (trait.value || '').toLowerCase();
+                        if (TRAIT_COLORS[v]) { giftColor = TRAIT_COLORS[v]; break; }
+                      }
+                    }
+
+                    // 3. Try any trait value that looks like a hex color
+                    if (!giftColor) {
+                      for (const trait of colorTraits) {
+                        const v = (trait.value || '').trim();
+                        if (/^#[0-9a-fA-F]{6}$/.test(v)) { giftColor = v; break; }
+                      }
+                    }
+
+                    // 4. Fallback: generate from gift collection name
+                    if (!giftColor) {
+                      giftColor = hashColor(applyGift.coleccion || applyGift.nombre || 'gift');
+                    }
 
                     try {
-                      await updateMateria(m.id, {
-                        ...(traitColor ? { color: traitColor } : {}),
-                      });
+                      await updateMateria(m.id, { color: giftColor });
                       queryClient.invalidateQueries({ queryKey: ['materias'] });
                       queryClient.invalidateQueries({ queryKey: ['perfil', user?.id] });
                     } catch (_) {}

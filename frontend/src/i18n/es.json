@@ -141,6 +141,7 @@
     "loadingProfile": "Cargando perfil...",
     "errorProfile": "No se pudo cargar el perfil",
     "noSubjects": "No seguís ninguna materia todavía",
+    "subjectsTab": "Materias",
     "studying": "📚 Cursando",
     "completedSubjects": "🎓 Completadas",
     "settings": "Configuración",
@@ -433,7 +434,8 @@
     "applyToMateria": "Aplicar estilo a una materia",
     "applyToMateriaDesc": "Usa el color de este gift para personalizar una materia",
     "pickMateriaToStyle": "¿A qué materia aplicar el estilo?",
-    "unpinGift": "Quitar como regalo activo"
+    "unpinGift": "Quitar como regalo activo",
+    "connectToSeeGifts": "Conecta tu wallet TON para ver tus regalos de Telegram"
   },
 
   "common": {
