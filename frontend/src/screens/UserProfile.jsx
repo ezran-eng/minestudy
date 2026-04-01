@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTelegram } from '../hooks/useTelegram';
 import { getUserPerfil } from '../services/api';
 import MateriaList from '../components/MateriaList';
+import NftBadge from '../components/NftBadge';
 
 const UserProfile = () => {
   const { id } = useParams();
@@ -44,6 +45,12 @@ const UserProfile = () => {
             🔥 {perfil.racha} {perfil.racha === 1 ? 'día' : 'días'}
           </div>
         </div>
+
+        {perfil.mostrar_nft && perfil.nft_activo_data && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+            <NftBadge nftData={perfil.nft_activo_data} size="md" />
+          </div>
+        )}
 
         {(perfil.materias_cursando.length === 0 && perfil.materias_completadas.length === 0) ? (
           <div style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', padding: '24px 16px' }}>

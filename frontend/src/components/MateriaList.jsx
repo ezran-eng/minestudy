@@ -1,10 +1,30 @@
 import React from 'react';
 
+// Determine if a hex color is light (luminance > 0.5)
+const isLightColor = (hex) => {
+  if (!hex || !hex.startsWith('#')) return false;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.6;
+};
+
 const MateriaList = ({ materias, isOwnProfile, navigate }) => (
   <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
     {materias.map(m => {
-      const color = m.color || 'var(--gold)';
-      const hasGift = !!m.gift_image;
+      const rawColor = m.color || null;
+      const color = rawColor || 'var(--gold)';
+      const hasGift = !!m.gift_image && !!rawColor;
+      // For light colors on dark theme, use a darker variant for the bg tint
+      const light = rawColor ? isLightColor(rawColor) : false;
+      // Card background: solid tint when gift applied
+      const cardBg = hasGift
+        ? light
+          ? `rgba(30,30,40,0.95)` // dark card so light watermark pops
+          : `linear-gradient(135deg, ${rawColor}28 0%, ${rawColor}10 100%)`
+        : 'var(--s2)';
+      const cardBorder = hasGift ? `${rawColor}50` : 'var(--border)';
+
       return (
         <div
           key={m.id}
@@ -15,32 +35,30 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
           style={{
             position: 'relative',
             overflow: 'hidden',
-            background: hasGift
-              ? `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`
-              : 'var(--s2)',
+            background: cardBg,
             borderRadius: '14px',
             padding: '14px 16px',
-            border: `1px solid ${hasGift ? color + '30' : 'var(--border)'}`,
+            border: `1px solid ${cardBorder}`,
             cursor: isOwnProfile && navigate ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}
         >
-          {/* Subtle gift watermark */}
+          {/* Gift image watermark — right side, large and visible */}
           {hasGift && (
             <img
               src={m.gift_image}
               alt=""
               style={{
                 position: 'absolute',
-                right: '-8px',
+                right: '-10px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '72px',
-                height: '72px',
+                width: '80px',
+                height: '80px',
                 objectFit: 'contain',
-                opacity: 0.12,
+                opacity: light ? 0.18 : 0.22,
                 pointerEvents: 'none',
-                filter: 'saturate(1.3)',
+                filter: `saturate(1.4) ${light ? 'brightness(1.2)' : 'brightness(1)'}`,
               }}
             />
           )}
@@ -74,7 +92,7 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
               </span>
             </div>
             <div style={{
-              background: hasGift ? `${color}15` : 'var(--s3)',
+              background: hasGift ? `${color}20` : 'var(--s3)',
               borderRadius: '4px', height: '4px',
               overflow: 'hidden',
             }}>

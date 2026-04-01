@@ -1532,6 +1532,22 @@ def get_user_perfil(id: int, db: Session = Depends(get_db)):
         "wallet_address": user.wallet_address,
         "nft_activo_address": user.nft_activo_address,
         "mostrar_nft": user.mostrar_nft if user.mostrar_nft is not None else False,
+        "nft_activo_data": _get_nft_activo_data(user, db),
+    }
+
+def _get_nft_activo_data(user, db):
+    """Return cached NFT data for the user's active gift, or None."""
+    if not user.nft_activo_address or not (user.mostrar_nft or True):
+        return None
+    cached = db.query(models.NftCache).filter(models.NftCache.address == user.nft_activo_address).first()
+    if not cached:
+        return None
+    return {
+        "address": cached.address,
+        "nombre": cached.nombre,
+        "coleccion": cached.coleccion,
+        "imagen_url": cached.imagen_url,
+        "traits": cached.traits or [],
     }
 
 

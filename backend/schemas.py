@@ -143,6 +143,7 @@ class MateriaPorcentaje(BaseModel):
     nombre: str
     emoji: Optional[str] = None
     color: Optional[str] = None
+    gift_image: Optional[str] = None
     porcentaje: float
 
 class UserPerfil(BaseModel):
@@ -157,6 +158,7 @@ class UserPerfil(BaseModel):
     wallet_address: Optional[str] = None
     nft_activo_address: Optional[str] = None
     mostrar_nft: bool = False
+    nft_activo_data: Optional[dict] = None
 
 class PdfVistoCreate(BaseModel):
     id_usuario: int
