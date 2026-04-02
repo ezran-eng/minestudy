@@ -1,12 +1,12 @@
 import React from 'react';
 
-// Determine if a hex color is light (luminance > 0.5)
-const isLightColor = (hex) => {
-  if (!hex || !hex.startsWith('#')) return false;
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return 0.299 * r + 0.587 * g + 0.114 * b > 0.6;
+// Convert hex (#rrggbb) to rgba string
+const hexToRgba = (hex, alpha) => {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return `rgba(200,180,100,${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 };
 
 const MateriaList = ({ materias, isOwnProfile, navigate }) => (
@@ -14,16 +14,8 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
     {materias.map(m => {
       const rawColor = m.color || null;
       const color = rawColor || 'var(--gold)';
-      const hasGift = !!m.gift_image && !!rawColor;
-      // For light colors on dark theme, use a darker variant for the bg tint
-      const light = rawColor ? isLightColor(rawColor) : false;
-      // Card background: solid tint when gift applied
-      const cardBg = hasGift
-        ? light
-          ? `rgba(30,30,40,0.95)` // dark card so light watermark pops
-          : `linear-gradient(135deg, ${rawColor}28 0%, ${rawColor}10 100%)`
-        : 'var(--s2)';
-      const cardBorder = hasGift ? `${rawColor}50` : 'var(--border)';
+      const hasGift = !!m.gift_image;
+      const hasColor = !!rawColor;
 
       return (
         <div
@@ -35,30 +27,32 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
           style={{
             position: 'relative',
             overflow: 'hidden',
-            background: cardBg,
+            background: hasColor
+              ? `linear-gradient(135deg, ${hexToRgba(rawColor, 0.15)} 0%, ${hexToRgba(rawColor, 0.05)} 100%)`
+              : 'var(--s2)',
             borderRadius: '14px',
             padding: '14px 16px',
-            border: `1px solid ${cardBorder}`,
+            border: `1px solid ${hasColor ? hexToRgba(rawColor, 0.3) : 'var(--border)'}`,
             cursor: isOwnProfile && navigate ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}
         >
-          {/* Gift image watermark — right side, large and visible */}
+          {/* Gift image watermark */}
           {hasGift && (
             <img
               src={m.gift_image}
               alt=""
               style={{
                 position: 'absolute',
-                right: '-10px',
+                right: '-5px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '80px',
-                height: '80px',
+                width: '85px',
+                height: '85px',
                 objectFit: 'contain',
-                opacity: light ? 0.18 : 0.22,
+                opacity: 0.2,
                 pointerEvents: 'none',
-                filter: `saturate(1.4) ${light ? 'brightness(1.2)' : 'brightness(1)'}`,
+                filter: 'saturate(1.3)',
               }}
             />
           )}
@@ -66,8 +60,8 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
           {/* Emoji badge */}
           <div style={{
             width: '42px', height: '42px', borderRadius: '11px',
-            background: `${color}22`,
-            border: `1.5px solid ${color}55`,
+            background: hasColor ? hexToRgba(rawColor, 0.15) : `${color}22`,
+            border: `1.5px solid ${hasColor ? hexToRgba(rawColor, 0.35) : `${color}55`}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '20px', flexShrink: 0,
             position: 'relative', zIndex: 1,
@@ -87,18 +81,23 @@ const MateriaList = ({ materias, isOwnProfile, navigate }) => (
               }}>
                 {m.nombre}
               </span>
-              <span style={{ fontSize: '13px', color, fontWeight: 700, flexShrink: 0, marginLeft: '8px' }}>
+              <span style={{
+                fontSize: '13px', fontWeight: 700, flexShrink: 0, marginLeft: '8px',
+                color: hasColor ? rawColor : color,
+              }}>
                 {Math.round(m.porcentaje)}%
               </span>
             </div>
             <div style={{
-              background: hasGift ? `${color}20` : 'var(--s3)',
+              background: hasColor ? hexToRgba(rawColor, 0.12) : 'var(--s3)',
               borderRadius: '4px', height: '4px',
               overflow: 'hidden',
             }}>
               <div style={{
                 width: `${Math.min(m.porcentaje, 100)}%`, height: '100%',
-                background: `linear-gradient(90deg, ${color}, ${color}88)`,
+                background: hasColor
+                  ? `linear-gradient(90deg, ${rawColor}, ${hexToRgba(rawColor, 0.5)})`
+                  : `linear-gradient(90deg, ${color}, ${color}88)`,
                 borderRadius: '4px',
                 transition: 'width 0.3s ease',
               }} />

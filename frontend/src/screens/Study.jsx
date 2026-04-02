@@ -8,6 +8,14 @@ import { useMascotaUpdate } from '../context/MascotaContext';
 import VistaBadge from '../components/VistaBadge';
 import ConfirmModal from '../components/ConfirmModal';
 
+const hexToRgba = (hex, alpha) => {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return `rgba(200,180,100,${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
 const Study = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -269,7 +277,7 @@ const Study = () => {
                 borderLeftColor: color,
                 position: 'relative',
                 overflow: 'hidden',
-                ...(materia.gift_image ? { background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`, borderColor: `${color}30` } : {}),
+                ...(materia.gift_image ? { background: `linear-gradient(135deg, ${hexToRgba(color, 0.15)} 0%, ${hexToRgba(color, 0.05)} 100%)`, borderColor: hexToRgba(color, 0.3) } : {}),
                 ...(hoveredMateriaId
                   ? String(materia.id) === hoveredMateriaId
                     ? {
@@ -292,10 +300,10 @@ const Study = () => {
               {/* Gift watermark */}
               {materia.gift_image && (
                 <img src={materia.gift_image} alt="" style={{
-                  position: 'absolute', right: '-8px', top: '50%',
+                  position: 'absolute', right: '-5px', top: '50%',
                   transform: 'translateY(-50%)',
-                  width: '72px', height: '72px', objectFit: 'contain',
-                  opacity: 0.12, pointerEvents: 'none', filter: 'saturate(1.3)',
+                  width: '80px', height: '80px', objectFit: 'contain',
+                  opacity: 0.2, pointerEvents: 'none', filter: 'saturate(1.3)',
                 }} />
               )}
               <div className="materia-emoji-big" style={{

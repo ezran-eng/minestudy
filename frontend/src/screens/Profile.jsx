@@ -677,9 +677,15 @@ const Profile = () => {
                 <button
                   key={m.id}
                   onClick={async () => {
-                    // Extract color from ANY trait that looks like a color
                     const colorTraits = (applyGift.traits || []);
                     let giftColor = null;
+                    let symbolName = null;
+
+                    // Extract symbol trait (Símbolo / Symbol)
+                    const symbolTrait = colorTraits.find(
+                      t => ['symbol', 'símbolo', 'simbolo'].includes(t.trait_type?.toLowerCase())
+                    );
+                    if (symbolTrait) symbolName = symbolTrait.value;
 
                     // 1. Try Fondo/Background trait
                     const fondoTrait = colorTraits.find(
@@ -710,6 +716,8 @@ const Profile = () => {
                       giftColor = hashColor(applyGift.coleccion || applyGift.nombre || 'gift');
                     }
 
+                    console.log('[apply-gift]', { traits: colorTraits, fondoTrait, giftColor, symbolName, gift: applyGift.nombre });
+
                     try {
                       await updateMateria(m.id, {
                         color: giftColor,
@@ -717,7 +725,9 @@ const Profile = () => {
                       });
                       queryClient.invalidateQueries({ queryKey: ['materias'] });
                       queryClient.invalidateQueries({ queryKey: ['perfil', user?.id] });
-                    } catch (_) {}
+                    } catch (e) {
+                      console.error('[apply-gift] updateMateria failed:', e);
+                    }
                     setApplyGift(null);
                   }}
                   style={{
