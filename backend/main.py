@@ -121,11 +121,24 @@ def get_r2_client():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-migrate: add missing columns
+    # Auto-migrate: add missing columns & indexes
     with engine.connect() as conn:
         for col, typ in [("gift_image", "VARCHAR")]:
             try:
                 conn.execute(sa.text(f"ALTER TABLE materias ADD COLUMN {col} {typ}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        # Create missing indexes (IF NOT EXISTS prevents errors on re-run)
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS ix_flashcards_id_unidad ON flashcards (id_unidad)",
+            "CREATE INDEX IF NOT EXISTS ix_quiz_preguntas_id_unidad ON quiz_preguntas (id_unidad)",
+            "CREATE INDEX IF NOT EXISTS ix_infografias_id_unidad ON infografias (id_unidad)",
+            "CREATE INDEX IF NOT EXISTS ix_pdfs_id_unidad ON pdfs (id_unidad)",
+            "CREATE INDEX IF NOT EXISTS ix_progreso_id_usuario ON progreso (id_usuario)",
+        ]:
+            try:
+                conn.execute(sa.text(idx_sql))
                 conn.commit()
             except Exception:
                 conn.rollback()
@@ -826,7 +839,9 @@ def delete_quiz_by_unidad(id_unidad: int, db: Session = Depends(get_db)):
     return
 
 @app.get("/ranking", response_model=List[schemas.RankingUser])
+@limiter.limit("10/minute")
 def get_ranking(
+    request: Request,
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -1983,7 +1998,8 @@ def get_mascota_hint(id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/mascota/chat")
-async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+async def mascota_chat(request: Request, body: schemas.MascotaChatRequest, db: Session = Depends(get_db)):
     """Generate a context-aware mascota message using the configured LLM provider.
     No auth required — non-destructive read-only endpoint, userId in body suffices."""
     try:
@@ -2007,7 +2023,8 @@ async def mascota_chat(body: schemas.MascotaChatRequest, db: Session = Depends(g
 
 
 @app.post("/tutor/chat", dependencies=[Depends(require_init_data)])
-async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+async def tutor_chat(request: Request, body: schemas.TutorChatRequest, db: Session = Depends(get_db)):
     """Multi-turn tutor chat with Redo, scoped to a specific unidad."""
     try:
         # Quota check
@@ -2025,8 +2042,9 @@ async def tutor_chat(body: schemas.TutorChatRequest, db: Session = Depends(get_d
         return {"respuesta": "Perdón, no pude procesar tu pregunta. Intentá de nuevo."}
 
 
-@app.post("/tutor/accion")
-async def tutor_accion(body: schemas.TutorAccionRequest, db: Session = Depends(get_db)):
+@app.post("/tutor/accion", dependencies=[Depends(require_init_data)])
+@limiter.limit("20/minute")
+async def tutor_accion(request: Request, body: schemas.TutorAccionRequest, db: Session = Depends(get_db)):
     """Single focused study action — no history, minimal tokens (~150-280/call)."""
     try:
         # Quota check
@@ -2077,7 +2095,8 @@ def get_unidad_temas(id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/ai/generate/flashcards", dependencies=[Depends(require_init_data)])
-async def ai_generate_flashcards(body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def ai_generate_flashcards(request: Request, body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
     """Generate flashcards for a unidad using AI."""
     try:
         cards = await generate_flashcards(body.unidad_id, min(body.count, 15), db)
@@ -2088,7 +2107,8 @@ async def ai_generate_flashcards(body: schemas.AIGenerateRequest, db: Session = 
 
 
 @app.post("/ai/generate/quiz", dependencies=[Depends(require_init_data)])
-async def ai_generate_quiz(body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def ai_generate_quiz(request: Request, body: schemas.AIGenerateRequest, db: Session = Depends(get_db)):
     """Generate quiz questions for a unidad using AI."""
     try:
         questions = await generate_quiz(body.unidad_id, min(body.count, 10), db)
@@ -2482,17 +2502,19 @@ def admin_ai_by_user(days: int = 7, db: Session = Depends(get_db)):
         .limit(20)
         .all()
     )
-    result = []
-    for r in rows:
-        user = db.query(models.User).filter(models.User.id_telegram == r.id_usuario).first()
-        result.append({
+    # Batch fetch all users in one query instead of N+1
+    user_ids = [r.id_usuario for r in rows]
+    users = {u.id_telegram: u for u in db.query(models.User).filter(models.User.id_telegram.in_(user_ids)).all()} if user_ids else {}
+    return [
+        {
             "id_usuario": r.id_usuario,
-            "nombre": user.first_name if user else "?",
+            "nombre": users[r.id_usuario].first_name if r.id_usuario in users else "?",
             "calls": r.calls,
             "tokens": int(r.tokens),
             "costo_usd": round(float(r.costo), 6),
-        })
-    return result
+        }
+        for r in rows
+    ]
 
 
 @app.get("/admin/ai/timeline", dependencies=[Depends(require_admin)])

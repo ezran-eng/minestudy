@@ -96,7 +96,7 @@ class Flashcard(Base):
     __tablename__ = "flashcards"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False, index=True)
     pregunta = Column(String, nullable=False)
     respuesta = Column(String, nullable=False)
 
@@ -107,7 +107,7 @@ class QuizPregunta(Base):
     __tablename__ = "quiz_preguntas"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False, index=True)
     pregunta = Column(String, nullable=False)
     opcion_a = Column(String, nullable=False)
     opcion_b = Column(String, nullable=False)
@@ -122,7 +122,7 @@ class Progreso(Base):
     __tablename__ = "progreso"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False)
+    id_usuario = Column(BigInteger, ForeignKey("users.id_telegram"), nullable=False, index=True)
     id_materia = Column(Integer, ForeignKey("materias.id"), nullable=False)
     id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
     porcentaje = Column(Integer, nullable=False, default=0)
@@ -140,7 +140,7 @@ class Infografia(Base):
     __tablename__ = "infografias"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False, index=True)
     titulo = Column(String, nullable=False)
     url = Column(String, nullable=False)
     orden = Column(Integer, default=0, nullable=False)
@@ -152,7 +152,7 @@ class Pdf(Base):
     __tablename__ = "pdfs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    id_unidad = Column(Integer, ForeignKey("unidades.id"), nullable=False, index=True)
     titulo = Column(String, nullable=False)
     url = Column(String, nullable=False)
     orden = Column(Integer, default=0, nullable=False)

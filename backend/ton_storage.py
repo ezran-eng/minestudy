@@ -18,7 +18,11 @@ async def upload_to_ton(file_bytes: bytes, filename: str) -> str:
     temp_dir = os.path.join(TON_FILES_DIR, f"tmp_{uuid.uuid4()}")
     os.makedirs(temp_dir)
 
-    with open(os.path.join(temp_dir, filename), "wb") as f:
+    # Sanitize filename to prevent path traversal
+    safe_name = os.path.basename(filename).replace("\x00", "")
+    if not safe_name:
+        safe_name = "upload"
+    with open(os.path.join(temp_dir, safe_name), "wb") as f:
         f.write(file_bytes)
 
     async with httpx.AsyncClient(timeout=60.0, auth=_AUTH) as client:
